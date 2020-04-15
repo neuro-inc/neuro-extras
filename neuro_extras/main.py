@@ -7,9 +7,10 @@ import shutil
 import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, AsyncIterator, Dict, Sequence
+from typing import Any, AsyncIterator, Dict, MutableMapping, Sequence
 
 import click
+import toml
 from neuromation import api as neuro_api
 from neuromation.api.url_utils import normalize_storage_path_uri, uri_from_cli
 from neuromation.cli.asyncio_utils import run as run_async
@@ -203,3 +204,25 @@ async def _init_seldon_package(path: str) -> None:
         else:
             await client.storage.mkdir(uri, parents=True)
             await client.storage.upload_dir(URL(SELDON_CUSTOM_PATH.as_uri()), uri)
+
+
+@main.command("init-aliases")
+def init_aliases() -> None:
+    # TODO: support patching the global ~/.neuro/user.toml
+    toml_path = Path.cwd() / ".neuro.toml"
+    config: MutableMapping[str, Any] = {}
+    if toml_path.exists():
+        with toml_path.open("r") as f:
+            config = toml.load(f)
+    config.setdefault("alias", {})
+    config["alias"]["image-build"] = {
+        "exec": "neuro-extras image build {context} {image_uri}",
+        "args": "CONTEXT IMAGE_URI",
+    }
+    config["alias"]["seldon-init-package"] = {
+        "exec": "neuro-extras seldon init-package {uri_or_path}",
+        "args": "URI_OR_PATH",
+    }
+    with toml_path.open("w") as f:
+        toml.dump(config, f)
+    logger.info(f"Added aliases to {toml_path}")

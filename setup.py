@@ -5,6 +5,7 @@ install_requires = [
     "neuromation",
     "yarl",
     "click",
+    "toml",
     'dataclasses>=0.5; python_version<"3.7"',
 ]
 
