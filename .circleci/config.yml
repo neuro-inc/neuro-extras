@@ -1,0 +1,63 @@
+version: 2.1
+
+executors:
+  python:
+    docker:
+      - image: circleci/python:3.7.5-stretch
+
+defaults: &defaults
+  executor: python
+
+
+working_directory: ~/platform-pipelines
+
+
+jobs:
+
+  test:
+    <<: *defaults
+    steps:
+      - checkout
+
+      - restore_cache:
+          keys:
+          - v1-dependencies-python_3.7.5-{{ checksum "setup.py" }}-{{ checksum "requirements/syntax.txt" }}-{{ checksum "requirements/test.txt" }}
+
+      - run:
+          name: Install dependencies
+          command: |
+            python -m venv venv
+            source venv/bin/activate
+            pip install -U pip
+            make setup
+            neuro config login-with-token $NEURO_TOKEN $NEURO_URL
+
+      - save_cache:
+          paths:
+            - venv
+          key: v1-dependencies-python_3.7.5-{{ checksum "setup.py" }}-{{ checksum "requirements/syntax.txt" }}-{{ checksum "requirements/test.txt" }}
+
+      - run:
+          name: Running Static Code Analysis
+          command: |
+            source venv/bin/activate
+            make lint
+
+      - run:
+          name: Running E2E Tests
+          command: |
+            source venv/bin/activate
+            make test_e2e
+
+
+workflows:
+  version: 2
+
+  main:
+    jobs:
+      - test:
+          context: org-dev
+          filters:
+            branches:
+              ignore:
+                - master
