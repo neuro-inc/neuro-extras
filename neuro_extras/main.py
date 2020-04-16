@@ -4,6 +4,7 @@ import json
 import logging
 import re
 import shutil
+import sys
 import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -14,10 +15,11 @@ import toml
 from neuromation import api as neuro_api
 from neuromation.api.url_utils import normalize_storage_path_uri, uri_from_cli
 from neuromation.cli.asyncio_utils import run as run_async
+from neuromation.cli.const import EX_PLATFORMERROR
 from yarl import URL
 
 
-logger = logging.getLogger(__file__)
+logger = logging.getLogger(__name__)
 
 
 ASSETS_PATH = Path(__file__).resolve().parent / "assets"
@@ -131,14 +133,28 @@ class ImageBuilder:
             image_ref=image_ref,
         )
         # TODO: set proper tags
-        job = await self._client.jobs.run(builder_container)
+        job = await self._client.jobs.run(builder_container, life_span=60 * 60)
         logger.info(f"The builder job ID: {job.id}")
         return job
 
 
+class ClickLogHandler(logging.Handler):
+    def emit(self, record: logging.LogRecord) -> None:
+        try:
+            msg = self.format(record)
+            click.echo(msg)
+        except Exception:
+            self.handleError(record)
+
+
 @click.group()
 def main() -> None:
-    logging.basicConfig(format="%(levelname)s: %(message)s", level=logging.INFO)
+    handler = ClickLogHandler()
+    handler.setFormatter(logging.Formatter("%(levelname)s: %(message)s"))
+
+    root_logger = logging.getLogger()
+    root_logger.setLevel(logging.INFO)
+    root_logger.addHandler(handler)
 
 
 @main.group()
@@ -175,6 +191,10 @@ async def _build_image(context: str, image_uri: str) -> None:
             logger.error("The builder job has failed due to:")
             logger.error(f"  Reason: {job.history.reason}")
             logger.error(f"  Description: {job.history.description}")
+            exit_code = job.history.exit_code
+            if exit_code is None:
+                exit_code = EX_PLATFORMERROR
+            sys.exit(exit_code)
         else:
             logger.info(f"Successfully built {image_uri}")
 
@@ -188,6 +208,7 @@ def seldon() -> None:
 @click.argument("path")
 def seldon_init_package(path: str) -> None:
     run_async(_init_seldon_package(path))
+    click.echo(f"Copying a Seldon package scaffolding into {path}")
 
 
 async def _init_seldon_package(path: str) -> None:
