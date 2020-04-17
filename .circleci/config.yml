@@ -49,6 +49,20 @@ jobs:
             source venv/bin/activate
             make test_e2e
 
+  publish:
+    <<: *defaults
+    steps:
+      - checkout
+
+      - run:
+          name: devpi setup
+          command: |
+            make devpi_setup
+      - run:
+          name: devpi upload
+          command: |
+            make devpi_upload
+
 
 workflows:
   version: 2
@@ -61,3 +75,21 @@ workflows:
             branches:
               ignore:
                 - master
+  publish:
+    jobs:
+      - test:
+          context: org-dev
+          filters:
+            tags:
+              only: /^v.*/
+            branches:
+              ignore: /.*/
+      - publish:
+          context: org-global
+          requires:
+            - test
+          filters:
+            tags:
+              only: /^v.*/
+            branches:
+              ignore: /.*/
