@@ -25,9 +25,7 @@ test_e2e:
 test: lint test_e2e
 
 devpi_setup:
-	pip install devpi-client
-	pip install wheel
-	pip install -U setuptools
+	pip install -u -U devpi-client wheel setuptools
 	@devpi use $(DEVPI_URL)/$(DEVPI_INDEX)
 
 devpi_login:
