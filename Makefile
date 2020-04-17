@@ -23,3 +23,15 @@ test_e2e:
 	pytest -vv --maxfail=3 ${PYTEST_FLAGS} tests/e2e
 
 test: lint test_e2e
+
+devpi_setup:
+	pip install devpi-client
+	pip install wheel
+	pip install -U setuptools
+	@devpi use $(DEVPI_URL)/$(DEVPI_INDEX)
+
+devpi_login:
+	@devpi login $(DEVPI_USER) --password=$(DEVPI_PASS)
+
+devpi_upload: devpi_login
+	devpi upload --formats bdist_wheel
