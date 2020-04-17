@@ -1,4 +1,14 @@
+import re
+
 from setuptools import find_packages, setup
+
+
+with open("neuro_extras/__init__.py") as f:
+    txt = f.read()
+    try:
+        version = re.findall(r'^__version__ = "([^"]+)"\r?$', txt, re.M)[0]
+    except IndexError:
+        raise RuntimeError("Unable to determine version.")
 
 
 install_requires = [
@@ -11,7 +21,7 @@ install_requires = [
 
 setup(
     name="neuro-extras",
-    version="0.0.1b1",
+    version=version,
     python_requires=">=3.6.0",
     url="https://github.com/neuromation/neuro-extras",
     packages=find_packages(),
