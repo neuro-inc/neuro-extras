@@ -34,3 +34,12 @@ devpi_login:
 
 devpi_upload: devpi_login
 	devpi upload --formats bdist_wheel
+
+build:
+	@docker build -t neuromation/neuro-extras:latest \
+	    --build-arg PIP_EXTRA_INDEX_URL="$(PIP_EXTRA_INDEX_URL)" \
+	    --build-arg NEURO_EXTRAS_VERSION="$(shell python setup.py --version)" \
+	    .
+ifdef CIRCLECI
+	docker tag neuromation/neuro-extras:latest neuromation/neuro-extras:$(CIRCLECI_TAG)
+endif
