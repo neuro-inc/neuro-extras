@@ -89,7 +89,7 @@ workflows:
           context: org-dev
           filters:
             tags:
-              only: /\d{4}.\d\d.\d\d/
+              only: /.+/
             branches:
               ignore: /.*/
       - publish:
@@ -98,6 +98,6 @@ workflows:
             - test
           filters:
             tags:
-              only: /\d{4}.\d\d.\d\d/
+              only: /.+/
             branches:
               ignore: /.*/
