@@ -41,5 +41,5 @@ build:
 	    --build-arg NEURO_EXTRAS_VERSION="$(shell python setup.py --version)" \
 	    .
 ifdef CIRCLECI
-	docker tag neuromation/neuro-extras:latest neuromation/neuro-extras:$(CIRCLECI_TAG)
+	docker tag neuromation/neuro-extras:latest neuromation/neuro-extras:$(CIRCLE_TAG)
 endif
