@@ -12,6 +12,10 @@ defaults: &defaults
 working_directory: ~/platform-pipelines
 
 
+orbs:
+  docker: circleci/docker@0.5.20
+
+
 jobs:
 
   test:
@@ -62,6 +66,10 @@ jobs:
           name: devpi upload
           command: |
             make devpi_upload
+      - docker/check
+      - docker/push:
+          image: neuromation/neuro-extras
+          tag: $CIRCLE_TAG,latest
 
 
 workflows:
@@ -81,7 +89,7 @@ workflows:
           context: org-dev
           filters:
             tags:
-              only: /^v.*/
+              only: /\d{4}.\d\d.\d\d/
             branches:
               ignore: /.*/
       - publish:
@@ -90,6 +98,6 @@ workflows:
             - test
           filters:
             tags:
-              only: /^v.*/
+              only: /\d{4}.\d\d.\d\d/
             branches:
               ignore: /.*/
