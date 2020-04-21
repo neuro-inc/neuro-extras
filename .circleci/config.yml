@@ -67,6 +67,10 @@ jobs:
           name: devpi upload
           command: |
             make devpi_upload
+      - run:
+          name: Building Docker Image
+          command: |
+            make build
       - docker/check
       - docker/push:
           image: neuromation/neuro-extras
