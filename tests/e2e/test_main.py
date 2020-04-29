@@ -232,3 +232,76 @@ def test_seldon_generate_deployment(cli_runner: CLIRunner) -> None:
             ]
         },
     }
+
+
+def test_seldon_generate_deployment_custom(cli_runner: CLIRunner) -> None:
+    result = cli_runner(
+        [
+            "neuro-extras",
+            "seldon",
+            "generate-deployment",
+            "--name",
+            "test",
+            "--neuro-secret",
+            "test-neuro",
+            "--registry-secret",
+            "test-registry",
+            "image:model:latest",
+            "storage:model/model.pkl",
+        ]
+    )
+    assert result.returncode == 0, result
+
+    payload = yaml.safe_load(result.stdout)
+    expected_pod_spec = {
+        "volumes": [
+            {"emptyDir": {}, "name": "neuro-storage"},
+            {"name": "neuro-secret", "secret": {"secretName": "test-neuro"}},
+        ],
+        "imagePullSecrets": [{"name": "test-registry"}],
+        "initContainers": [
+            {
+                "name": "neuro-download",
+                "image": "neuromation/neuro-extras:latest",
+                "imagePullPolicy": "Always",
+                "command": ["bash", "-c"],
+                "args": [
+                    "cp -L -r /var/run/neuro/config /root/.neuro;"
+                    "chmod 0700 /root/.neuro;"
+                    "chmod 0600 /root/.neuro/db;"
+                    f"neuro cp storage:model/model.pkl /storage"
+                ],
+                "volumeMounts": [
+                    {"mountPath": "/storage", "name": "neuro-storage"},
+                    {"mountPath": "/var/run/neuro/config", "name": "neuro-secret"},
+                ],
+            }
+        ],
+        "containers": [
+            {
+                "name": "model",
+                "image": mock.ANY,
+                "imagePullPolicy": "Always",
+                "volumeMounts": [{"mountPath": "/storage", "name": "neuro-storage"}],
+            }
+        ],
+    }
+    assert payload == {
+        "apiVersion": "machinelearning.seldon.io/v1",
+        "kind": "SeldonDeployment",
+        "metadata": {"name": "test"},
+        "spec": {
+            "predictors": [
+                {
+                    "componentSpecs": [{"spec": expected_pod_spec}],
+                    "graph": {
+                        "endpoint": {"type": "REST"},
+                        "name": "model",
+                        "type": "MODEL",
+                    },
+                    "name": "predictor",
+                    "replicas": 1,
+                }
+            ]
+        },
+    }
