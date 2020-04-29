@@ -103,6 +103,16 @@ def test_seldon_deploy_from_local(cli_runner: CLIRunner) -> None:
     assert result.returncode == 0, result
 
 
+def test_config_save_docker_json_locally(cli_runner: CLIRunner) -> None:
+    result = cli_runner(["neuro-extras", "config", "save-docker-json", ".docker.json"])
+    assert result.returncode == 0, result
+
+    with Path(".docker.json").open() as f:
+        payload = json.load(f)
+
+    assert payload == {"auths": mock.ANY}
+
+
 def test_k8s_generate_secret(cli_runner: CLIRunner) -> None:
     result = cli_runner(["neuro-extras", "k8s", "generate-secret"])
     assert result.returncode == 0, result
