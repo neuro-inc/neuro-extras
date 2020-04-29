@@ -12,6 +12,7 @@ from typing import Any, AsyncIterator, Dict, MutableMapping, Sequence
 
 import click
 import toml
+import yaml
 from neuromation import api as neuro_api
 from neuromation.api.url_utils import normalize_storage_path_uri, uri_from_cli
 from neuromation.cli.asyncio_utils import run as run_async
@@ -64,7 +65,7 @@ class ImageBuilder:
             return f"{url.host}:{url.explicit_port}"  # type: ignore
         return url.host  # type: ignore
 
-    async def _create_docker_config(self) -> DockerConfig:
+    async def create_docker_config(self) -> DockerConfig:
         config = self._client.config
         token = await config.token()
         return DockerConfig(
@@ -77,7 +78,7 @@ class ImageBuilder:
             ]
         )
 
-    async def _save_docker_config(self, docker_config: DockerConfig, uri: URL) -> None:
+    async def save_docker_config(self, docker_config: DockerConfig, uri: URL) -> None:
         async def _gen() -> AsyncIterator[bytes]:
             yield json.dumps(docker_config.to_primitive()).encode()
 
@@ -101,7 +102,7 @@ class ImageBuilder:
             command=f"--destination={image_ref}",
         )
 
-    def _parse_image_ref(self, image_uri_str: str) -> str:
+    def parse_image_ref(self, image_uri_str: str) -> str:
         image = self._client.parse.remote_image(image_uri_str)
         return re.sub(r"^http[s]?://", "", image.as_docker_url())
 
@@ -120,13 +121,13 @@ class ImageBuilder:
             logger.info(f"Uploading {local_context_uri} to {context_uri}")
             await self._client.storage.upload_dir(local_context_uri, context_uri)
 
-        docker_config = await self._create_docker_config()
+        docker_config = await self.create_docker_config()
         docker_config_uri = build_uri / ".docker.config.json"
         logger.debug(f"Uploading {docker_config_uri}")
-        await self._save_docker_config(docker_config, docker_config_uri)
+        await self.save_docker_config(docker_config, docker_config_uri)
 
         logger.info(f"Submitting a builder job")
-        image_ref = self._parse_image_ref(image_uri_str)
+        image_ref = self.parse_image_ref(image_uri_str)
         builder_container = self._create_builder_container(
             docker_config_uri=docker_config_uri,
             context_uri=context_uri,
@@ -208,7 +209,6 @@ def seldon() -> None:
 @click.argument("path")
 def seldon_init_package(path: str) -> None:
     run_async(_init_seldon_package(path))
-    click.echo(f"Copying a Seldon package scaffolding into {path}")
 
 
 async def _init_seldon_package(path: str) -> None:
@@ -247,3 +247,174 @@ def init_aliases() -> None:
     with toml_path.open("w") as f:
         toml.dump(config, f)
     logger.info(f"Added aliases to {toml_path}")
+
+
+@main.group()
+def config() -> None:
+    pass
+
+
+@config.command("save-docker-json")
+@click.argument("path")
+def config_save_docker_json(path: str) -> None:
+    run_async(_save_docker_json(path))
+
+
+async def _save_docker_json(path: str) -> None:
+    async with neuro_api.get() as client:
+        uri = uri_from_cli(
+            path,
+            client.username,
+            client.cluster_name,
+            allowed_schemes=("file", "storage"),
+        )
+        builder = ImageBuilder(client)
+        docker_config = await builder.create_docker_config()
+        click.echo(f"Saving Docker config.json as {uri}")
+        if uri.scheme == "file":
+            with open(path, "w") as f:
+                json.dump(docker_config.to_primitive(), f)
+        else:
+            await builder.save_docker_config(docker_config, uri)
+
+
+async def _create_k8s_registry_secret(name: str) -> Dict[str, Any]:
+    async with neuro_api.get() as client:
+        builder = ImageBuilder(client)
+        docker_config = await builder.create_docker_config()
+        return {
+            "apiVersion": "v1",
+            "kind": "Secret",
+            "metadata": {"name": name},
+            "type": "kubernetes.io/dockerconfigjson",
+            "data": {
+                ".dockerconfigjson": base64.b64encode(
+                    json.dumps(docker_config.to_primitive()).encode()
+                ).decode(),
+            },
+        }
+
+
+async def _create_k8s_secret(name: str) -> Dict[str, Any]:
+    async with neuro_api.get() as client:
+        payload: Dict[str, Any] = {
+            "apiVersion": "v1",
+            "kind": "Secret",
+            "metadata": {"name": name},
+            "type": "Opaque",
+            "data": {},
+        }
+        config_path = Path(client.config._path)
+        for path in config_path.iterdir():
+            payload["data"][path.name] = base64.b64encode(path.read_bytes()).decode()
+        return payload
+
+
+async def _create_seldon_deployment(
+    *,
+    name: str,
+    neuro_secret_name: str,
+    registry_secret_name: str,
+    model_image_uri: str,
+    model_storage_uri: str,
+) -> Dict[str, Any]:
+    async with neuro_api.get() as client:
+        builder = ImageBuilder(client)
+        model_image_ref = builder.parse_image_ref(model_image_uri)
+
+    pod_spec = {
+        "volumes": [
+            {"emptyDir": {}, "name": "neuro-storage"},
+            {"name": "neuro-secret", "secret": {"secretName": neuro_secret_name}},
+        ],
+        "imagePullSecrets": [{"name": registry_secret_name}],
+        "initContainers": [
+            {
+                "name": "neuro-download",
+                "image": "neuromation/neuro-extras:latest",
+                "imagePullPolicy": "Always",
+                "command": ["bash", "-c"],
+                "args": [
+                    "cp -L -r /var/run/neuro/config /root/.neuro;"
+                    "chmod 0700 /root/.neuro;"
+                    "chmod 0600 /root/.neuro/db;"
+                    f"neuro cp {model_storage_uri} /storage"
+                ],
+                "volumeMounts": [
+                    {"mountPath": "/storage", "name": "neuro-storage"},
+                    {"mountPath": "/var/run/neuro/config", "name": "neuro-secret"},
+                ],
+            }
+        ],
+        "containers": [
+            {
+                "name": "model",
+                "image": model_image_ref,
+                "imagePullPolicy": "Always",
+                "volumeMounts": [{"mountPath": "/storage", "name": "neuro-storage"}],
+            }
+        ],
+    }
+    return {
+        "apiVersion": "machinelearning.seldon.io/v1",
+        "kind": "SeldonDeployment",
+        "metadata": {"name": name},
+        "spec": {
+            "predictors": [
+                {
+                    "componentSpecs": [{"spec": pod_spec}],
+                    "graph": {
+                        "endpoint": {"type": "REST"},
+                        "name": "model",
+                        "type": "MODEL",
+                    },
+                    "name": "predictor",
+                    "replicas": 1,
+                }
+            ]
+        },
+    }
+
+
+@main.group()
+def k8s() -> None:
+    pass
+
+
+@k8s.command("generate-secret")
+@click.option("--name", default="neuro")
+def generate_k8s_secret(name: str) -> None:
+    payload = run_async(_create_k8s_secret(name))
+    click.echo(yaml.dump(payload), nl=False)
+
+
+@k8s.command("generate-registry-secret")
+@click.option("--name", default="neuro-registry")
+def generate_k8s_registry_secret(name: str) -> None:
+    payload = run_async(_create_k8s_registry_secret(name))
+    click.echo(yaml.dump(payload), nl=False)
+
+
+@seldon.command("generate-deployment")
+@click.option("--name", default="neuro-model")
+@click.option("--neuro-secret", default="neuro")
+@click.option("--registry-secret", default="neuro-registry")
+@click.argument("model-image-uri")
+@click.argument("model-storage-uri")
+def generate_seldon_deployment(
+    name: str,
+    neuro_secret: str,
+    registry_secret: str,
+    model_image_uri: str,
+    model_storage_uri: str,
+) -> None:
+    payload = run_async(
+        _create_seldon_deployment(
+            name=name,
+            neuro_secret_name=neuro_secret,
+            registry_secret_name=registry_secret,
+            model_image_uri=model_image_uri,
+            model_storage_uri=model_storage_uri,
+        )
+    )
+    click.echo(yaml.dump(payload), nl=False)
