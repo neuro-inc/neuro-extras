@@ -1,3 +1,5 @@
+import base64
+import json
 import logging
 import os
 import uuid
@@ -5,8 +7,10 @@ from pathlib import Path
 from subprocess import CompletedProcess
 from tempfile import TemporaryDirectory
 from typing import Callable, Iterator, List
+from unittest import mock
 
 import pytest
+import yaml
 from _pytest.capture import CaptureFixture
 from neuromation.cli.const import EX_OK
 from neuromation.cli.main import cli as neuro_main
@@ -97,3 +101,217 @@ def test_seldon_deploy_from_local(cli_runner: CLIRunner) -> None:
 
     result = cli_runner(["neuro", "image-build", str(pkg_path), img_uri_str])
     assert result.returncode == 0, result
+
+
+def test_config_save_docker_json_locally(cli_runner: CLIRunner) -> None:
+    result = cli_runner(["neuro-extras", "config", "save-docker-json", ".docker.json"])
+    assert result.returncode == 0, result
+
+    with Path(".docker.json").open() as f:
+        payload = json.load(f)
+
+    assert payload == {"auths": mock.ANY}
+
+
+def test_k8s_generate_secret(cli_runner: CLIRunner) -> None:
+    result = cli_runner(["neuro-extras", "k8s", "generate-secret"])
+    assert result.returncode == 0, result
+
+    payload = yaml.safe_load(result.stdout)
+    assert payload == {
+        "apiVersion": "v1",
+        "kind": "Secret",
+        "metadata": {"name": "neuro"},
+        "type": "Opaque",
+        "data": mock.ANY,
+    }
+    assert payload["data"]["db"]
+
+
+def test_k8s_generate_secret_custom_name(cli_runner: CLIRunner) -> None:
+    result = cli_runner(["neuro-extras", "k8s", "generate-secret", "--name", "test"])
+    assert result.returncode == 0, result
+
+    payload = yaml.safe_load(result.stdout)
+    assert payload == {
+        "apiVersion": "v1",
+        "kind": "Secret",
+        "metadata": {"name": "test"},
+        "type": "Opaque",
+        "data": mock.ANY,
+    }
+    assert payload["data"]["db"]
+
+
+def test_k8s_generate_registry_secret(cli_runner: CLIRunner) -> None:
+    result = cli_runner(["neuro-extras", "k8s", "generate-registry-secret"])
+    assert result.returncode == 0, result
+
+    payload = yaml.safe_load(result.stdout)
+    assert payload == {
+        "apiVersion": "v1",
+        "kind": "Secret",
+        "metadata": {"name": "neuro-registry"},
+        "type": "kubernetes.io/dockerconfigjson",
+        "data": {".dockerconfigjson": mock.ANY},
+    }
+    docker_config_payload = json.loads(
+        base64.b64decode(payload["data"][".dockerconfigjson"])
+    )
+    assert docker_config_payload == {"auths": mock.ANY}
+
+
+def test_k8s_generate_registry_secret_custom_name(cli_runner: CLIRunner) -> None:
+    result = cli_runner(
+        ["neuro-extras", "k8s", "generate-registry-secret", "--name", "test"]
+    )
+    assert result.returncode == 0, result
+
+    payload = yaml.safe_load(result.stdout)
+    assert payload == {
+        "apiVersion": "v1",
+        "kind": "Secret",
+        "metadata": {"name": "test"},
+        "type": "kubernetes.io/dockerconfigjson",
+        "data": {".dockerconfigjson": mock.ANY},
+    }
+
+
+def test_seldon_generate_deployment(cli_runner: CLIRunner) -> None:
+    result = cli_runner(
+        [
+            "neuro-extras",
+            "seldon",
+            "generate-deployment",
+            "image:model:latest",
+            "storage:model/model.pkl",
+        ]
+    )
+    assert result.returncode == 0, result
+
+    payload = yaml.safe_load(result.stdout)
+    expected_pod_spec = {
+        "volumes": [
+            {"emptyDir": {}, "name": "neuro-storage"},
+            {"name": "neuro-secret", "secret": {"secretName": "neuro"}},
+        ],
+        "imagePullSecrets": [{"name": "neuro-registry"}],
+        "initContainers": [
+            {
+                "name": "neuro-download",
+                "image": "neuromation/neuro-extras:latest",
+                "imagePullPolicy": "Always",
+                "command": ["bash", "-c"],
+                "args": [
+                    "cp -L -r /var/run/neuro/config /root/.neuro;"
+                    "chmod 0700 /root/.neuro;"
+                    "chmod 0600 /root/.neuro/db;"
+                    f"neuro cp storage:model/model.pkl /storage"
+                ],
+                "volumeMounts": [
+                    {"mountPath": "/storage", "name": "neuro-storage"},
+                    {"mountPath": "/var/run/neuro/config", "name": "neuro-secret"},
+                ],
+            }
+        ],
+        "containers": [
+            {
+                "name": "model",
+                "image": mock.ANY,
+                "imagePullPolicy": "Always",
+                "volumeMounts": [{"mountPath": "/storage", "name": "neuro-storage"}],
+            }
+        ],
+    }
+    assert payload == {
+        "apiVersion": "machinelearning.seldon.io/v1",
+        "kind": "SeldonDeployment",
+        "metadata": {"name": "neuro-model"},
+        "spec": {
+            "predictors": [
+                {
+                    "componentSpecs": [{"spec": expected_pod_spec}],
+                    "graph": {
+                        "endpoint": {"type": "REST"},
+                        "name": "model",
+                        "type": "MODEL",
+                    },
+                    "name": "predictor",
+                    "replicas": 1,
+                }
+            ]
+        },
+    }
+
+
+def test_seldon_generate_deployment_custom(cli_runner: CLIRunner) -> None:
+    result = cli_runner(
+        [
+            "neuro-extras",
+            "seldon",
+            "generate-deployment",
+            "--name",
+            "test",
+            "--neuro-secret",
+            "test-neuro",
+            "--registry-secret",
+            "test-registry",
+            "image:model:latest",
+            "storage:model/model.pkl",
+        ]
+    )
+    assert result.returncode == 0, result
+
+    payload = yaml.safe_load(result.stdout)
+    expected_pod_spec = {
+        "volumes": [
+            {"emptyDir": {}, "name": "neuro-storage"},
+            {"name": "neuro-secret", "secret": {"secretName": "test-neuro"}},
+        ],
+        "imagePullSecrets": [{"name": "test-registry"}],
+        "initContainers": [
+            {
+                "name": "neuro-download",
+                "image": "neuromation/neuro-extras:latest",
+                "imagePullPolicy": "Always",
+                "command": ["bash", "-c"],
+                "args": [
+                    "cp -L -r /var/run/neuro/config /root/.neuro;"
+                    "chmod 0700 /root/.neuro;"
+                    "chmod 0600 /root/.neuro/db;"
+                    f"neuro cp storage:model/model.pkl /storage"
+                ],
+                "volumeMounts": [
+                    {"mountPath": "/storage", "name": "neuro-storage"},
+                    {"mountPath": "/var/run/neuro/config", "name": "neuro-secret"},
+                ],
+            }
+        ],
+        "containers": [
+            {
+                "name": "model",
+                "image": mock.ANY,
+                "imagePullPolicy": "Always",
+                "volumeMounts": [{"mountPath": "/storage", "name": "neuro-storage"}],
+            }
+        ],
+    }
+    assert payload == {
+        "apiVersion": "machinelearning.seldon.io/v1",
+        "kind": "SeldonDeployment",
+        "metadata": {"name": "test"},
+        "spec": {
+            "predictors": [
+                {
+                    "componentSpecs": [{"spec": expected_pod_spec}],
+                    "graph": {
+                        "endpoint": {"type": "REST"},
+                        "name": "model",
+                        "type": "MODEL",
+                    },
+                    "name": "predictor",
+                    "replicas": 1,
+                }
+            ]
+        },
+    }

@@ -16,6 +16,7 @@ install_requires = [
     "yarl",
     "click",
     "toml",
+    "pyyaml",
     'dataclasses>=0.5; python_version<"3.7"',
 ]
 
