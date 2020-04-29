@@ -2,6 +2,7 @@ import base64
 import json
 import logging
 import os
+import textwrap
 import uuid
 from pathlib import Path
 from subprocess import CompletedProcess
@@ -87,12 +88,43 @@ def test_image_build_failure(cli_runner: CLIRunner) -> None:
     assert "repository can only contain" in result.stdout
 
 
+def test_image_build_custom_dockerfile(cli_runner: CLIRunner) -> None:
+    result = cli_runner(["neuro-extras", "init-aliases"])
+    assert result.returncode == 0, result
+
+    dockerfile_path = Path("nested/custom.Dockerfile")
+    dockerfile_path.parent.mkdir(parents=True)
+
+    with open(dockerfile_path, "w") as f:
+        f.write(
+            textwrap.dedent(
+                """\
+                FROM ubuntu:latest
+                RUN echo !
+                """
+            )
+        )
+
+    tag = str(uuid.uuid4())
+    img_uri_str = f"image:extras-e2e:{tag}"
+
+    result = cli_runner(
+        ["neuro", "image-build", "-f", str(dockerfile_path), ".", img_uri_str]
+    )
+    assert result.returncode == 0, result
+
+    result = cli_runner(["neuro", "image", "tags", "image:extras-e2e"])
+    assert result.returncode == 0, result
+    assert tag in result.stdout
+
+
 def test_seldon_deploy_from_local(cli_runner: CLIRunner) -> None:
     result = cli_runner(["neuro-extras", "init-aliases"])
     assert result.returncode == 0, result
 
     pkg_path = Path("pkg")
-    img_uri_str = f"image:extras-e2e:{uuid.uuid4()}"
+    tag = str(uuid.uuid4())
+    img_uri_str = f"image:extras-e2e:{tag}"
     result = cli_runner(["neuro", "seldon-init-package", str(pkg_path)])
     assert result.returncode == 0, result
     assert "Copying a Seldon package scaffolding" in result.stdout, result
@@ -101,6 +133,10 @@ def test_seldon_deploy_from_local(cli_runner: CLIRunner) -> None:
 
     result = cli_runner(["neuro", "image-build", str(pkg_path), img_uri_str])
     assert result.returncode == 0, result
+
+    result = cli_runner(["neuro", "image", "tags", "image:extras-e2e"])
+    assert result.returncode == 0, result
+    assert tag in result.stdout
 
 
 def test_config_save_docker_json_locally(cli_runner: CLIRunner) -> None:
