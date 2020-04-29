@@ -85,7 +85,12 @@ class ImageBuilder:
         await self._client.storage.create(uri, _gen())
 
     def _create_builder_container(
-        self, *, docker_config_uri: URL, context_uri: URL, image_ref: str
+        self,
+        *,
+        docker_config_uri: URL,
+        context_uri: URL,
+        dockerfile_path: str,
+        image_ref: str,
     ) -> neuro_api.Container:
         return neuro_api.Container(
             image=neuro_api.RemoteImage(
@@ -99,7 +104,7 @@ class ImageBuilder:
                 # TODO: try read only
                 neuro_api.Volume(context_uri, "/workspace"),
             ],
-            command=f"--destination={image_ref}",
+            command=f"--dockerfile={dockerfile_path} --destination={image_ref}",
         )
 
     def parse_image_ref(self, image_uri_str: str) -> str:
@@ -107,7 +112,7 @@ class ImageBuilder:
         return re.sub(r"^http[s]?://", "", image.as_docker_url())
 
     async def launch(
-        self, context_uri: URL, image_uri_str: str
+        self, dockerfile_path: str, context_uri: URL, image_uri_str: str
     ) -> neuro_api.JobDescription:
         # TODO: check if Dockerfile exists
 
@@ -131,6 +136,7 @@ class ImageBuilder:
         builder_container = self._create_builder_container(
             docker_config_uri=docker_config_uri,
             context_uri=context_uri,
+            dockerfile_path=dockerfile_path,
             image_ref=image_ref,
         )
         # TODO: set proper tags
@@ -164,13 +170,14 @@ def image() -> None:
 
 
 @image.command("build")
-@click.argument("context")
+@click.option("-f", "--file", default="Dockerfile")
+@click.argument("path")
 @click.argument("image_uri")
-def image_build(context: str, image_uri: str) -> None:
-    run_async(_build_image(context, image_uri))
+def image_build(file: str, path: str, image_uri: str) -> None:
+    run_async(_build_image(file, path, image_uri))
 
 
-async def _build_image(context: str, image_uri: str) -> None:
+async def _build_image(dockerfile_path: str, context: str, image_uri: str) -> None:
     async with neuro_api.get() as client:
         context_uri = uri_from_cli(
             context,
@@ -179,7 +186,7 @@ async def _build_image(context: str, image_uri: str) -> None:
             allowed_schemes=("file", "storage"),
         )
         builder = ImageBuilder(client)
-        job = await builder.launch(context_uri, image_uri)
+        job = await builder.launch(dockerfile_path, context_uri, image_uri)
         while job.status == neuro_api.JobStatus.PENDING:
             job = await client.jobs.status(job.id)
             await asyncio.sleep(1.0)
@@ -237,11 +244,12 @@ def init_aliases() -> None:
             config = toml.load(f)
     config.setdefault("alias", {})
     config["alias"]["image-build"] = {
-        "exec": "neuro-extras image build {context} {image_uri}",
+        "exec": "neuro-extras image build",
+        "options": ["-f, --file path to the Dockerfile within CONTEXT"],
         "args": "CONTEXT IMAGE_URI",
     }
     config["alias"]["seldon-init-package"] = {
-        "exec": "neuro-extras seldon init-package {uri_or_path}",
+        "exec": "neuro-extras seldon init-package",
         "args": "URI_OR_PATH",
     }
     with toml_path.open("w") as f:
