@@ -83,7 +83,17 @@ def test_init_aliases(cli_runner: CLIRunner) -> None:
 def test_image_build_failure(cli_runner: CLIRunner) -> None:
     pkg_path = Path("pkg")
     result = cli_runner(["neuro-extras", "seldon", "init-package", str(pkg_path)])
-    result = cli_runner(["neuro-extras", "image", "build", str(pkg_path), "<invalid>"])
+    result = cli_runner(
+        [
+            "neuro-extras",
+            "image",
+            "build",
+            "-f",
+            "seldon.Dockerfile",
+            str(pkg_path),
+            "<invalid>",
+        ]
+    )
     assert result.returncode == 1, result
     assert "repository can only contain" in result.stdout
 
@@ -129,9 +139,11 @@ def test_seldon_deploy_from_local(cli_runner: CLIRunner) -> None:
     assert result.returncode == 0, result
     assert "Copying a Seldon package scaffolding" in result.stdout, result
 
-    assert (pkg_path / "Dockerfile").exists()
+    assert (pkg_path / "seldon.Dockerfile").exists()
 
-    result = cli_runner(["neuro", "image-build", str(pkg_path), img_uri_str])
+    result = cli_runner(
+        ["neuro", "image-build", "-f", "seldon.Dockerfile", str(pkg_path), img_uri_str]
+    )
     assert result.returncode == 0, result
 
     result = cli_runner(["neuro", "image", "tags", "image:extras-e2e"])

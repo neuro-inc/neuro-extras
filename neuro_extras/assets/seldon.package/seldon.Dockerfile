@@ -1,5 +1,5 @@
 FROM seldonio/seldon-core-s2i-python3:0.18
-ENV MODEL_NAME="Model" \
+ENV MODEL_NAME="seldon_model" \
     API_TYPE="REST" \
     SERVICE_TYPE="MODEL" \
     PERSISTENCE="0"

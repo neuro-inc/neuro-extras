@@ -3,10 +3,10 @@ import base64
 import json
 import logging
 import re
-import shutil
 import sys
 import uuid
 from dataclasses import dataclass, field
+from distutils import dir_util
 from pathlib import Path
 from typing import Any, AsyncIterator, Dict, MutableMapping, Sequence
 
@@ -213,7 +213,7 @@ def seldon() -> None:
 
 
 @seldon.command("init-package")
-@click.argument("path")
+@click.argument("path", default=".")
 def seldon_init_package(path: str) -> None:
     run_async(_init_seldon_package(path))
 
@@ -228,7 +228,7 @@ async def _init_seldon_package(path: str) -> None:
         )
         click.echo(f"Copying a Seldon package scaffolding into {uri}")
         if uri.scheme == "file":
-            shutil.copytree(SELDON_CUSTOM_PATH, path)
+            dir_util.copy_tree(str(SELDON_CUSTOM_PATH), path)
         else:
             await client.storage.mkdir(uri, parents=True)
             await client.storage.upload_dir(URL(SELDON_CUSTOM_PATH.as_uri()), uri)

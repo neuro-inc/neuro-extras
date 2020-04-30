@@ -1,4 +1,4 @@
-class Model(object):
+class SeldonModel:
     """
     Model template. You can load your model parameters in __init__ from a location
     accessible at runtime.
@@ -37,3 +37,6 @@ class Model(object):
         """
         print("Send feedback called")
         return []
+
+
+seldon_model = SeldonModel
