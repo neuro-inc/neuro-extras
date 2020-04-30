@@ -139,7 +139,7 @@ def test_seldon_deploy_from_local(cli_runner: CLIRunner) -> None:
     assert result.returncode == 0, result
     assert "Copying a Seldon package scaffolding" in result.stdout, result
 
-    assert (pkg_path / "Dockerfile").exists()
+    assert (pkg_path / "seldon.Dockerfile").exists()
 
     result = cli_runner(
         ["neuro", "image-build", "-f", "seldon.Dockerfile", str(pkg_path), img_uri_str]
