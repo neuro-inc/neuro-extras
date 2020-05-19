@@ -153,9 +153,8 @@ def test_image_build_custom_build_args(cli_runner: CLIRunner) -> None:
 
     result = cli_runner(
         [
-            "neuro-extras",
-            "image",
-            "build",
+            "neuro",
+            "image-build",
             "-f",
             str(dockerfile_path),
             "--build-arg",

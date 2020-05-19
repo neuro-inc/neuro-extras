@@ -184,11 +184,7 @@ def image() -> None:
 @click.argument("path")
 @click.argument("image_uri")
 def image_build(file: str, path: str, image_uri: str, build_arg: Sequence[str]) -> None:
-    run_async(
-        _build_image(
-            file, path, image_uri, build_arg
-        )
-    )
+    run_async(_build_image(file, path, image_uri, build_arg))
 
 
 async def _build_image(
@@ -261,7 +257,10 @@ def init_aliases() -> None:
     config.setdefault("alias", {})
     config["alias"]["image-build"] = {
         "exec": "neuro-extras image build",
-        "options": ["-f, --file path to the Dockerfile within CONTEXT"],
+        "options": [
+            "-f, --file path to the Dockerfile within CONTEXT",
+            "--build-arg build arguments for Docker",
+        ],
         "args": "CONTEXT IMAGE_URI",
     }
     config["alias"]["seldon-init-package"] = {
