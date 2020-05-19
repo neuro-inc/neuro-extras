@@ -182,9 +182,9 @@ def image() -> None:
 @click.option("-f", "--file", default="Dockerfile")
 @click.argument("path")
 @click.argument("image_uri")
-@click.option("-b", "--build-arg", multiple=True, type=str)
-def image_build(file: str, path: str, image_uri: str, b: Sequence[str]) -> None:
-    click.echo(f"build-args: {len(b)}")
+@click.option("--build-arg", multiple=True, type=str)
+def image_build(file: str, path: str, image_uri: str, build_arg: Sequence[str]) -> None:
+    click.echo(f"build-args: {len(build_arg)}")
     run_async(
         _build_image(
             file, path, image_uri, ["TEST_ARG=find_me", "ANOTHER_TEST_ARG=metoo"]
