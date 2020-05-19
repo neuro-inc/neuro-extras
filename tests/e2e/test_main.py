@@ -153,20 +153,20 @@ def test_image_build_custom_build_args(cli_runner: CLIRunner) -> None:
 
     result = cli_runner(
         [
-            "neuro",
-            "image-build",
+            "neuro-extras",
+            "image",
+            "build",
             "-f",
             str(dockerfile_path),
-            ".",
-            img_uri_str,
             "--build-arg",
             "TEST_ARG=find_me",
             "--build-arg",
             "ANOTHER_TEST_ARG=metoo",
+            ".",
+            img_uri_str,
         ]
     )
     assert result.returncode == 0, result
-    print(result.stdout)
     assert "find_me" in result.stdout
     assert "metoo" in result.stdout
 
