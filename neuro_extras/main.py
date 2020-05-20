@@ -91,7 +91,7 @@ class ImageBuilder:
         context_uri: URL,
         dockerfile_path: str,
         image_ref: str,
-        build_args: Sequence[str] = [],
+        build_args: Sequence[str] = (),
     ) -> neuro_api.Container:
         command = f"--dockerfile={dockerfile_path} --destination={image_ref}"
         if len(build_args) > 0:
