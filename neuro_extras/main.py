@@ -91,7 +91,11 @@ class ImageBuilder:
         context_uri: URL,
         dockerfile_path: str,
         image_ref: str,
+        build_args: Sequence[str] = (),
     ) -> neuro_api.Container:
+        command = f"--dockerfile={dockerfile_path} --destination={image_ref}"
+        if build_args:
+            command += "".join([f" --build-arg {arg}" for arg in build_args])
         return neuro_api.Container(
             image=neuro_api.RemoteImage(
                 name="gcr.io/kaniko-project/executor", tag="latest",
@@ -104,7 +108,7 @@ class ImageBuilder:
                 # TODO: try read only
                 neuro_api.Volume(context_uri, "/workspace"),
             ],
-            command=f"--dockerfile={dockerfile_path} --destination={image_ref}",
+            command=command,
         )
 
     def parse_image_ref(self, image_uri_str: str) -> str:
@@ -112,7 +116,11 @@ class ImageBuilder:
         return re.sub(r"^http[s]?://", "", image.as_docker_url())
 
     async def launch(
-        self, dockerfile_path: str, context_uri: URL, image_uri_str: str
+        self,
+        dockerfile_path: str,
+        context_uri: URL,
+        image_uri_str: str,
+        build_args: Sequence[str],
     ) -> neuro_api.JobDescription:
         # TODO: check if Dockerfile exists
 
@@ -138,6 +146,7 @@ class ImageBuilder:
             context_uri=context_uri,
             dockerfile_path=dockerfile_path,
             image_ref=image_ref,
+            build_args=build_args,
         )
         # TODO: set proper tags
         job = await self._client.jobs.run(builder_container, life_span=60 * 60)
@@ -171,13 +180,16 @@ def image() -> None:
 
 @image.command("build")
 @click.option("-f", "--file", default="Dockerfile")
+@click.option("--build-arg", multiple=True)
 @click.argument("path")
 @click.argument("image_uri")
-def image_build(file: str, path: str, image_uri: str) -> None:
-    run_async(_build_image(file, path, image_uri))
+def image_build(file: str, build_arg: Sequence[str], path: str, image_uri: str) -> None:
+    run_async(_build_image(file, path, image_uri, build_arg))
 
 
-async def _build_image(dockerfile_path: str, context: str, image_uri: str) -> None:
+async def _build_image(
+    dockerfile_path: str, context: str, image_uri: str, build_args: Sequence[str]
+) -> None:
     async with neuro_api.get() as client:
         context_uri = uri_from_cli(
             context,
@@ -186,7 +198,7 @@ async def _build_image(dockerfile_path: str, context: str, image_uri: str) -> No
             allowed_schemes=("file", "storage"),
         )
         builder = ImageBuilder(client)
-        job = await builder.launch(dockerfile_path, context_uri, image_uri)
+        job = await builder.launch(dockerfile_path, context_uri, image_uri, build_args)
         while job.status == neuro_api.JobStatus.PENDING:
             job = await client.jobs.status(job.id)
             await asyncio.sleep(1.0)
@@ -245,7 +257,10 @@ def init_aliases() -> None:
     config.setdefault("alias", {})
     config["alias"]["image-build"] = {
         "exec": "neuro-extras image build",
-        "options": ["-f, --file path to the Dockerfile within CONTEXT"],
+        "options": [
+            "-f, --file path to the Dockerfile within CONTEXT",
+            "--build-arg build arguments for Docker",
+        ],
         "args": "CONTEXT IMAGE_URI",
     }
     config["alias"]["seldon-init-package"] = {
