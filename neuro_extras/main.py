@@ -94,8 +94,8 @@ class ImageBuilder:
         build_args: Sequence[str] = (),
     ) -> neuro_api.Container:
         command = f"--dockerfile={dockerfile_path} --destination={image_ref}"
-        if len(build_args) > 0:
-            command += " " + " ".join([f"--build-arg {arg}" for arg in build_args])
+        if build_args:
+            command += "".join([f" --build-arg {arg}" for arg in build_args])
         return neuro_api.Container(
             image=neuro_api.RemoteImage(
                 name="gcr.io/kaniko-project/executor", tag="latest",
