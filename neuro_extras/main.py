@@ -179,11 +179,11 @@ def image() -> None:
 
 
 @image.command("build")
-@click.option("--build-arg", multiple=True)
 @click.option("-f", "--file", default="Dockerfile")
+@click.option("--build-arg", multiple=True)
 @click.argument("path")
 @click.argument("image_uri")
-def image_build(file: str, path: str, image_uri: str, build_arg: Sequence[str]) -> None:
+def image_build(file: str, build_arg: Sequence[str], path: str, image_uri: str) -> None:
     run_async(_build_image(file, path, image_uri, build_arg))
 
 
