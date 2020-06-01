@@ -93,7 +93,9 @@ class ImageBuilder:
         image_ref: str,
         build_args: Sequence[str] = (),
     ) -> neuro_api.Container:
-        command = f"--dockerfile={dockerfile_path} --destination={image_ref}"
+        command = (
+            f"--dockerfile={dockerfile_path} --destination={image_ref} --cache=true"
+        )
         if build_args:
             command += "".join([f" --build-arg {arg}" for arg in build_args])
         return neuro_api.Container(
