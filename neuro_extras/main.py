@@ -84,7 +84,7 @@ class ImageBuilder:
 
         await self._client.storage.create(uri, _gen())
 
-    def _create_builder_container(
+    async def _create_builder_container(
         self,
         *,
         docker_config_uri: URL,
@@ -93,9 +93,19 @@ class ImageBuilder:
         image_ref: str,
         build_args: Sequence[str] = (),
     ) -> neuro_api.Container:
-        command = (
-            f"--dockerfile={dockerfile_path} --destination={image_ref} --cache=true"
-        )
+
+        async with neuro_api.get() as client:
+            registry_url_no_https = str(client.config.registry_url).replace(
+                "https://", ""
+            )
+            cache_repo = (
+                f"{registry_url_no_https}/{client.config.username}/layer-cache/cache"
+            )
+            command = (
+                f"--dockerfile={dockerfile_path} --destination={image_ref} "
+                f"--cache=true --cache-repo={cache_repo}"
+            )
+
         if build_args:
             command += "".join([f" --build-arg {arg}" for arg in build_args])
         return neuro_api.Container(
@@ -143,7 +153,7 @@ class ImageBuilder:
 
         logger.info(f"Submitting a builder job")
         image_ref = self.parse_image_ref(image_uri_str)
-        builder_container = self._create_builder_container(
+        builder_container = await self._create_builder_container(
             docker_config_uri=docker_config_uri,
             context_uri=context_uri,
             dockerfile_path=dockerfile_path,
