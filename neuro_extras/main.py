@@ -94,17 +94,18 @@ class ImageBuilder:
         build_args: Sequence[str] = (),
     ) -> neuro_api.Container:
 
-        async with neuro_api.get() as client:
-            registry_url_no_https = str(client.config.registry_url).replace(
-                "https://", ""
-            )
-            cache_repo = (
-                f"{registry_url_no_https}/{client.config.username}/layer-cache/cache"
-            )
-            command = (
-                f"--dockerfile={dockerfile_path} --destination={image_ref} "
-                f"--cache=true --cache-repo={cache_repo}"
-            )
+        cache_image = neuro_api.RemoteImage(
+            name="layer-cache/cache",
+            owner=self._client.config.username,
+            registry=str(self._client.config.registry_url),
+            cluster_name=self._client.cluster_name,
+        )
+        cache_repo = self.parse_image_ref(str(cache_image))
+        cache_repo = re.sub(r":.*$", "", cache_repo)
+        command = (
+            f"--dockerfile={dockerfile_path} --destination={image_ref} "
+            f"--cache=true --cache-repo={cache_repo}"
+        )
 
         if build_args:
             command += "".join([f" --build-arg {arg}" for arg in build_args])
