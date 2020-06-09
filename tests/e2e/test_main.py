@@ -158,16 +158,16 @@ def test_image_build_custom_build_args(cli_runner: CLIRunner) -> None:
             "-f",
             str(dockerfile_path),
             "--build-arg",
-            "TEST_ARG=find_me",
+            f"TEST_ARG=arg-{tag}",
             "--build-arg",
-            "ANOTHER_TEST_ARG=metoo",
+            f"ANOTHER_TEST_ARG=arg-another-{tag}",
             ".",
             img_uri_str,
         ]
     )
     assert result.returncode == 0, result
-    assert "find_me" in result.stdout
-    assert "metoo" in result.stdout
+    assert f"arg-{tag}" in result.stdout
+    assert f"arg-another-{tag}" in result.stdout
 
 
 def test_seldon_deploy_from_local(cli_runner: CLIRunner) -> None:
