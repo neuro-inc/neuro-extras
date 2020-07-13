@@ -9,7 +9,7 @@ export PIP_EXTRA_INDEX_URL
 DEVPI_URL ?= $(PIP_EXTRA_INDEX_URL)
 
 setup:
-	pip install -r requirements/test.txt
+	pip install -r requirements/test.txt -c requirements/constraints.txt
 
 lint:
 	black --check neuro_extras tests setup.py
