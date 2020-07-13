@@ -220,7 +220,7 @@ async def _copy_image(source: str, destination: str) -> None:
                 textwrap.dedent(
                     f"""\
                     FROM {_as_repo_str(remote_image)}
-                    LABEL original_url={source}
+                    LABEL neu.ro/source-image-uri={source}
                     """
                 )
             )
