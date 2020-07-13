@@ -1,12 +1,6 @@
 PYTEST_FLAGS=
 
-ifdef CIRCLECI
-    PIP_EXTRA_INDEX_URL ?= https://$(DEVPI_USER):$(DEVPI_PASS)@$(DEVPI_HOST)/$(DEVPI_USER)/$(DEVPI_INDEX)
-else
-    PIP_EXTRA_INDEX_URL ?= $(shell python pip_extra_index_url.py)
-endif
-export PIP_EXTRA_INDEX_URL
-DEVPI_URL ?= $(PIP_EXTRA_INDEX_URL)
+export PIP_EXTRA_INDEX_URL ?= $(shell python pip_extra_index_url.py)
 
 setup:
 	pip install -r requirements/test.txt -c requirements/constraints.txt
@@ -27,7 +21,7 @@ test: lint test_e2e
 
 devpi_setup:
 	pip install --user -U devpi-client wheel setuptools
-	@devpi use $(DEVPI_URL)/$(DEVPI_INDEX)
+	@devpi use $(PIP_EXTRA_INDEX_URL)/$(DEVPI_INDEX)
 
 devpi_login:
 	@devpi login $(DEVPI_USER) --password=$(DEVPI_PASS)
@@ -36,10 +30,7 @@ devpi_upload: devpi_login
 	devpi upload --formats bdist_wheel
 
 build:
-	@docker build -t neuromation/neuro-extras:latest \
-	    --build-arg PIP_EXTRA_INDEX_URL="$(PIP_EXTRA_INDEX_URL)" \
+	docker build -t neuromation/neuro-extras:latest \
+	    --build-arg PIP_EXTRA_INDEX_URL \
 	    --build-arg NEURO_EXTRAS_VERSION="$(shell python setup.py --version)" \
 	    .
-ifdef CIRCLECI
-	docker tag neuromation/neuro-extras:latest neuromation/neuro-extras:$(CIRCLE_TAG)
-endif
