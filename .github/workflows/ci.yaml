@@ -28,18 +28,23 @@ jobs:
         run: |
           python -m venv venv
           source venv/bin/activate
+
           make setup
       - name: Configure environment
         run: |
           source venv/bin/activate
+
           neuro config login-with-token $NEURO_TOKEN $NEURO_STAGING_URL
+          neuro config show
       - name: Lint
         run: |
           source venv/bin/activate
+
           make lint
       - name: Run e2e tests
         run: |
           source venv/bin/activate
+
           make test_e2e
   devpi_deploy:
     name: Release client
