@@ -31,7 +31,8 @@ jobs:
           make setup
       - name: Configure environment
         run: |
-          neuro config login-with-token $NEURO_TOKEN $NEURO_URL
+          source venv/bin/activate
+          neuro config login-with-token $NEURO_TOKEN $NEURO_STAGING_URL
       - name: Lint
         run: |
           source venv/bin/activate
