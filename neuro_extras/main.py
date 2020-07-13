@@ -4,6 +4,8 @@ import json
 import logging
 import re
 import sys
+import tempfile
+import textwrap
 import uuid
 from dataclasses import dataclass, field
 from distutils import dir_util
@@ -14,6 +16,7 @@ import click
 import toml
 import yaml
 from neuromation import api as neuro_api
+from neuromation.api.parsing_utils import _as_repo_str
 from neuromation.api.url_utils import normalize_storage_path_uri, uri_from_cli
 from neuromation.cli.asyncio_utils import run as run_async
 from neuromation.cli.const import EX_PLATFORMERROR
@@ -200,6 +203,30 @@ def image_build(file: str, build_arg: Sequence[str], path: str, image_uri: str) 
     run_async(_build_image(file, path, image_uri, build_arg))
 
 
+@image.command("copy")
+@click.argument("source")
+@click.argument("destination")
+def image_copy(source: str, destination: str) -> None:
+    run_async(_copy_image(source, destination))
+
+
+async def _copy_image(source: str, destination: str) -> None:
+    with tempfile.TemporaryDirectory() as tmpdir:
+        async with neuro_api.get() as client:
+            remote_image = client.parse.remote_image(image=source)
+        dockerfile_path = Path(f"{tmpdir}/Dockerfile")
+        with open(str(dockerfile_path), "w") as f:
+            f.write(
+                textwrap.dedent(
+                    f"""\
+                    FROM {_as_repo_str(remote_image)}
+                    LABEL neu.ro/source-image-uri={source}
+                    """
+                )
+            )
+        await _build_image("Dockerfile", tmpdir, destination, [])
+
+
 async def _build_image(
     dockerfile_path: str, context: str, image_uri: str, build_args: Sequence[str]
 ) -> None:
@@ -279,6 +306,10 @@ def init_aliases() -> None:
     config["alias"]["seldon-init-package"] = {
         "exec": "neuro-extras seldon init-package",
         "args": "URI_OR_PATH",
+    }
+    config["alias"]["image-copy"] = {
+        "exec": "neuro-extras image copy",
+        "args": "SOURCE DESTINATION",
     }
     with toml_path.open("w") as f:
         toml.dump(config, f)

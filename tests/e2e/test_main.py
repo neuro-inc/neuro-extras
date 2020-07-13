@@ -128,6 +128,41 @@ def test_image_build_custom_dockerfile(cli_runner: CLIRunner) -> None:
     assert tag in result.stdout
 
 
+def test_image_copy(cli_runner: CLIRunner) -> None:
+    result = cli_runner(["neuro-extras", "init-aliases"])
+    assert result.returncode == 0, result
+
+    dockerfile_path = Path("nested/custom.Dockerfile")
+    dockerfile_path.parent.mkdir(parents=True)
+
+    with open(dockerfile_path, "w") as f:
+        f.write(
+            textwrap.dedent(
+                """\
+                FROM alpine:latest
+                RUN echo !
+                """
+            )
+        )
+
+    tag = str(uuid.uuid4())
+    img_uri_str = f"image:extras-e2e:{tag}"
+
+    result = cli_runner(
+        ["neuro", "image-build", "-f", str(dockerfile_path), ".", img_uri_str]
+    )
+    assert result.returncode == 0, result
+
+    result = cli_runner(["neuro", "image", "tags", "image:extras-e2e"])
+    assert result.returncode == 0, result
+    assert tag in result.stdout
+
+    result = cli_runner(["neuro", "image-copy", img_uri_str, "image:extras-e2e-copy"])
+    assert result.returncode == 0, result
+    result = cli_runner(["neuro", "image", "tags", "image:extras-e2e-copy"])
+    assert result.returncode == 0, result
+
+
 def test_image_build_custom_build_args(cli_runner: CLIRunner) -> None:
     result = cli_runner(["neuro-extras", "init-aliases"])
     assert result.returncode == 0, result
