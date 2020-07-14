@@ -395,6 +395,14 @@ async def _create_seldon_deployment(
             {"name": "neuro-secret", "secret": {"secretName": neuro_secret_name}},
         ],
         "imagePullSecrets": [{"name": registry_secret_name}],
+        "tolerations": [
+            {"key": "nvidia.com/gpu", "operator": "Exists", "effect": "NoSchedule"},
+            {
+                "key": "platform.neuromation.io/job",
+                "operator": "Exists",
+                "effect": "NoSchedule",
+            },
+        ],
         "initContainers": [
             {
                 "name": "neuro-download",
@@ -419,6 +427,9 @@ async def _create_seldon_deployment(
                 "image": model_image_ref,
                 "imagePullPolicy": "Always",
                 "volumeMounts": [{"mountPath": "/storage", "name": "neuro-storage"}],
+                "resources": {
+                    "limits": {"cpu": "23m", "memory": "60Gi", "nvidia.com/gpu": 1}
+                },
             }
         ],
     }
