@@ -1,0 +1,81 @@
+name: Continuous Integration
+
+on:
+  push:
+  release:
+    types: [published]
+
+jobs:
+  test:
+    name: Run tests
+    runs-on: ubuntu-latest
+    env:
+      NEURO_STAGING_URL: ${{ secrets.NEURO_STAGING_URL }}
+      NEURO_TOKEN: ${{ secrets.NEURO_TOKEN }}
+    steps:
+      - name: Checkout commit
+        uses: actions/checkout@v2
+      - name: Install python
+        uses: actions/setup-python@v2
+        with:
+          python-version: "3.7"
+      - name: Cache packages
+        uses: actions/cache@v1
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-py-3.7-${{ hashFiles('setup.py') }}-${{ hashFiles('requirements/syntax.txt') }}-${{ hashFiles('requirements/test.txt') }}-${{ hashFiles('requirements/constraints.txt') }}
+      - name: Install dependencies
+        run: |
+          python -m venv venv
+          source venv/bin/activate
+
+          make setup
+      - name: Configure environment
+        run: |
+          source venv/bin/activate
+
+          neuro config login-with-token $NEURO_TOKEN $NEURO_STAGING_URL
+          neuro config show
+      - name: Lint
+        run: |
+          source venv/bin/activate
+
+          make lint
+      - name: Run e2e tests
+        run: |
+          source venv/bin/activate
+
+          make test_e2e
+  devpi_deploy:
+    name: Release client
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.event_name == 'release'
+    env:
+      DEVPI_USER: ${{ secrets.DEVPI_USER }}
+      DEVPI_PASS: ${{ secrets.DEVPI_PASS }}
+      PIP_EXTRA_INDEX_URL: ${{ format('https://{0}:{1}@{2}/{0}/{3}', secrets.DEVPI_USER, secrets.DEVPI_PASS, secrets.DEVPI_HOST, secrets.DEVPI_INDEX) }}
+      DOCKER_SERVER: docker.io
+      DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+      DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+    steps:
+      - name: Checkout commit
+        uses: actions/checkout@v2
+      - name: Install python
+        uses: actions/setup-python@v2
+        with:
+          python-version: "3.7"
+      - name: Setup devpi
+        run: make -s devpi_setup
+      - name: Upload package
+        run: make devpi_upload
+      - name: Build image
+        run: make build
+      - name: Push image
+        run: |
+          export TAG=${GITHUB_REF#refs/tags/}
+
+          docker login $DOCKER_SERVER --username $DOCKER_USERNAME --password $DOCKER_PASSWORD
+          docker tag neuromation/neuro-extras:latest neuromation/neuro-extras:$TAG
+          docker push neuromation/neuro-extras:$TAG
+          docker push neuromation/neuro-extras:latest
