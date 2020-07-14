@@ -21,7 +21,7 @@ test: lint test_e2e
 
 devpi_setup:
 	pip install --user -U devpi-client wheel setuptools
-	@devpi use $(PIP_EXTRA_INDEX_URL)/$(DEVPI_INDEX)
+	@devpi use $(PIP_EXTRA_INDEX_URL)
 
 devpi_login:
 	@devpi login $(DEVPI_USER) --password=$(DEVPI_PASS)
