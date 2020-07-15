@@ -394,6 +394,14 @@ def test_seldon_generate_deployment_custom(cli_runner: CLIRunner) -> None:
             {"name": "neuro-secret", "secret": {"secretName": "test-neuro"}},
         ],
         "imagePullSecrets": [{"name": "test-registry"}],
+        "tolerations": [
+            {"key": "nvidia.com/gpu", "operator": "Exists", "effect": "NoSchedule"},
+            {
+                "key": "platform.neuromation.io/job",
+                "operator": "Exists",
+                "effect": "NoSchedule",
+            },
+        ],
         "initContainers": [
             {
                 "name": "neuro-download",
@@ -418,6 +426,9 @@ def test_seldon_generate_deployment_custom(cli_runner: CLIRunner) -> None:
                 "image": mock.ANY,
                 "imagePullPolicy": "Always",
                 "volumeMounts": [{"mountPath": "/storage", "name": "neuro-storage"}],
+                "resources": {
+                    "limits": {"cpu": "23m", "memory": "60Gi", "nvidia.com/gpu": 1}
+                },
             }
         ],
     }
