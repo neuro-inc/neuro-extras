@@ -16,9 +16,8 @@ import click
 import toml
 import yaml
 from neuromation import api as neuro_api
-from neuromation.api import ConfigError, find_project_root
+from neuromation.api import ConfigError, find_project_root, Client, Container
 from neuromation.api.config import load_user_config
-from neuromation.api.parsing_utils import _as_repo_str
 from neuromation.api.url_utils import normalize_storage_path_uri, uri_from_cli
 from neuromation.cli.asyncio_utils import run as run_async
 from neuromation.cli.const import EX_PLATFORMERROR
@@ -26,7 +25,6 @@ from yarl import URL
 
 
 logger = logging.getLogger(__name__)
-
 
 ASSETS_PATH = Path(__file__).resolve().parent / "assets"
 SELDON_CUSTOM_PATH = ASSETS_PATH / "seldon.package"
@@ -201,6 +199,11 @@ def image() -> None:
     pass
 
 
+@main.group()
+def storage() -> None:
+    pass
+
+
 @image.command("build")
 @click.option("-f", "--file", default="Dockerfile")
 @click.option("--build-arg", multiple=True)
@@ -215,6 +218,43 @@ def image_build(file: str, build_arg: Sequence[str], path: str, image_uri: str) 
 @click.argument("destination")
 def image_copy(source: str, destination: str) -> None:
     run_async(_copy_image(source, destination))
+
+
+@storage.command("copy")
+@click.argument("source")
+@click.argument("destination")
+def cluster_copy(source: str, destination: str) -> None:
+    run_async(_copy_storage(source, destination))
+
+
+async def _copy_storage(source: str, destination: str) -> None:
+    src_uri = URL(source)
+    dst_uri = URL(destination)
+    src_cluster = src_uri.host
+    dst_cluster = dst_uri.host
+    assert src_cluster
+    assert dst_cluster
+    async with neuro_api.get() as client:
+        await client.config.switch_cluster(dst_cluster)
+        await client.storage.mkdir(URL("storage:"), parents=True, exist_ok=True)
+        copy_container = await _create_copy_container(client, src_cluster)
+        await client.pass_config(copy_container.env, copy_container.volumes, False)
+        job = await client.jobs.run(container=copy_container)
+        print(job.id)
+
+
+async def _create_copy_container(client: Client, src_cluster: str) -> Container:
+    storage_uri = normalize_storage_path_uri(
+        URL("storage:"), client.config.username, client.config.cluster_name
+    )
+    return neuro_api.Container(
+        image=neuro_api.RemoteImage(name="neuromation/neuro-extras", tag="latest",),
+        resources=neuro_api.Resources(cpu=1.0, memory_mb=4096),
+        volumes=[neuro_api.Volume(storage_uri, "/storage")],
+        env={"NEURO_CLUSTER": src_cluster},
+        tty=True,
+        command="cp -r -u -T storage: /storage",
+    )
 
 
 async def _copy_image(source: str, destination: str) -> None:
@@ -424,6 +464,10 @@ def init_aliases() -> None:
     }
     config["alias"]["image-copy"] = {
         "exec": "neuro-extras image copy",
+        "args": "SOURCE DESTINATION",
+    }
+    config["alias"]["storage-copy"] = {
+        "exec": "neuro-extras storage copy",
         "args": "SOURCE DESTINATION",
     }
     with toml_path.open("w") as f:
