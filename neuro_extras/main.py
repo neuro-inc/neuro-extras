@@ -3,6 +3,7 @@ import base64
 import json
 import logging
 import re
+import subprocess
 import sys
 import tempfile
 import textwrap
@@ -10,6 +11,7 @@ import uuid
 from dataclasses import dataclass, field
 from distutils import dir_util
 from pathlib import Path
+from subprocess import CompletedProcess
 from typing import Any, AsyncIterator, Dict, MutableMapping, Sequence
 
 import click
@@ -237,10 +239,26 @@ async def _copy_storage(source: str, destination: str) -> None:
     async with neuro_api.get() as client:
         await client.config.switch_cluster(dst_cluster)
         await client.storage.mkdir(URL("storage:"), parents=True, exist_ok=True)
-        copy_container = await _create_copy_container(client, src_cluster)
-        await client.pass_config(copy_container.env, copy_container.volumes, False)
-        job = await client.jobs.run(container=copy_container)
-        print(job.id)
+    copy_container = await _run_copy_container(src_cluster)
+    print(copy_container.stdout)
+    print(copy_container.stderr)
+
+
+async def _run_copy_container(src_cluster: str) -> CompletedProcess:
+    args = [
+        "neuro",
+        "run",
+        "-s",
+        "cpu-small",
+        "--pass-config",
+        "-v",
+        "storage:://storage",
+        "-e",
+        f"NEURO_CLUSTER={src_cluster}",
+        "neuromation/neuro-extras:latest",
+        "\"cp -r -u -T storage: /storage\"",
+    ]
+    return subprocess.run(args, capture_output=True, check=False)
 
 
 async def _create_copy_container(client: Client, src_cluster: str) -> Container:
