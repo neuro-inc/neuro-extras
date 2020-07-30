@@ -155,7 +155,7 @@ class ImageBuilder:
         logger.debug(f"Uploading {docker_config_uri}")
         await self.save_docker_config(docker_config, docker_config_uri)
 
-        logger.info(f"Submitting a builder job")
+        logger.info("Submitting a builder job")
         image_ref = self.parse_image_ref(image_uri_str)
         builder_container = await self._create_builder_container(
             docker_config_uri=docker_config_uri,

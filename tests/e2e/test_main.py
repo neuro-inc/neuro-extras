@@ -331,7 +331,7 @@ def test_seldon_generate_deployment(cli_runner: CLIRunner) -> None:
                     "cp -L -r /var/run/neuro/config /root/.neuro;"
                     "chmod 0700 /root/.neuro;"
                     "chmod 0600 /root/.neuro/db;"
-                    f"neuro cp storage:model/model.pkl /storage"
+                    "neuro cp storage:model/model.pkl /storage"
                 ],
                 "volumeMounts": [
                     {"mountPath": "/storage", "name": "neuro-storage"},
@@ -404,7 +404,7 @@ def test_seldon_generate_deployment_custom(cli_runner: CLIRunner) -> None:
                     "cp -L -r /var/run/neuro/config /root/.neuro;"
                     "chmod 0700 /root/.neuro;"
                     "chmod 0600 /root/.neuro/db;"
-                    f"neuro cp storage:model/model.pkl /storage"
+                    "neuro cp storage:model/model.pkl /storage"
                 ],
                 "volumeMounts": [
                     {"mountPath": "/storage", "name": "neuro-storage"},
