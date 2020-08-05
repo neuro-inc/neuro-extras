@@ -15,6 +15,7 @@ jobs:
       matrix:
         python-version: [3.6, 3.7]
         os: [ubuntu, macos, windows]
+      fail-fast: false
     runs-on: ${{ matrix.os }}-latest
     env:
       NEURO_STAGING_URL: ${{ secrets.NEURO_STAGING_URL }}
