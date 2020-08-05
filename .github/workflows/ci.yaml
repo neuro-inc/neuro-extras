@@ -2,49 +2,53 @@ name: Continuous Integration
 
 on:
   push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
   release:
-    types: [published]
+    types: [ published ]
 
 jobs:
   test:
     name: Run tests
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.6, 3.7, 3.8]
+        os: [ubuntu, macos, windows]
+    runs-on: ${{ matrix.os }}-latest
     env:
       NEURO_STAGING_URL: ${{ secrets.NEURO_STAGING_URL }}
       NEURO_TOKEN: ${{ secrets.NEURO_TOKEN }}
     steps:
       - name: Checkout commit
         uses: actions/checkout@v2
-      - name: Install python
+      - name: Install python ${{ matrix.python-version }}
         uses: actions/setup-python@v2
         with:
-          python-version: "3.7"
-      - name: Cache packages
-        uses: actions/cache@v1
+          python-version: ${{ matrix.python-version }}
+      - name: Get pip cache dir
+        id: pip-cache
+        run: |
+          echo "::set-output name=dir::$(pip cache dir)"    # - name: dir
+      - name: Cache PyPI
+        uses: actions/cache@v2
         with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-py-3.7-${{ hashFiles('setup.py') }}-${{ hashFiles('requirements/syntax.txt') }}-${{ hashFiles('requirements/test.txt') }}-${{ hashFiles('requirements/constraints.txt') }}
+          key: pip-ci-${{ runner.os }}-${{ matrix.python-version }}-${{ hashFiles('setup.py', 'requirements/*.txt') }}
+          path: ${{ steps.pip-cache.outputs.dir }}
+          restore-keys: |
+              pip-ci-${{ runner.os }}-${{ matrix.python-version }}-
       - name: Install dependencies
         run: |
-          python -m venv venv
-          source venv/bin/activate
-
           make setup
       - name: Configure environment
         run: |
-          source venv/bin/activate
-
           neuro config login-with-token $NEURO_TOKEN $NEURO_STAGING_URL
           neuro config show
       - name: Lint
         run: |
-          source venv/bin/activate
-
           make lint
       - name: Run e2e tests
         run: |
-          source venv/bin/activate
-
           make test_e2e
   devpi_deploy:
     name: Release client
@@ -52,9 +56,6 @@ jobs:
     needs: test
     if: github.event_name == 'release'
     env:
-      DEVPI_USER: ${{ secrets.DEVPI_USER }}
-      DEVPI_PASS: ${{ secrets.DEVPI_PASS }}
-      PIP_EXTRA_INDEX_URL: ${{ format('https://{0}:{1}@{2}/{0}/{3}', secrets.DEVPI_USER, secrets.DEVPI_PASS, secrets.DEVPI_HOST, secrets.DEVPI_INDEX) }}
       DOCKER_SERVER: docker.io
       DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
       DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
@@ -65,10 +66,19 @@ jobs:
         uses: actions/setup-python@v2
         with:
           python-version: "3.7"
-      - name: Setup devpi
-        run: make -s devpi_setup
-      - name: Upload package
-        run: make devpi_upload
+      - name: Install dependencies
+        run: |
+          python -m pip install twine wheel
+          make setup
+      - name: Make dists
+        run: |
+          python setup.py sdist bdist_wheel
+      - name: PyPI upload
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
+        run: |
+          twine upload dist/*
       - name: Build image
         run: make build
       - name: Push image

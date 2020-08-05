@@ -1,6 +1,5 @@
 FROM python:3.7-stretch as requirements
 
-ARG PIP_EXTRA_INDEX_URL
 ARG NEURO_EXTRAS_VERSION
 
 RUN pip install --user \
