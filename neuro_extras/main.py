@@ -148,14 +148,19 @@ class ImageBuilder:
         if context_uri.scheme == "file":
             local_context_uri, context_uri = context_uri, build_uri / "context"
             logger.info(f"Uploading {local_context_uri} to {context_uri}")
-            await self._client.storage.upload_dir(local_context_uri, context_uri)
+            subprocess = await asyncio.create_subprocess_shell(
+                f"neuro cp --recursive {local_context_uri} {context_uri}"
+            )
+            return_code = await subprocess.wait()
+            if return_code != 0:
+                raise click.ClickException("Uploading build context failed!")
 
         docker_config = await self.create_docker_config()
         docker_config_uri = build_uri / ".docker.config.json"
         logger.debug(f"Uploading {docker_config_uri}")
         await self.save_docker_config(docker_config, docker_config_uri)
 
-        logger.info(f"Submitting a builder job")
+        logger.info("Submitting a builder job")
         image_ref = self.parse_image_ref(image_uri_str)
         builder_container = await self._create_builder_container(
             docker_config_uri=docker_config_uri,

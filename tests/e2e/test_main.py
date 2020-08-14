@@ -128,6 +128,37 @@ def test_image_build_custom_dockerfile(cli_runner: CLIRunner) -> None:
     assert tag in result.stdout
 
 
+def test_ignored_files_are_not_copied(cli_runner: CLIRunner,) -> None:
+    result = cli_runner(["neuro-extras", "init-aliases"])
+    assert result.returncode == 0, result
+
+    ignored_file = "this_file_should_not_be_added.txt"
+    ignored_file_content = "this should not be printed\n"
+
+    dockerfile_path = Path("nested/custom.Dockerfile")
+    dockerfile_path.parent.mkdir(parents=True)
+
+    Path(".neuroignore").write_text(f"{ignored_file}\n")
+    Path(ignored_file).write_text(ignored_file_content)
+    Path(dockerfile_path).write_text(
+        textwrap.dedent(
+            f"""\
+                FROM ubuntu:latest
+                ADD {ignored_file} /
+                RUN cat /{ignored_file}
+                """
+        )
+    )
+
+    img_uri_str = f"image:extras-e2e:{uuid.uuid4()}"
+
+    result = cli_runner(
+        ["neuro", "image-build", "-f", str(dockerfile_path), ".", img_uri_str]
+    )
+
+    assert ignored_file_content not in result.stdout
+
+
 def test_image_copy(cli_runner: CLIRunner) -> None:
     result = cli_runner(["neuro-extras", "init-aliases"])
     assert result.returncode == 0, result
@@ -331,7 +362,7 @@ def test_seldon_generate_deployment(cli_runner: CLIRunner) -> None:
                     "cp -L -r /var/run/neuro/config /root/.neuro;"
                     "chmod 0700 /root/.neuro;"
                     "chmod 0600 /root/.neuro/db;"
-                    f"neuro cp storage:model/model.pkl /storage"
+                    "neuro cp storage:model/model.pkl /storage"
                 ],
                 "volumeMounts": [
                     {"mountPath": "/storage", "name": "neuro-storage"},
@@ -404,7 +435,7 @@ def test_seldon_generate_deployment_custom(cli_runner: CLIRunner) -> None:
                     "cp -L -r /var/run/neuro/config /root/.neuro;"
                     "chmod 0700 /root/.neuro;"
                     "chmod 0600 /root/.neuro/db;"
-                    f"neuro cp storage:model/model.pkl /storage"
+                    "neuro cp storage:model/model.pkl /storage"
                 ],
                 "volumeMounts": [
                     {"mountPath": "/storage", "name": "neuro-storage"},
