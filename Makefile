@@ -6,12 +6,13 @@ setup:
 	pip install -r requirements/test.txt -c requirements/constraints.txt
 
 lint:
+	isort --check-only --diff neuro_extras tests setup.py
 	black --check neuro_extras tests setup.py
 	flake8 neuro_extras tests setup.py
 	mypy neuro_extras tests setup.py
 
 format:
-	isort -rc neuro_extras tests setup.py
+	isort neuro_extras tests setup.py
 	black neuro_extras tests setup.py
 
 test_e2e:
