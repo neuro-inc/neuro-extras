@@ -231,18 +231,24 @@ def cluster_copy(source: str, destination: str) -> None:
 
 async def _copy_storage(source: str, destination: str) -> None:
     src_uri = URL(source)
-    dst_uri = URL(destination)
     src_cluster = src_uri.host
+    src_path = src_uri.parts[2:]
+
+    dst_uri = URL(destination)
     dst_cluster = dst_uri.host
+    dst_path = dst_uri.parts[2:]
+
     assert src_cluster
     assert dst_cluster
     async with neuro_api.get() as client:
         await client.config.switch_cluster(dst_cluster)
         await client.storage.mkdir(URL("storage:"), parents=True, exist_ok=True)
-    await _run_copy_container(src_cluster)
+    await _run_copy_container(src_cluster, "/".join(src_path), "/".join(dst_path))
 
 
-async def _run_copy_container(src_cluster: str) -> Process:
+async def _run_copy_container(
+    src_cluster: str, src_path: str, dst_path: str
+) -> Process:
     args = [
         "neuro",
         "run",
@@ -254,7 +260,7 @@ async def _run_copy_container(src_cluster: str) -> Process:
         "-e",
         f"NEURO_CLUSTER={src_cluster}",
         "neuromation/neuro-extras:latest",
-        '"cp -r -u -T storage: /storage"',
+        f'"cp -r -u -T storage:{src_path} /storage/{dst_path}"',
     ]
     subprocess = await asyncio.create_subprocess_shell(" ".join(args))
     returncode = await subprocess.wait()
