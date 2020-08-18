@@ -3,15 +3,14 @@ import base64
 import json
 import logging
 import re
-import subprocess
 import sys
 import tempfile
 import textwrap
 import uuid
+from asyncio.subprocess import Process
 from dataclasses import dataclass, field
 from distutils import dir_util
 from pathlib import Path
-from subprocess import CompletedProcess
 from typing import Any, AsyncIterator, Dict, MutableMapping, Sequence
 
 import click
@@ -20,6 +19,7 @@ import yaml
 from neuromation import api as neuro_api
 from neuromation.api import ConfigError, find_project_root, Client, Container
 from neuromation.api.config import load_user_config
+from neuromation.api.parsing_utils import _as_repo_str
 from neuromation.api.url_utils import normalize_storage_path_uri, uri_from_cli
 from neuromation.cli.asyncio_utils import run as run_async
 from neuromation.cli.const import EX_PLATFORMERROR
@@ -239,12 +239,10 @@ async def _copy_storage(source: str, destination: str) -> None:
     async with neuro_api.get() as client:
         await client.config.switch_cluster(dst_cluster)
         await client.storage.mkdir(URL("storage:"), parents=True, exist_ok=True)
-    copy_container = await _run_copy_container(src_cluster)
-    print(copy_container.stdout)
-    print(copy_container.stderr)
+    await _run_copy_container(src_cluster)
 
 
-async def _run_copy_container(src_cluster: str) -> CompletedProcess:
+async def _run_copy_container(src_cluster: str) -> Process:
     args = [
         "neuro",
         "run",
@@ -256,23 +254,13 @@ async def _run_copy_container(src_cluster: str) -> CompletedProcess:
         "-e",
         f"NEURO_CLUSTER={src_cluster}",
         "neuromation/neuro-extras:latest",
-        "\"cp -r -u -T storage: /storage\"",
+        '"cp -r -u -T storage: /storage"',
     ]
-    return subprocess.run(args, capture_output=True, check=False)
-
-
-async def _create_copy_container(client: Client, src_cluster: str) -> Container:
-    storage_uri = normalize_storage_path_uri(
-        URL("storage:"), client.config.username, client.config.cluster_name
-    )
-    return neuro_api.Container(
-        image=neuro_api.RemoteImage(name="neuromation/neuro-extras", tag="latest",),
-        resources=neuro_api.Resources(cpu=1.0, memory_mb=4096),
-        volumes=[neuro_api.Volume(storage_uri, "/storage")],
-        env={"NEURO_CLUSTER": src_cluster},
-        tty=True,
-        command="cp -r -u -T storage: /storage",
-    )
+    subprocess = await asyncio.create_subprocess_shell(" ".join(args))
+    returncode = await subprocess.wait()
+    if returncode != 0:
+        raise Exception("Unable to copy storage")
+    return subprocess
 
 
 async def _copy_image(source: str, destination: str) -> None:
