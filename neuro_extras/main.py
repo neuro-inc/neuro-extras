@@ -150,8 +150,8 @@ class ImageBuilder:
         if context_uri.scheme == "file":
             local_context_uri, context_uri = context_uri, build_uri / "context"
             logger.info(f"Uploading {local_context_uri} to {context_uri}")
-            subprocess = await asyncio.create_subprocess_shell(
-                f"neuro cp --recursive {local_context_uri} {context_uri}"
+            subprocess = await asyncio.create_subprocess_exec(
+                "neuro", "cp", "--recursive", str(local_context_uri), str(context_uri)
             )
             return_code = await subprocess.wait()
             if return_code != 0:
@@ -335,7 +335,7 @@ def _get_project_root() -> Path:
         return find_project_root()
     except ConfigError:
         raise click.ClickException(
-            "Not a neuro project directory (or any of the parent directories)."
+            "Not a Neu.ro project directory (or any of the parent directories)."
         )
 
 
@@ -352,8 +352,8 @@ async def _get_remote_project_root() -> Path:
 
 async def _ensure_folder_exists(path: Path, remote: bool = False) -> None:
     if remote:
-        subprocess = await asyncio.create_subprocess_shell(
-            f"neuro mkdir -p storage:{path}"
+        subprocess = await asyncio.create_subprocess_exec(
+            "neuro", "mkdir", "-p", f"storage:{path}"
         )
         returncode = await subprocess.wait()
         if returncode != 0:
@@ -365,16 +365,22 @@ async def _ensure_folder_exists(path: Path, remote: bool = False) -> None:
 async def _upload(path: str) -> int:
     target = _get_project_root() / path
     if not target.exists():
-        raise click.ClickException(f"Folder or file does not exists: {target}")
+        raise click.ClickException(f"Folder or file does not exist: {target}")
     remote_project_root = await _get_remote_project_root()
     await _ensure_folder_exists((remote_project_root / path).parent, True)
     if target.is_dir():
-        subprocess = await asyncio.create_subprocess_shell(
-            f"neuro cp --recursive -u {target} -T storage:{remote_project_root / path}"
+        subprocess = await asyncio.create_subprocess_exec(
+            "neuro",
+            "cp",
+            "--recursive",
+            "-u",
+            str(target),
+            "-T",
+            f"storage:{remote_project_root / path}",
         )
     else:
-        subprocess = await asyncio.create_subprocess_shell(
-            f"neuro cp {target} storage:{remote_project_root / path}"
+        subprocess = await asyncio.create_subprocess_exec(
+            "neuro", "cp", str(target), f"storage:{remote_project_root / path}"
         )
     return await subprocess.wait()
 
@@ -382,11 +388,15 @@ async def _upload(path: str) -> int:
 async def _download(path: str) -> int:
     project_root = _get_project_root()
     remote_project_root = await _get_remote_project_root()
-    print(project_root / path)
     await _ensure_folder_exists((project_root / path).parent, False)
-    subprocess = await asyncio.create_subprocess_shell(
-        f"neuro cp --recursive -u storage:{remote_project_root / path} "
-        f"-T {project_root / path}"
+    subprocess = await asyncio.create_subprocess_exec(
+        "neuro",
+        "cp",
+        "--recursive",
+        "-u",
+        f"storage:{remote_project_root / path}",
+        "-T",
+        str(project_root / path),
     )
     return await subprocess.wait()
 
