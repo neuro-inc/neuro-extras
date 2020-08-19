@@ -160,8 +160,6 @@ def test_ignored_files_are_not_copied(cli_runner: CLIRunner,) -> None:
     assert ignored_file_content not in result.stdout
 
 
-# neuro image tags is broken on AWS, need to be fixed on neuro-cli side first
-@pytest.mark.xfail
 def test_image_copy(cli_runner: CLIRunner) -> None:
     result = cli_runner(["neuro-extras", "init-aliases"])
     assert result.returncode == 0, result
