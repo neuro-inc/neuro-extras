@@ -17,6 +17,8 @@ jobs:
         os: [ubuntu, macos, windows]
       fail-fast: false
     runs-on: ${{ matrix.os }}-latest
+      NEURO_STAGING_URL: ${{ secrets.NEURO_STAGING_URL }}
+      NEURO_TOKEN: ${{ secrets.NEURO_TOKEN }}
     steps:
       - name: Checkout commit
         uses: actions/checkout@v2
