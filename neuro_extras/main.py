@@ -263,7 +263,6 @@ async def _run_copy_container(
         f'"cp -r -u -T storage:{src_path} /storage/{dst_path}"',
     ]
     cmd = " ".join(args)
-    print(f"cmd={cmd}")
     subprocess = await asyncio.create_subprocess_shell(cmd)
     returncode = await subprocess.wait()
     if returncode != 0:
