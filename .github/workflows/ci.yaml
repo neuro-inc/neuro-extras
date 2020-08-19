@@ -17,9 +17,6 @@ jobs:
         os: [ubuntu, macos, windows]
       fail-fast: false
     runs-on: ${{ matrix.os }}-latest
-    env:
-      NEURO_STAGING_URL: ${{ secrets.NEURO_STAGING_URL }}
-      NEURO_TOKEN: ${{ secrets.NEURO_TOKEN }}
     steps:
       - name: Checkout commit
         uses: actions/checkout@v2
@@ -43,7 +40,7 @@ jobs:
           make setup
       - name: Configure environment
         run: |
-          neuro config login-with-token $NEURO_TOKEN $NEURO_STAGING_URL
+          neuro config login-with-token ${{ secrets.NEURO_TOKEN }} ${{ secrets.NEURO_STAGING_URL }}
           neuro config show
       - name: Lint
         run: |
