@@ -175,6 +175,8 @@ def test_storage_copy(cli_runner: CLIRunner) -> None:
     assert m
     current_cluster = m.groups()[0]
 
+    print(f"Username = {username}, cluster = {current_cluster}")
+
     run_id = uuid.uuid4()
     src_path = f"copy-src/{str(run_id)}"
     result = cli_runner(["neuro", "mkdir", "-p", "storage:" + src_path])
@@ -186,7 +188,7 @@ def test_storage_copy(cli_runner: CLIRunner) -> None:
         [
             "neuro",
             "storage-copy",
-            f"storage://default/{username}/{src_path}",
+            f"storage://{current_cluster}/{username}/{src_path}",
             f"storage://{current_cluster}/{username}/{dst_path}",
         ]
     )
