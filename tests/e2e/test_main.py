@@ -11,6 +11,7 @@ from typing import Callable, Iterator, List
 from unittest import mock
 
 import pytest
+import toml
 import yaml
 from _pytest.capture import CaptureFixture
 from neuromation.cli.const import EX_OK
@@ -126,6 +127,37 @@ def test_image_build_custom_dockerfile(cli_runner: CLIRunner) -> None:
     result = cli_runner(["neuro", "image", "tags", "image:extras-e2e"])
     assert result.returncode == 0, result
     assert tag in result.stdout
+
+
+def test_ignored_files_are_not_copied(cli_runner: CLIRunner,) -> None:
+    result = cli_runner(["neuro-extras", "init-aliases"])
+    assert result.returncode == 0, result
+
+    ignored_file = "this_file_should_not_be_added.txt"
+    ignored_file_content = "this should not be printed\n"
+
+    dockerfile_path = Path("nested/custom.Dockerfile")
+    dockerfile_path.parent.mkdir(parents=True)
+
+    Path(".neuroignore").write_text(f"{ignored_file}\n")
+    Path(ignored_file).write_text(ignored_file_content)
+    Path(dockerfile_path).write_text(
+        textwrap.dedent(
+            f"""\
+                FROM ubuntu:latest
+                ADD {ignored_file} /
+                RUN cat /{ignored_file}
+                """
+        )
+    )
+
+    img_uri_str = f"image:extras-e2e:{uuid.uuid4()}"
+
+    result = cli_runner(
+        ["neuro", "image-build", "-f", str(dockerfile_path), ".", img_uri_str]
+    )
+
+    assert ignored_file_content not in result.stdout
 
 
 def test_image_copy(cli_runner: CLIRunner) -> None:
@@ -440,3 +472,60 @@ def test_seldon_generate_deployment_custom(cli_runner: CLIRunner) -> None:
             ]
         },
     }
+
+
+@pytest.fixture()
+def remote_project_dir(project_dir: Path) -> Path:
+    local_conf = project_dir / ".neuro.toml"
+    remote_project_dir = "e2e-test-remote-dir"
+    local_conf.write_text(
+        toml.dumps({"extra": {"remote-project-dir": remote_project_dir}})
+    )
+    return Path(remote_project_dir)
+
+
+def test_upload_download_single_file(
+    project_dir: Path, remote_project_dir: Path, cli_runner: CLIRunner
+) -> None:
+    test_file_name = "test.txt"
+    test_file_content = "Testing"
+
+    file = project_dir / test_file_name
+    file.write_text(test_file_content)
+    result = cli_runner(["neuro-extras", "upload", test_file_name])
+    assert result.returncode == 0, result
+    file.unlink()
+    # Redownload file
+    result = cli_runner(["neuro-extras", "download", test_file_name])
+    assert result.returncode == 0, result
+    file = project_dir / test_file_name
+    assert file.read_text() == test_file_content
+
+
+def test_upload_download_subdir(
+    project_dir: Path, remote_project_dir: Path, cli_runner: CLIRunner
+) -> None:
+    subdir_name = "sub"
+    test_file_name = "test.txt"
+    test_file_content = "Testing"
+
+    file_in_root = project_dir / test_file_name
+    file_in_root.write_text(test_file_content)
+    subdir = project_dir / subdir_name
+    subdir.mkdir()
+    file_in_subdir = project_dir / subdir_name / test_file_name
+
+    file_in_subdir.write_text(test_file_content)
+
+    result = cli_runner(["neuro-extras", "upload", subdir_name])
+    assert result.returncode == 0, result
+    file_in_root.unlink()
+    file_in_subdir.unlink()
+    subdir.rmdir()
+    # Redownload folder
+    result = cli_runner(["neuro-extras", "download", subdir_name])
+    assert result.returncode == 0, result
+    file_in_root = project_dir / test_file_name
+    assert not file_in_root.exists(), "File in project root should not be downloaded"
+    file_in_subdir = project_dir / subdir_name / test_file_name
+    assert file_in_subdir.read_text() == test_file_content
