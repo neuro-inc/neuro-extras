@@ -262,7 +262,9 @@ async def _run_copy_container(
         "neuromation/neuro-extras:latest",
         f'"cp -r -u -T storage:{src_path} /storage/{dst_path}"',
     ]
-    subprocess = await asyncio.create_subprocess_shell(" ".join(args))
+    cmd = " ".join(args)
+    print(f"cmd={cmd}")
+    subprocess = await asyncio.create_subprocess_shell(cmd)
     returncode = await subprocess.wait()
     if returncode != 0:
         raise Exception("Unable to copy storage")

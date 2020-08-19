@@ -2,6 +2,7 @@ import base64
 import json
 import logging
 import os
+import re
 import textwrap
 import uuid
 from pathlib import Path
@@ -158,6 +159,38 @@ def test_ignored_files_are_not_copied(cli_runner: CLIRunner,) -> None:
     )
 
     assert ignored_file_content not in result.stdout
+
+
+def test_storage_copy(cli_runner: CLIRunner) -> None:
+    result = cli_runner(["neuro-extras", "init-aliases"])
+    assert result.returncode == 0, result
+
+    result = cli_runner(["neuro", "config", "show"])
+    username_re = re.compile(".*User Name: ([a-zA-Z0-9-]+).*", re.DOTALL)
+    cluster_re = re.compile(".*Current Cluster: ([a-zA-Z0-9-]+).*", re.DOTALL)
+    m = username_re.match(result.stdout)
+    assert m
+    username = m.groups()[0]
+    m = cluster_re.match(result.stdout)
+    assert m
+    current_cluster = m.groups()[0]
+
+    run_id = uuid.uuid4()
+    src_path = f"copy-src/{str(run_id)}"
+    result = cli_runner(["neuro", "mkdir", "-p", "storage:" + src_path])
+    assert result.returncode == 0, result
+
+    dst_path = "copy-dst/"
+
+    result = cli_runner(
+        [
+            "neuro",
+            "storage-copy",
+            f"storage://default/{username}/{src_path}",
+            f"storage://{current_cluster}/{username}/{dst_path}",
+        ]
+    )
+    assert result.returncode == 0, result
 
 
 def test_image_copy(cli_runner: CLIRunner) -> None:
