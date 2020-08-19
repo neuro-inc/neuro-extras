@@ -17,7 +17,7 @@ import click
 import toml
 import yaml
 from neuromation import api as neuro_api
-from neuromation.api import ConfigError, find_project_root, Client, Container
+from neuromation.api import ConfigError, find_project_root
 from neuromation.api.config import load_user_config
 from neuromation.api.parsing_utils import _as_repo_str
 from neuromation.api.url_utils import normalize_storage_path_uri, uri_from_cli
