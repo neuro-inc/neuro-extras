@@ -185,7 +185,7 @@ def test_storage_copy(cli_runner: CLIRunner) -> None:
     result = cli_runner(
         [
             "neuro",
-            "storage-copy",
+            "cp",
             f"storage://{current_cluster}/{username}/{src_path}",
             f"storage://{current_cluster}/{username}/{dst_path}",
         ]

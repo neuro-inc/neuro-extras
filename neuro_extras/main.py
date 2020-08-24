@@ -7,7 +7,6 @@ import sys
 import tempfile
 import textwrap
 import uuid
-from asyncio.subprocess import Process
 from dataclasses import dataclass, field
 from distutils import dir_util
 from pathlib import Path
@@ -201,11 +200,6 @@ def image() -> None:
     pass
 
 
-@main.group()
-def storage() -> None:
-    pass
-
-
 @image.command("build")
 @click.option("-f", "--file", default="Dockerfile")
 @click.option("--build-arg", multiple=True)
@@ -222,7 +216,7 @@ def image_copy(source: str, destination: str) -> None:
     run_async(_copy_image(source, destination))
 
 
-@storage.command("copy")
+@main.command("cp")
 @click.argument("source")
 @click.argument("destination")
 def cluster_copy(source: str, destination: str) -> None:
@@ -230,11 +224,11 @@ def cluster_copy(source: str, destination: str) -> None:
 
 
 async def _copy_storage(source: str, destination: str) -> None:
-    src_uri = URL(source)
+    src_uri = uri_from_cli(source, "", "")
     src_cluster = src_uri.host
     src_path = src_uri.parts[2:]
 
-    dst_uri = URL(destination)
+    dst_uri = uri_from_cli(destination, "", "")
     dst_cluster = dst_uri.host
     dst_path = dst_uri.parts[2:]
 
@@ -246,9 +240,7 @@ async def _copy_storage(source: str, destination: str) -> None:
     await _run_copy_container(src_cluster, "/".join(src_path), "/".join(dst_path))
 
 
-async def _run_copy_container(
-    src_cluster: str, src_path: str, dst_path: str
-) -> Process:
+async def _run_copy_container(src_cluster: str, src_path: str, dst_path: str) -> None:
     args = [
         "neuro",
         "run",
@@ -260,14 +252,14 @@ async def _run_copy_container(
         "-e",
         f"NEURO_CLUSTER={src_cluster}",
         "neuromation/neuro-extras:latest",
-        f'"cp -r -u -T storage:{src_path} /storage/{dst_path}"',
+        f'"cp --progress -r -u -T storage:{src_path} /storage/{dst_path}"',
     ]
     cmd = " ".join(args)
+    print(f"Executing '{cmd}'")
     subprocess = await asyncio.create_subprocess_shell(cmd)
     returncode = await subprocess.wait()
     if returncode != 0:
         raise Exception("Unable to copy storage")
-    return subprocess
 
 
 async def _copy_image(source: str, destination: str) -> None:
