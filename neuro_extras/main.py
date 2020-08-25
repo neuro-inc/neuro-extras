@@ -471,8 +471,8 @@ def init_aliases() -> None:
         "exec": "neuro-extras image copy",
         "args": "SOURCE DESTINATION",
     }
-    config["alias"]["storage-copy"] = {
-        "exec": "neuro-extras storage copy",
+    config["alias"]["storage-cp"] = {
+        "exec": "neuro-extras cp",
         "args": "SOURCE DESTINATION",
     }
     with toml_path.open("w") as f:
