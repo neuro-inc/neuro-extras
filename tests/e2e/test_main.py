@@ -8,6 +8,7 @@ import uuid
 from pathlib import Path
 from subprocess import CompletedProcess
 from tempfile import TemporaryDirectory
+from time import sleep
 from typing import Callable, Iterator, List
 from unittest import mock
 
@@ -125,6 +126,8 @@ def test_image_build_custom_dockerfile(cli_runner: CLIRunner) -> None:
     )
     assert result.returncode == 0, result
 
+    sleep(1)
+
     result = cli_runner(["neuro", "image", "tags", "image:extras-e2e"])
     assert result.returncode == 0, result
     assert tag in result.stdout
@@ -218,12 +221,14 @@ def test_image_copy(cli_runner: CLIRunner) -> None:
     )
     assert result.returncode == 0, result
 
+    sleep(1)
     result = cli_runner(["neuro", "image", "tags", "image:extras-e2e"])
     assert result.returncode == 0, result
     assert tag in result.stdout
 
     result = cli_runner(["neuro", "image-copy", img_uri_str, "image:extras-e2e-copy"])
     assert result.returncode == 0, result
+    sleep(1)
     result = cli_runner(["neuro", "image", "tags", "image:extras-e2e-copy"])
     assert result.returncode == 0, result
 
