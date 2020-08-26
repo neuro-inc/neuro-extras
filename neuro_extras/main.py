@@ -10,18 +10,19 @@ import uuid
 from dataclasses import dataclass, field
 from distutils import dir_util
 from pathlib import Path
-from typing import Any, AsyncIterator, Dict, MutableMapping, Sequence
+from typing import Any, AsyncIterator, Dict, MutableMapping, Sequence, Set
 
 import click
 import toml
 import yaml
 from neuromation import api as neuro_api
-from neuromation.api import ConfigError, find_project_root
+from neuromation.api import ConfigError, SecretFile, find_project_root
 from neuromation.api.config import load_user_config
 from neuromation.api.parsing_utils import _as_repo_str
 from neuromation.api.url_utils import normalize_storage_path_uri, uri_from_cli
 from neuromation.cli.asyncio_utils import run as run_async
 from neuromation.cli.const import EX_PLATFORMERROR
+from neuromation.cli.job import _extract_secret_env, build_env
 from yarl import URL
 
 
@@ -88,6 +89,22 @@ class ImageBuilder:
 
         await self._client.storage.create(uri, _gen())
 
+    def _parse_secret_resource(uri: str, username: str, cluster_name: str) -> URL:
+        return uri_from_cli(uri, username, cluster_name, allowed_schemes=("secret"),)
+
+    async def _build_secret_files(
+        root: Root, input_volumes: Set[str]
+    ) -> Set[SecretFile]:
+        secret_files: Set[SecretFile] = set()
+        for volume in input_volumes:
+            parts = volume.split(":")
+            if len(parts) != 3:
+                raise ValueError(f"Invalid secret file specification '{volume}'")
+            container_path = parts.pop()
+            secret_uri = parse_secret_resource(":".join(parts), root)
+            secret_files.add(SecretFile(secret_uri, container_path))
+        return secret_files
+
     async def _create_builder_container(
         self,
         *,
@@ -96,6 +113,8 @@ class ImageBuilder:
         dockerfile_path: str,
         image_ref: str,
         build_args: Sequence[str] = (),
+        volume: Sequence[str],
+        env: Sequence[str],
     ) -> neuro_api.Container:
 
         cache_image = neuro_api.RemoteImage(
@@ -113,18 +132,25 @@ class ImageBuilder:
 
         if build_args:
             command += "".join([f" --build-arg {arg}" for arg in build_args])
+
+        input_secret_files = {vol for vol in volume if vol.startswith("secret:")}
+        input_volumes = set(volume) - input_secret_files
+        secret_files = await _build_secret_files(input_secret_files)
+        volumes = await _build_volumes(root, input_volumes, env_dict)
+
+        volumes = [
+            neuro_api.Volume(
+                docker_config_uri, "/kaniko/.docker/config.json", read_only=True
+            ),
+            # TODO: try read only
+            neuro_api.Volume(context_uri, "/workspace"),
+        ]
         return neuro_api.Container(
             image=neuro_api.RemoteImage(
                 name="gcr.io/kaniko-project/executor", tag="latest",
             ),
             resources=neuro_api.Resources(cpu=1.0, memory_mb=4096),
-            volumes=[
-                neuro_api.Volume(
-                    docker_config_uri, "/kaniko/.docker/config.json", read_only=True
-                ),
-                # TODO: try read only
-                neuro_api.Volume(context_uri, "/workspace"),
-            ],
+            volumes=volumes,
             command=command,
         )
 
@@ -138,6 +164,8 @@ class ImageBuilder:
         context_uri: URL,
         image_uri_str: str,
         build_args: Sequence[str],
+        volume: Sequence[str],
+        env: Sequence[str],
     ) -> neuro_api.JobDescription:
         # TODO: check if Dockerfile exists
 
@@ -169,6 +197,8 @@ class ImageBuilder:
             dockerfile_path=dockerfile_path,
             image_ref=image_ref,
             build_args=build_args,
+            volume=volume,
+            env=env,
         )
         # TODO: set proper tags
         job = await self._client.jobs.run(builder_container, life_span=60 * 60)
@@ -203,10 +233,40 @@ def image() -> None:
 @image.command("build")
 @click.option("-f", "--file", default="Dockerfile")
 @click.option("--build-arg", multiple=True)
+@click.option(
+    "-v",
+    "--volume",
+    metavar="MOUNT",
+    multiple=True,
+    help=(
+        "Mounts directory from vault into container. "
+        "Use multiple options to mount more than one volume. "
+        "Use --volume=ALL to mount all accessible storage directories."
+    ),
+    secure=True,
+)
+@click.option(
+    "-e",
+    "--env",
+    metavar="VAR=VAL",
+    multiple=True,
+    help=(
+        "Set environment variable in container "
+        "Use multiple options to define more than one variable"
+    ),
+    secure=True,
+)
 @click.argument("path")
 @click.argument("image_uri")
-def image_build(file: str, build_arg: Sequence[str], path: str, image_uri: str) -> None:
-    run_async(_build_image(file, path, image_uri, build_arg))
+def image_build(
+    file: str,
+    build_arg: Sequence[str],
+    path: str,
+    image_uri: str,
+    volume: Sequence[str],
+    env: Sequence[str],
+) -> None:
+    run_async(_build_image(file, path, image_uri, build_arg, volume, env))
 
 
 @image.command("copy")
@@ -276,11 +336,16 @@ async def _copy_image(source: str, destination: str) -> None:
                     """
                 )
             )
-        await _build_image("Dockerfile", tmpdir, destination, [])
+        await _build_image("Dockerfile", tmpdir, destination, [], [], [])
 
 
 async def _build_image(
-    dockerfile_path: str, context: str, image_uri: str, build_args: Sequence[str]
+    dockerfile_path: str,
+    context: str,
+    image_uri: str,
+    build_args: Sequence[str],
+    volume: Sequence[str],
+    env: Sequence[str],
 ) -> None:
     async with neuro_api.get() as client:
         context_uri = uri_from_cli(
@@ -290,7 +355,9 @@ async def _build_image(
             allowed_schemes=("file", "storage"),
         )
         builder = ImageBuilder(client)
-        job = await builder.launch(dockerfile_path, context_uri, image_uri, build_args)
+        job = await builder.launch(
+            dockerfile_path, context_uri, image_uri, build_args, volume, env
+        )
         while job.status == neuro_api.JobStatus.PENDING:
             job = await client.jobs.status(job.id)
             await asyncio.sleep(1.0)
