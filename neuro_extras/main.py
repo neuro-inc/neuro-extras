@@ -172,7 +172,7 @@ class ImageBuilder:
             build_args=build_args,
         )
         # TODO: set proper tags
-        job = await self._client.jobs.run(builder_container, life_span=60 * 60)
+        job = await self._client.jobs.run(builder_container, life_span=4 * 60 * 60)
         logger.info(f"The builder job ID: {job.id}")
         return job
 
