@@ -221,14 +221,14 @@ def test_image_copy(cli_runner: CLIRunner) -> None:
     )
     assert result.returncode == 0, result
 
-    sleep(1)
+    sleep(10)
     result = cli_runner(["neuro", "image", "tags", "image:extras-e2e"])
     assert result.returncode == 0, result
     assert tag in result.stdout
 
     result = cli_runner(["neuro", "image-copy", img_uri_str, "image:extras-e2e-copy"])
     assert result.returncode == 0, result
-    sleep(1)
+    sleep(10)
     result = cli_runner(["neuro", "image", "tags", "image:extras-e2e-copy"])
     assert result.returncode == 0, result
 
