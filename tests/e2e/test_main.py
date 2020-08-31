@@ -214,7 +214,7 @@ def test_image_copy(cli_runner: CLIRunner) -> None:
         )
 
     tag = str(uuid.uuid4())
-    img_uri_str = f"image:extras-e2e:{tag}"
+    img_uri_str = f"image:extras-e2e-4:{tag}"
 
     result = cli_runner(
         ["neuro", "image-build", "-f", str(dockerfile_path), ".", img_uri_str]
@@ -222,7 +222,7 @@ def test_image_copy(cli_runner: CLIRunner) -> None:
     assert result.returncode == 0, result
 
     sleep(10)
-    result = cli_runner(["neuro", "image", "tags", "image:extras-e2e"])
+    result = cli_runner(["neuro", "image", "tags", "image:extras-e2e-4"])
     assert result.returncode == 0, result
     assert tag in result.stdout
 
