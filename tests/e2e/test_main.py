@@ -119,16 +119,16 @@ def test_image_build_custom_dockerfile(cli_runner: CLIRunner) -> None:
         )
 
     tag = str(uuid.uuid4())
-    img_uri_str = f"image:extras-e2e:{tag}"
+    img_uri_str = f"image:extras-e2e-2:{tag}"
 
     result = cli_runner(
         ["neuro", "image-build", "-f", str(dockerfile_path), ".", img_uri_str]
     )
     assert result.returncode == 0, result
 
-    sleep(1)
+    sleep(10)
 
-    result = cli_runner(["neuro", "image", "tags", "image:extras-e2e"])
+    result = cli_runner(["neuro", "image", "tags", "image:extras-e2e-2"])
     assert result.returncode == 0, result
     assert tag in result.stdout
 
@@ -281,7 +281,7 @@ def test_seldon_deploy_from_local(cli_runner: CLIRunner) -> None:
 
     pkg_path = Path("pkg")
     tag = str(uuid.uuid4())
-    img_uri_str = f"image:extras-e2e:{tag}"
+    img_uri_str = f"image:extras-e2e-3:{tag}"
     result = cli_runner(["neuro", "seldon-init-package", str(pkg_path)])
     assert result.returncode == 0, result
     assert "Copying a Seldon package scaffolding" in result.stdout, result
@@ -293,7 +293,9 @@ def test_seldon_deploy_from_local(cli_runner: CLIRunner) -> None:
     )
     assert result.returncode == 0, result
 
-    result = cli_runner(["neuro", "image", "tags", "image:extras-e2e"])
+    sleep(10)
+
+    result = cli_runner(["neuro", "image", "tags", "image:extras-e2e-3"])
     assert result.returncode == 0, result
     assert tag in result.stdout
 
