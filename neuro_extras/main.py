@@ -252,11 +252,36 @@ async def _data_cp(source: str, destination: str, unpack: bool) -> None:
         if UrlType.CLOUD in (source_url_type, destination_url_type):
             # Cloud <-> local
             # gsutil, aws s3, neuro cp
-            pass
+            cloud_url = (
+                source_url if source_url_type == UrlType.CLOUD else destination_url
+            )
+            if cloud_url.scheme == "s3":
+                subprocess = await asyncio.create_subprocess_exec(
+                    "aws",
+                    "s3",
+                    "cp",
+                    "--recursive",
+                    source_url.path,
+                    destination_url.path,
+                )
+                returncode = await subprocess.wait()
+                if returncode != 0:
+                    raise click.ClickException("Copy failed")
+            elif cloud_url.scheme == "gs":
+                subprocess = await asyncio.create_subprocess_exec(
+                    "gsutil", "-m", "cp", "-r", source_url.path, destination_url.path
+                )
+                returncode = await subprocess.wait()
+                if returncode != 0:
+                    raise click.ClickException("Copy failed")
         elif UrlType.LOCAL in (source_url_type, destination_url_type):
             # Local <-> local
-            # rsync
-            pass
+            subprocess = await asyncio.create_subprocess_exec(
+                "rsync", "-avzh", "--progress", source_url.path, destination_url.path
+            )
+            returncode = await subprocess.wait()
+            if returncode != 0:
+                raise click.ClickException("Copy failed")
         else:
             raise ValueError(
                 "Unknown/unsupported combination of source and destination URLs"
