@@ -9,6 +9,7 @@ import textwrap
 import uuid
 from dataclasses import dataclass, field
 from distutils import dir_util
+from enum import Enum
 from pathlib import Path
 from typing import Any, AsyncIterator, Dict, MutableMapping, Sequence
 
@@ -26,7 +27,6 @@ from yarl import URL
 
 
 logger = logging.getLogger(__name__)
-
 
 ASSETS_PATH = Path(__file__).resolve().parent / "assets"
 SELDON_CUSTOM_PATH = ASSETS_PATH / "seldon.package"
@@ -199,6 +199,76 @@ def main() -> None:
 @main.group()
 def image() -> None:
     pass
+
+
+@main.group()
+def data() -> None:
+    pass
+
+
+class UrlType(Enum):
+    UNSUPPORTED = 0
+    LOCAL = 1
+    CLOUD = 2
+    STORAGE = 3
+
+    @staticmethod
+    def get_type(url: URL) -> "UrlType":
+        if url.scheme == "storage":
+            return UrlType.STORAGE
+        if url.scheme == "file":
+            return UrlType.LOCAL
+        if url.scheme in ("s3", "gs"):
+            return UrlType.CLOUD
+        return UrlType.UNSUPPORTED
+
+
+async def _data_cp(source: str, destination: str, unpack: bool) -> None:
+    source_url = URL(source)
+    destination_url = URL(destination)
+    source_url_type = UrlType.get_type(source_url)
+    if source_url_type == UrlType.UNSUPPORTED:
+        raise ValueError(f"Unsupported source URL scheme: {source_url.scheme}")
+    destination_url_type = UrlType.get_type(destination_url)
+    if destination_url_type == UrlType.UNSUPPORTED:
+        raise ValueError(
+            f"Unsupported destination URL scheme: {destination_url.scheme}"
+        )
+
+    if source_url_type == UrlType.CLOUD and destination_url_type == UrlType.CLOUD:
+        raise ValueError(
+            "This command can't be used to copy data between cloud providers"
+        )
+    if source_url_type == UrlType.STORAGE and destination_url_type == UrlType.STORAGE:
+        raise ValueError(
+            "This command can't be used to copy data between two storage locations"
+        )
+    if UrlType.STORAGE in (source_url_type, destination_url_type):
+        # * <-> storage:foo-bar
+        # run a job that mounts storage:foo-bar to /var/storage and
+        # run neuro-extras data copy to this folder /var/storage
+        pass
+    else:
+        if UrlType.CLOUD in (source_url_type, destination_url_type):
+            # Cloud <-> local
+            # gsutil, aws s3, neuro cp
+            pass
+        elif UrlType.LOCAL in (source_url_type, destination_url_type):
+            # Local <-> local
+            # rsync
+            pass
+        else:
+            raise ValueError(
+                "Unknown/unsupported combination of source and destination URLs"
+            )
+
+
+@data.command("cp")
+@click.argument("source")
+@click.argument("destination")
+@click.option("-u", "--unpack", default=False)
+def data_cp(source: str, destination: str, unpack: bool) -> None:
+    run_async(_data_cp(source, destination, unpack))
 
 
 @image.command("build")
