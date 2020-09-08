@@ -10,19 +10,18 @@ import uuid
 from dataclasses import dataclass, field
 from distutils import dir_util
 from pathlib import Path
-from typing import Any, AsyncIterator, Dict, MutableMapping, Sequence, Set
+from typing import Any, AsyncIterator, Dict, MutableMapping, Sequence
 
 import click
 import toml
 import yaml
 from neuromation import api as neuro_api
-from neuromation.api import ConfigError, SecretFile, find_project_root
+from neuromation.api import ConfigError, find_project_root
 from neuromation.api.config import load_user_config
 from neuromation.api.parsing_utils import _as_repo_str
 from neuromation.api.url_utils import normalize_storage_path_uri, uri_from_cli
 from neuromation.cli.asyncio_utils import run as run_async
 from neuromation.cli.const import EX_PLATFORMERROR
-from neuromation.cli.job import _extract_secret_env, build_env
 from yarl import URL
 
 
@@ -89,22 +88,6 @@ class ImageBuilder:
 
         await self._client.storage.create(uri, _gen())
 
-    def _parse_secret_resource(uri: str, username: str, cluster_name: str) -> URL:
-        return uri_from_cli(uri, username, cluster_name, allowed_schemes=("secret"),)
-
-    async def _build_secret_files(
-        root: Root, input_volumes: Set[str]
-    ) -> Set[SecretFile]:
-        secret_files: Set[SecretFile] = set()
-        for volume in input_volumes:
-            parts = volume.split(":")
-            if len(parts) != 3:
-                raise ValueError(f"Invalid secret file specification '{volume}'")
-            container_path = parts.pop()
-            secret_uri = parse_secret_resource(":".join(parts), root)
-            secret_files.add(SecretFile(secret_uri, container_path))
-        return secret_files
-
     async def _create_builder_container(
         self,
         *,
@@ -133,25 +116,32 @@ class ImageBuilder:
         if build_args:
             command += "".join([f" --build-arg {arg}" for arg in build_args])
 
-        input_secret_files = {vol for vol in volume if vol.startswith("secret:")}
-        input_volumes = set(volume) - input_secret_files
-        secret_files = await _build_secret_files(input_secret_files)
-        volumes = await _build_volumes(root, input_volumes, env_dict)
+        env_dict, secret_env_dict = self._client.parse.env(env)
+        volumes, secret_files = self._client.parse.volumes(volume)
 
-        volumes = [
+        command += "".join([f" --build-arg {arg}" for arg in env_dict.keys()])
+        command += "".join([f" --build-arg {arg}" for arg in secret_env_dict.keys()])
+
+        default_volumes = [
             neuro_api.Volume(
                 docker_config_uri, "/kaniko/.docker/config.json", read_only=True
             ),
             # TODO: try read only
             neuro_api.Volume(context_uri, "/workspace"),
         ]
+
+        volumes.extend(default_volumes)
+
         return neuro_api.Container(
             image=neuro_api.RemoteImage(
                 name="gcr.io/kaniko-project/executor", tag="latest",
             ),
             resources=neuro_api.Resources(cpu=1.0, memory_mb=4096),
-            volumes=volumes,
             command=command,
+            volumes=volumes,
+            secret_files=secret_files,
+            env=env_dict,
+            secret_env=secret_env_dict,
         )
 
     def parse_image_ref(self, image_uri_str: str) -> str:
@@ -243,7 +233,6 @@ def image() -> None:
         "Use multiple options to mount more than one volume. "
         "Use --volume=ALL to mount all accessible storage directories."
     ),
-    secure=True,
 )
 @click.option(
     "-e",
@@ -254,7 +243,6 @@ def image() -> None:
         "Set environment variable in container "
         "Use multiple options to define more than one variable"
     ),
-    secure=True,
 )
 @click.argument("path")
 @click.argument("image_uri")
@@ -527,6 +515,8 @@ def init_aliases() -> None:
         "options": [
             "-f, --file path to the Dockerfile within CONTEXT",
             "--build-arg build arguments for Docker",
+            "-e, --env environment variables for container",
+            "-v, --volume list of volumes for container",
         ],
         "args": "CONTEXT IMAGE_URI",
     }

@@ -281,6 +281,54 @@ def test_image_build_custom_build_args(cli_runner: CLIRunner) -> None:
 
 
 @pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
+def test_image_build_env(cli_runner: CLIRunner) -> None:
+    result = cli_runner(["neuro-extras", "init-aliases"])
+    assert result.returncode == 0, result
+
+    result = cli_runner(
+        ["neuro", "secret", "add", "gh-token-e2e", "$TEST_GITHUB_TOKEN"]
+    )
+    assert result.returncode == 0, result
+
+    dockerfile_path = Path("nested/custom.Dockerfile")
+    dockerfile_path.parent.mkdir(parents=True)
+
+    github_url = (
+        "https://raw.githubusercontent.com/neuromation/platform-api/master/setup.py"
+    )
+
+    with open(dockerfile_path, "w") as f:
+        f.write(
+            textwrap.dedent(
+                f"""\
+                FROM ubuntu:latest
+                ARG GIT_TOKEN
+                ENV GIT_TOKEN=$GIT_TOKEN
+                RUN apt-get update && apt-get install -y wget
+                RUN wget --header "Authorization: token $GIT_TOKEN" {github_url}
+                """
+            )
+        )
+
+    tag = str(uuid.uuid4())
+    img_uri_str = f"image:extras-e2e:{tag}"
+
+    result = cli_runner(
+        [
+            "neuro",
+            "image-build",
+            "-f",
+            str(dockerfile_path),
+            "-e",
+            "GIT_TOKEN=secret:gh-token-e2e",
+            ".",
+            img_uri_str,
+        ]
+    )
+    assert result.returncode == 0, result
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
 def test_seldon_deploy_from_local(cli_runner: CLIRunner) -> None:
     result = cli_runner(["neuro-extras", "init-aliases"])
     assert result.returncode == 0, result
