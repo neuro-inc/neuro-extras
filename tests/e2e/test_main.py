@@ -3,6 +3,7 @@ import json
 import logging
 import os
 import re
+import sys
 import textwrap
 import uuid
 from pathlib import Path
@@ -101,6 +102,7 @@ def test_image_build_failure(cli_runner: CLIRunner) -> None:
     assert "repository can only contain" in result.stdout
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
 def test_image_build_custom_dockerfile(cli_runner: CLIRunner) -> None:
     result = cli_runner(["neuro-extras", "init-aliases"])
     assert result.returncode == 0, result
@@ -133,6 +135,7 @@ def test_image_build_custom_dockerfile(cli_runner: CLIRunner) -> None:
     assert tag in result.stdout
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
 def test_ignored_files_are_not_copied(cli_runner: CLIRunner,) -> None:
     result = cli_runner(["neuro-extras", "init-aliases"])
     assert result.returncode == 0, result
@@ -196,6 +199,7 @@ def test_storage_copy(cli_runner: CLIRunner) -> None:
     assert result.returncode == 0, result
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
 def test_image_copy(cli_runner: CLIRunner) -> None:
     result = cli_runner(["neuro-extras", "init-aliases"])
     assert result.returncode == 0, result
@@ -233,6 +237,7 @@ def test_image_copy(cli_runner: CLIRunner) -> None:
     assert result.returncode == 0, result
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
 def test_image_build_custom_build_args(cli_runner: CLIRunner) -> None:
     result = cli_runner(["neuro-extras", "init-aliases"])
     assert result.returncode == 0, result
@@ -275,6 +280,7 @@ def test_image_build_custom_build_args(cli_runner: CLIRunner) -> None:
     assert f"arg-another-{tag}" in result.stdout
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
 def test_seldon_deploy_from_local(cli_runner: CLIRunner) -> None:
     result = cli_runner(["neuro-extras", "init-aliases"])
     assert result.returncode == 0, result
