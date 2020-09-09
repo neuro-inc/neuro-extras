@@ -31,6 +31,17 @@ ASSETS_PATH = Path(__file__).resolve().parent / "assets"
 SELDON_CUSTOM_PATH = ASSETS_PATH / "seldon.package"
 
 
+async def _run_subprocess(
+    *cmd: str, error_msg: str = "", raise_non_zero: bool = True
+) -> int:
+    subprocess = await asyncio.create_subprocess_exec(*cmd)
+    return_code = await subprocess.wait()
+    if raise_non_zero and return_code != 0:
+        error_msg = error_msg or f"Command failed: {cmd}"
+        raise click.ClickException(error_msg)
+    return return_code
+
+
 @dataclass
 class DockerConfigAuth:
     registry: str
@@ -149,12 +160,14 @@ class ImageBuilder:
         if context_uri.scheme == "file":
             local_context_uri, context_uri = context_uri, build_uri / "context"
             logger.info(f"Uploading {local_context_uri} to {context_uri}")
-            subprocess = await asyncio.create_subprocess_exec(
-                "neuro", "cp", "--recursive", str(local_context_uri), str(context_uri)
+            await _run_subprocess(
+                "neuro",
+                "cp",
+                "--recursive",
+                str(local_context_uri),
+                str(context_uri),
+                error_msg="Uploading build context failed!",
             )
-            return_code = await subprocess.wait()
-            if return_code != 0:
-                raise click.ClickException("Uploading build context failed!")
 
         docker_config = await self.create_docker_config()
         docker_config_uri = build_uri / ".docker.config.json"
@@ -255,11 +268,8 @@ async def _run_copy_container(src_cluster: str, src_path: str, dst_path: str) ->
         f'"cp --progress -r -u -T storage:{src_path} /storage/{dst_path}"',
     ]
     cmd = " ".join(args)
-    print(f"Executing '{cmd}'")
-    subprocess = await asyncio.create_subprocess_shell(cmd)
-    returncode = await subprocess.wait()
-    if returncode != 0:
-        raise Exception("Unable to copy storage")
+    click.echo(f"Executing '{cmd}'")
+    await _run_subprocess(*args, error_msg="Unable to copy storage")
 
 
 async def _copy_image(source: str, destination: str) -> None:
@@ -397,12 +407,13 @@ async def _get_remote_project_root() -> Path:
 
 async def _ensure_folder_exists(path: Path, remote: bool = False) -> None:
     if remote:
-        subprocess = await asyncio.create_subprocess_exec(
-            "neuro", "mkdir", "-p", f"storage:{path}"
+        await _run_subprocess(
+            "neuro",
+            "mkdir",
+            "-p",
+            f"storage:{path}",
+            error_msg="Was unable to create containing directory",
         )
-        returncode = await subprocess.wait()
-        if returncode != 0:
-            raise click.ClickException("Was unable to create containing directory")
     else:
         path.mkdir(parents=True, exist_ok=True)
 
@@ -414,7 +425,7 @@ async def _upload(path: str) -> int:
     remote_project_root = await _get_remote_project_root()
     await _ensure_folder_exists((remote_project_root / path).parent, True)
     if target.is_dir():
-        subprocess = await asyncio.create_subprocess_exec(
+        return await _run_subprocess(
             "neuro",
             "cp",
             "--recursive",
@@ -422,19 +433,23 @@ async def _upload(path: str) -> int:
             str(target),
             "-T",
             f"storage:{remote_project_root / path}",
+            raise_non_zero=False,
         )
     else:
-        subprocess = await asyncio.create_subprocess_exec(
-            "neuro", "cp", str(target), f"storage:{remote_project_root / path}"
+        return await _run_subprocess(
+            "neuro",
+            "cp",
+            str(target),
+            f"storage:{remote_project_root / path}",
+            raise_non_zero=False,
         )
-    return await subprocess.wait()
 
 
 async def _download(path: str) -> int:
     project_root = _get_project_root()
     remote_project_root = await _get_remote_project_root()
     await _ensure_folder_exists((project_root / path).parent, False)
-    subprocess = await asyncio.create_subprocess_exec(
+    return await _run_subprocess(
         "neuro",
         "cp",
         "--recursive",
@@ -442,8 +457,8 @@ async def _download(path: str) -> int:
         f"storage:{remote_project_root / path}",
         "-T",
         str(project_root / path),
+        raise_non_zero=False,
     )
-    return await subprocess.wait()
 
 
 @main.command("init-aliases")
