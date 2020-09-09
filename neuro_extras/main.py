@@ -26,11 +26,11 @@ from neuromation.cli.asyncio_utils import run as run_async
 from neuromation.cli.const import EX_PLATFORMERROR
 from yarl import URL
 
-
 logger = logging.getLogger(__name__)
 
 ASSETS_PATH = Path(__file__).resolve().parent / "assets"
 SELDON_CUSTOM_PATH = ASSETS_PATH / "seldon.package"
+TEMP_UNPACK_DIR = "~/.neuro/tmp"
 
 
 @dataclass
@@ -91,13 +91,13 @@ class ImageBuilder:
         await self._client.storage.create(uri, _gen())
 
     async def _create_builder_container(
-        self,
-        *,
-        docker_config_uri: URL,
-        context_uri: URL,
-        dockerfile_path: str,
-        image_ref: str,
-        build_args: Sequence[str] = (),
+            self,
+            *,
+            docker_config_uri: URL,
+            context_uri: URL,
+            dockerfile_path: str,
+            image_ref: str,
+            build_args: Sequence[str] = (),
     ) -> neuro_api.Container:
 
         cache_image = neuro_api.RemoteImage(
@@ -135,11 +135,11 @@ class ImageBuilder:
         return re.sub(r"^http[s]?://", "", image.as_docker_url())
 
     async def launch(
-        self,
-        dockerfile_path: str,
-        context_uri: URL,
-        image_uri_str: str,
-        build_args: Sequence[str],
+            self,
+            dockerfile_path: str,
+            context_uri: URL,
+            image_uri_str: str,
+            build_args: Sequence[str],
     ) -> neuro_api.JobDescription:
         # TODO: check if Dockerfile exists
 
@@ -260,6 +260,7 @@ async def _data_cp(source: str, destination: str, unpack: bool) -> None:
         raise ValueError(
             "This command can't be used to copy data between two storage locations"
         )
+
     if UrlType.STORAGE in (source_url_type, destination_url_type):
         # * <-> storage:foo-bar
         # run a job that mounts storage:foo-bar to /var/storage and
@@ -382,7 +383,7 @@ async def _copy_image(source: str, destination: str) -> None:
 
 
 async def _build_image(
-    dockerfile_path: str, context: str, image_uri: str, build_args: Sequence[str]
+        dockerfile_path: str, context: str, image_uri: str, build_args: Sequence[str]
 ) -> None:
     async with neuro_api.get() as client:
         context_uri = uri_from_cli(
@@ -640,12 +641,12 @@ async def _create_k8s_secret(name: str) -> Dict[str, Any]:
 
 
 async def _create_seldon_deployment(
-    *,
-    name: str,
-    neuro_secret_name: str,
-    registry_secret_name: str,
-    model_image_uri: str,
-    model_storage_uri: str,
+        *,
+        name: str,
+        neuro_secret_name: str,
+        registry_secret_name: str,
+        model_image_uri: str,
+        model_storage_uri: str,
 ) -> Dict[str, Any]:
     async with neuro_api.get() as client:
         builder = ImageBuilder(client)
@@ -731,11 +732,11 @@ def generate_k8s_registry_secret(name: str) -> None:
 @click.argument("model-image-uri")
 @click.argument("model-storage-uri")
 def generate_seldon_deployment(
-    name: str,
-    neuro_secret: str,
-    registry_secret: str,
-    model_image_uri: str,
-    model_storage_uri: str,
+        name: str,
+        neuro_secret: str,
+        registry_secret: str,
+        model_image_uri: str,
+        model_storage_uri: str,
 ) -> None:
     payload = run_async(
         _create_seldon_deployment(
