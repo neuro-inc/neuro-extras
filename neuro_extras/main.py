@@ -2,7 +2,9 @@ import asyncio
 import base64
 import json
 import logging
+import os
 import re
+import shutil
 import sys
 import tempfile
 import textwrap
@@ -10,7 +12,17 @@ import uuid
 from dataclasses import dataclass, field
 from distutils import dir_util
 from pathlib import Path
-from typing import Any, AsyncIterator, Dict, MutableMapping, Sequence
+from typing import (
+    Any,
+    AsyncIterator,
+    Dict,
+    Iterator,
+    MutableMapping,
+    Optional,
+    Sequence,
+    Set,
+    Union,
+)
 
 import click
 import toml
@@ -29,6 +41,8 @@ logger = logging.getLogger(__name__)
 
 ASSETS_PATH = Path(__file__).resolve().parent / "assets"
 SELDON_CUSTOM_PATH = ASSETS_PATH / "seldon.package"
+FLOW_DEMO_GIT_REPO_NAME = "neuro-flow-demo"
+FLOW_DEMO_GIT_REPO_URL = f"https://github.com/neuromation/{FLOW_DEMO_GIT_REPO_NAME}.git"
 
 
 @dataclass
@@ -649,3 +663,61 @@ def generate_seldon_deployment(
         )
     )
     click.echo(yaml.dump(payload), nl=False)
+
+
+@main.group()
+def flow() -> None:
+    pass
+
+
+@flow.command("init-demo")
+@click.argument("path", default=".")
+def flow_init_demo(path: str) -> None:
+    run_async(_flow_init_demo(path))
+
+
+def _collect_relative_files_recursively(
+    path: Union[str, Path], exclude_dirs: Optional[Set[str]] = None
+) -> Iterator[Path]:
+    path = Path(path)
+    exclude_dirs = exclude_dirs or set()
+    for root, dirs, files in os.walk(path, topdown=True):
+        root_relative = Path(root).relative_to(path)
+        dirs[:] = [d for d in dirs if d not in exclude_dirs]
+        for f in files:
+            yield root_relative / f
+
+
+async def _flow_init_demo(path: Union[str, Path]) -> None:
+    path = Path(path)
+    with tempfile.TemporaryDirectory() as t:
+        temp = Path(t)
+        info = f"Cloning git repository {FLOW_DEMO_GIT_REPO_URL}"
+        click.echo(info)
+        subprocess = await asyncio.create_subprocess_exec(
+            "git", "clone", FLOW_DEMO_GIT_REPO_URL, str(temp)
+        )
+        return_code = await subprocess.wait()
+        if return_code != 0:
+            raise click.ClickException(f"{info} failed!")
+
+        copy_map = []
+        existing = []
+        for relative in _collect_relative_files_recursively(
+            temp, exclude_dirs={".git"}
+        ):
+            src = temp / relative
+            dst = path / relative
+            copy_map.append((src, dst))
+            if dst.exists():
+                existing.append(dst.absolute())
+        if existing:
+            details = " ".join(map(str, existing))
+            raise click.ClickException(f"Destination file(s) already exist: {details}")
+
+        for src, dst in copy_map:
+            click.echo(f"Creating {dst}")
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy(str(src), str(dst))
+
+        click.echo(f"Successfully created {len(copy_map)} files in '{path}'")
