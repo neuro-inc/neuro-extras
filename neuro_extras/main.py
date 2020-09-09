@@ -11,11 +11,12 @@ from dataclasses import dataclass, field
 from distutils import dir_util
 from enum import Enum
 from pathlib import Path
-from typing import Any, AsyncIterator, Dict, MutableMapping, Sequence
+from typing import Any, AsyncIterator, Callable, Dict, MutableMapping, Sequence
 
 import click
 import toml
 import yaml
+from click.types import convert_type
 from neuromation import api as neuro_api
 from neuromation.api import ConfigError, find_project_root
 from neuromation.api.config import load_user_config
@@ -223,6 +224,22 @@ class UrlType(Enum):
         return UrlType.UNSUPPORTED
 
 
+async def _data_auth(service: str) -> None:
+    srv = ServiceType.get_type(service)
+    if srv == ServiceType.S3:
+        subprocess = await asyncio.create_subprocess_exec("aws", "configure")
+        returncode = await subprocess.wait()
+        if returncode != 0:
+            raise click.ClickException("S3 authentication failed")
+    elif srv == ServiceType.GCP:
+        subprocess = await asyncio.create_subprocess_exec("gcloud", "auth", "login")
+        returncode = await subprocess.wait()
+        if returncode != 0:
+            raise click.ClickException("GCP authentication failed")
+    else:
+        raise ValueError(f"Invalid service: {service}")
+
+
 async def _data_cp(source: str, destination: str, unpack: bool) -> None:
     source_url = URL(source)
     destination_url = URL(destination)
@@ -294,6 +311,41 @@ async def _data_cp(source: str, destination: str, unpack: bool) -> None:
 @click.option("-u", "--unpack", default=False)
 def data_cp(source: str, destination: str, unpack: bool) -> None:
     run_async(_data_cp(source, destination, unpack))
+
+
+class ServiceType(Enum):
+    UNSUPPORTED = 0
+    GCP = 1
+    S3 = 2
+
+    @staticmethod
+    def get_type(name: str) -> "ServiceType":
+        if name == "gcp":
+            return ServiceType.GCP
+        if name == "s3":
+            return ServiceType.S3
+        return ServiceType.UNSUPPORTED
+
+
+class Option(click.Option):
+    def __init__(self, *args: Any, secure: bool = False, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self.secure = secure
+
+
+def option(*param_decls: Any, **attrs: Any) -> Callable[..., Any]:
+    option_attrs = attrs.copy()
+    option_attrs.setdefault("cls", Option)
+    typ = convert_type(attrs.get("type"), attrs.get("default"))
+    autocompletion = getattr(typ, "complete", None)
+    option_attrs.setdefault("autocompletion", autocompletion)
+    return click.option(*param_decls, **option_attrs)
+
+
+@data.command("auth")
+@option("--service", prompt="Select service type", type=click.Choice(["s3", "gcp"]))
+def data_auth(service: str) -> None:
+    run_async(_data_auth(service))
 
 
 @image.command("build")
