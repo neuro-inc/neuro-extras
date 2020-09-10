@@ -743,5 +743,5 @@ async def _flow_init_demo(path: Union[str, Path]) -> None:
         click.echo(
             f"Successfully created {len(copy_map)} files in '{path.absolute()}':"
         )
-        for file_path in _collect_relative_files_recursively(path):
-            click.echo(f"  {file_path}")
+        for _, dst in copy_map:
+            click.echo(f"  {dst.absolute()}")
