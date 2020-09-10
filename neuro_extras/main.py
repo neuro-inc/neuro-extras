@@ -15,12 +15,12 @@ from pathlib import Path
 from typing import (
     Any,
     AsyncIterator,
+    Collection,
     Dict,
     Iterator,
     MutableMapping,
     Optional,
     Sequence,
-    Set,
     Union,
 )
 
@@ -687,40 +687,40 @@ async def _clone_git_repo(repo_url: str, destination: Union[str, Path]) -> None:
         raise click.ClickException(f"{info} failed!")
 
 
-def _collect_relative_files_recursively(
-    path: Union[str, Path],
-    *,
-    depth: Optional[int] = None,
-    exclude_files: Optional[Set[str]] = None,
-    exclude_dirs: Optional[Set[str]] = None,
+def _list_files_relative(
+    path: Union[str, Path], *, exclude: Optional[Collection[str]] = None,
 ) -> Iterator[Path]:
     path = Path(path)
-    cur_depth = 0
-    for root, dirs, files in os.walk(path, topdown=True):
-        cur_depth += 1
-        if depth is not None and cur_depth >= depth:
-            break
+    for p in path.iterdir():
+        if exclude is not None and p.name in exclude:
+            continue
+        yield p.relative_to(path)
 
-        root_relative = Path(root).relative_to(path)
-        if exclude_dirs is not None:
-            dirs[:] = [d for d in dirs if d not in exclude_dirs]
 
-        for f in files:
-            if exclude_files is None or f not in exclude_files:
+def _list_files_recursively_relative(path: Union[str, Path],) -> Iterator[Path]:
+    path = Path(path)
+    if path.is_dir():
+        for root, dirs, files in os.walk(path, topdown=True):
+            root_relative = Path(root).relative_to(path)
+            for d in dirs:
+                yield root_relative / d
+            for f in files:
                 yield root_relative / f
 
 
 async def _flow_init_demo(path: Union[str, Path]) -> None:
-    path = Path(path)
+    path = Path(path).expanduser().absolute()
+    if path.is_file():
+        raise click.ClickException(f"Path '{path}' cannot be a file")
+    click.echo(f"Generating neuro-flow initial files in '{path}'...")
+
     with tempfile.TemporaryDirectory() as temp_str:
         temp = Path(temp_str)
         await _clone_git_repo(FLOW_DEMO_GIT_REPO_URL, temp)
 
         copy_map = []
         existing = []
-        for relative in _collect_relative_files_recursively(
-            temp, exclude_files={"README.md"}, exclude_dirs={".git"},
-        ):
+        for relative in _list_files_relative(temp, exclude={".git", "README.md"}):
             src = temp / relative
             dst = path / relative
             copy_map.append((src, dst))
@@ -732,8 +732,10 @@ async def _flow_init_demo(path: Union[str, Path]) -> None:
 
         for src, dst in copy_map:
             click.echo(f"Creating {dst.absolute()}")
-            dst.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy(str(src), str(dst))
+            if src.is_file():
+                shutil.copy(str(src), str(dst))
+            else:
+                shutil.copytree(str(src), str(dst))
 
         click.echo(
             "WARNING: The whole directory will be uploaded to Neu.ro storage. Please"
@@ -743,5 +745,10 @@ async def _flow_init_demo(path: Union[str, Path]) -> None:
         click.echo(
             f"Successfully created {len(copy_map)} files in '{path.absolute()}':"
         )
+
+        display = []
         for _, dst in copy_map:
-            click.echo(f"  {dst.absolute()}")
+            display.append(dst)
+            display.extend((dst / sub for sub in _list_files_recursively_relative(dst)))
+        for p in display:
+            click.echo(f"  {p.relative_to(path)}")
