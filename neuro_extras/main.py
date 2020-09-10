@@ -687,7 +687,7 @@ async def _clone_git_repo(repo_url: str, destination: Union[str, Path]) -> None:
         raise click.ClickException(f"{info} failed!")
 
 
-def _list_files_relative(
+def _list_relative(
     path: Union[str, Path], *, exclude: Optional[Collection[str]] = None,
 ) -> Iterator[Path]:
     path = Path(path)
@@ -697,7 +697,7 @@ def _list_files_relative(
         yield p.relative_to(path)
 
 
-def _list_files_recursively_relative(path: Union[str, Path],) -> Iterator[Path]:
+def _list_relative_recursively(path: Union[str, Path],) -> Iterator[Path]:
     path = Path(path)
     if path.is_dir():
         for root, dirs, files in os.walk(path, topdown=True):
@@ -720,7 +720,7 @@ async def _flow_init_demo(path: Union[str, Path]) -> None:
 
         copy_map = []
         existing = []
-        for relative in _list_files_relative(temp, exclude={".git", "README.md"}):
+        for relative in _list_relative(temp, exclude={".git", "README.md"}):
             src = temp / relative
             dst = path / relative
             copy_map.append((src, dst))
@@ -749,6 +749,6 @@ async def _flow_init_demo(path: Union[str, Path]) -> None:
         display = []
         for _, dst in copy_map:
             display.append(dst)
-            display.extend((dst / sub for sub in _list_files_recursively_relative(dst)))
+            display.extend((dst / sub for sub in _list_relative_recursively(dst)))
         for p in display:
             click.echo(f"  {p.relative_to(path)}")
