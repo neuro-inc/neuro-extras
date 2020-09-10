@@ -678,7 +678,7 @@ def flow_init_demo(path: str) -> None:
 
 async def _clone_git_repo(repo_url: str, destination: Union[str, Path]) -> None:
     info = f"Cloning git repository {repo_url}"
-    click.echo(info + "...")
+    click.echo(info)
     subprocess = await asyncio.create_subprocess_exec(
         "git", "clone", repo_url, str(destination)
     )
