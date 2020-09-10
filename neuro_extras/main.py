@@ -676,6 +676,17 @@ def flow_init_demo(path: str) -> None:
     run_async(_flow_init_demo(path))
 
 
+async def _clone_git_repo(repo_url: str, destination: Union[str, Path]) -> None:
+    info = f"Cloning git repository {repo_url}"
+    click.echo(info + "...")
+    subprocess = await asyncio.create_subprocess_exec(
+        "git", "clone", repo_url, str(destination)
+    )
+    return_code = await subprocess.wait()
+    if return_code != 0:
+        raise click.ClickException(f"{info} failed!")
+
+
 def _collect_relative_files_recursively(
     path: Union[str, Path],
     *,
@@ -701,16 +712,9 @@ def _collect_relative_files_recursively(
 
 async def _flow_init_demo(path: Union[str, Path]) -> None:
     path = Path(path)
-    with tempfile.TemporaryDirectory() as t:
-        temp = Path(t)
-        info = f"Cloning git repository {FLOW_DEMO_GIT_REPO_URL}"
-        click.echo(info)
-        subprocess = await asyncio.create_subprocess_exec(
-            "git", "clone", FLOW_DEMO_GIT_REPO_URL, str(temp)
-        )
-        return_code = await subprocess.wait()
-        if return_code != 0:
-            raise click.ClickException(f"{info} failed!")
+    with tempfile.TemporaryDirectory() as temp_str:
+        temp = Path(temp_str)
+        await _clone_git_repo(FLOW_DEMO_GIT_REPO_URL, temp)
 
         copy_map = []
         existing = []
@@ -739,5 +743,5 @@ async def _flow_init_demo(path: Union[str, Path]) -> None:
         click.echo(
             f"Successfully created {len(copy_map)} files in '{path.absolute()}':"
         )
-        for p in _collect_relative_files_recursively(path):
-            click.echo(f"  {p}")
+        for file_path in _collect_relative_files_recursively(path):
+            click.echo(f"  {file_path}")
