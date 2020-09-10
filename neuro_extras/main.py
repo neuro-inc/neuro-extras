@@ -677,15 +677,26 @@ def flow_init_demo(path: str) -> None:
 
 
 def _collect_relative_files_recursively(
-    path: Union[str, Path], exclude_dirs: Optional[Set[str]] = None
+    path: Union[str, Path],
+    *,
+    depth: Optional[int] = None,
+    exclude_files: Optional[Set[str]] = None,
+    exclude_dirs: Optional[Set[str]] = None,
 ) -> Iterator[Path]:
     path = Path(path)
-    exclude_dirs = exclude_dirs or set()
+    cur_depth = 0
     for root, dirs, files in os.walk(path, topdown=True):
+        cur_depth += 1
+        if depth is not None and cur_depth >= depth:
+            break
+
         root_relative = Path(root).relative_to(path)
-        dirs[:] = [d for d in dirs if d not in exclude_dirs]
+        if exclude_dirs is not None:
+            dirs[:] = [d for d in dirs if d not in exclude_dirs]
+
         for f in files:
-            yield root_relative / f
+            if exclude_files is None or f not in exclude_files:
+                yield root_relative / f
 
 
 async def _flow_init_demo(path: Union[str, Path]) -> None:
@@ -704,7 +715,7 @@ async def _flow_init_demo(path: Union[str, Path]) -> None:
         copy_map = []
         existing = []
         for relative in _collect_relative_files_recursively(
-            temp, exclude_dirs={".git"}
+            temp, exclude_files={"README.md"}, exclude_dirs={".git"},
         ):
             src = temp / relative
             dst = path / relative
@@ -716,8 +727,17 @@ async def _flow_init_demo(path: Union[str, Path]) -> None:
             raise click.ClickException(f"Destination file(s) already exist: {details}")
 
         for src, dst in copy_map:
-            click.echo(f"Creating {dst}")
+            click.echo(f"Creating {dst.absolute()}")
             dst.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy(str(src), str(dst))
 
-        click.echo(f"Successfully created {len(copy_map)} files in '{path}'")
+        click.echo(
+            "WARNING: All files and directories except those specified in "
+            "'.dockerignore' or '.neuroignore' will be uploaded to Neu.ro storage."
+        )
+
+        click.echo(
+            f"Successfully created {len(copy_map)} files in '{path.absolute()}':"
+        )
+        for p in _collect_relative_files_recursively(path):
+            click.echo(f"  {p}")
