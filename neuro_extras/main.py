@@ -732,8 +732,8 @@ async def _flow_init_demo(path: Union[str, Path]) -> None:
             shutil.copy(str(src), str(dst))
 
         click.echo(
-            "WARNING: All files and directories except those specified in "
-            "'.dockerignore' or '.neuroignore' will be uploaded to Neu.ro storage."
+            "WARNING: The whole directory will be uploaded to Neu.ro storage. Please"
+            " specify files to ignore in '.dockerignore' or '.neuroignore'."
         )
 
         click.echo(
