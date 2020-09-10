@@ -588,7 +588,8 @@ def test_flow_init_demo_ok(project_dir: Path, cli_runner: CLIRunner) -> None:
     assert "WARNING: The whole directory will be uploaded" in out, out
     assert "Successfully created" in out, out
     for path in [
-        ".neuro",
+        ".neuro/Dockerfile",
+        ".neuro/live.yml",
         ".neuroignore",
         ".neuro.toml",
     ]:
@@ -628,5 +629,5 @@ def test_flow_init_demo_fail_already_exist(
     err = res.stderr
     assert (
         "Error: Destination file(s) already exist: "
-        f"{project_dir}/.neuro {project_dir}/.neuro.toml"
+        f"{project_dir}/.neuro/Dockerfile {project_dir}/.neuro.toml"
     ) in err, err

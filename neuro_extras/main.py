@@ -687,25 +687,18 @@ async def _clone_git_repo(repo_url: str, destination: Union[str, Path]) -> None:
         raise click.ClickException(f"{info} failed!")
 
 
-def _list_relative(
-    path: Union[str, Path], *, exclude: Optional[Collection[str]] = None,
+def _list_relative_recursively(
+    path: Union[str, Path], *, exclude: Optional[Collection[str]] = None
 ) -> Iterator[Path]:
-    path = Path(path)
-    for p in path.iterdir():
-        if exclude is not None and p.name in exclude:
-            continue
-        yield p.relative_to(path)
-
-
-def _list_relative_recursively(path: Union[str, Path],) -> Iterator[Path]:
     path = Path(path)
     if path.is_dir():
         for root, dirs, files in os.walk(path, topdown=True):
             root_relative = Path(root).relative_to(path)
-            for d in dirs:
-                yield root_relative / d
+            if exclude is not None:
+                dirs[:] = [d for d in dirs if d not in exclude]
             for f in files:
-                yield root_relative / f
+                if exclude is None or f not in exclude:
+                    yield root_relative / f
 
 
 async def _flow_init_demo(path: Union[str, Path]) -> None:
@@ -720,7 +713,7 @@ async def _flow_init_demo(path: Union[str, Path]) -> None:
 
         copy_map = []
         existing = []
-        for relative in _list_relative(temp, exclude={".git", "README.md"}):
+        for relative in _list_relative_recursively(temp, exclude={".git", "README.md"}):
             src = temp / relative
             dst = path / relative
             copy_map.append((src, dst))
@@ -732,10 +725,8 @@ async def _flow_init_demo(path: Union[str, Path]) -> None:
 
         for src, dst in copy_map:
             click.echo(f"Creating {dst.absolute()}")
-            if src.is_file():
-                shutil.copy(str(src), str(dst))
-            else:
-                shutil.copytree(str(src), str(dst))
+            dst.parent.mkdir(exist_ok=True, parents=True)
+            shutil.copy(str(src), str(dst))
 
         click.echo(
             "WARNING: The whole directory will be uploaded to Neu.ro storage. Please"
@@ -746,9 +737,5 @@ async def _flow_init_demo(path: Union[str, Path]) -> None:
             f"Successfully created {len(copy_map)} files in '{path.absolute()}':"
         )
 
-        display = []
         for _, dst in copy_map:
-            display.append(dst)
-            display.extend((dst / sub for sub in _list_relative_recursively(dst)))
-        for p in display:
-            click.echo(f"  {p.relative_to(path)}")
+            click.echo(f"  {dst.relative_to(path)}")
