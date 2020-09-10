@@ -727,7 +727,7 @@ async def _flow_init_demo(path: Union[str, Path]) -> None:
             if dst.exists():
                 existing.append(dst.absolute())
         if existing:
-            details = " ".join(map(str, existing))
+            details = " ".join(map(str, sorted(existing)))
             raise click.ClickException(f"Destination file(s) already exist: {details}")
 
         for src, dst in copy_map:

@@ -575,3 +575,58 @@ def test_upload_download_subdir(
     assert not file_in_root.exists(), "File in project root should not be downloaded"
     file_in_subdir = project_dir / subdir_name / test_file_name
     assert file_in_subdir.read_text() == test_file_content
+
+
+def test_flow_init_demo_ok(project_dir: Path, cli_runner: CLIRunner) -> None:
+    res = cli_runner(["neuro-extras", "flow", "init-demo"])
+    assert res.returncode == 0, res
+    out = res.stdout
+    assert (
+        "Cloning git repository https://github.com/neuromation/neuro-flow-demo.git"
+        in out
+    ), out
+    assert "WARNING: The whole directory will be uploaded" in out, out
+    assert "Successfully created" in out, out
+    for path in [
+        ".neuro",
+        ".neuroignore",
+        ".neuro.toml",
+    ]:
+        path_full = (project_dir / path).absolute()
+        assert f"Creating {path_full}" in out, (path_full, out)
+        assert f"  {path}" in out, (path, out)
+        assert path_full.exists(), path_full
+
+    assert (project_dir / ".neuro" / "Dockerfile").exists()
+    assert (project_dir / ".neuro" / "live.yml").exists()
+
+    assert not (project_dir / ".git").exists()
+    assert not (project_dir / "README.md").exists()
+
+
+def test_flow_init_demo_fail_already_exist(
+    project_dir: Path, cli_runner: CLIRunner
+) -> None:
+    already_exist = [
+        ".neuro/Dockerfile",
+        ".neuro.toml",
+    ]
+    for path in already_exist:
+        p = project_dir / path
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.touch()
+
+    res = cli_runner(["neuro-extras", "flow", "init-demo"])
+    assert res.returncode == 1, res
+
+    out = res.stdout
+    assert (
+        "Cloning git repository https://github.com/neuromation/neuro-flow-demo.git"
+        in out
+    ), out
+
+    err = res.stderr
+    assert (
+        "Error: Destination file(s) already exist: "
+        f"{project_dir}/.neuro {project_dir}/.neuro.toml"
+    ) in err, err
