@@ -2,11 +2,14 @@ import base64
 import json
 import logging
 import os
+import re
+import sys
 import textwrap
 import uuid
 from pathlib import Path
 from subprocess import CompletedProcess
 from tempfile import TemporaryDirectory
+from time import sleep
 from typing import Callable, Iterator, List
 from unittest import mock
 
@@ -99,6 +102,7 @@ def test_image_build_failure(cli_runner: CLIRunner) -> None:
     assert "repository can only contain" in result.stdout
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
 def test_image_build_custom_dockerfile(cli_runner: CLIRunner) -> None:
     result = cli_runner(["neuro-extras", "init-aliases"])
     assert result.returncode == 0, result
@@ -117,18 +121,21 @@ def test_image_build_custom_dockerfile(cli_runner: CLIRunner) -> None:
         )
 
     tag = str(uuid.uuid4())
-    img_uri_str = f"image:extras-e2e:{tag}"
+    img_uri_str = f"image:extras-e2e-2:{tag}"
 
     result = cli_runner(
         ["neuro", "image-build", "-f", str(dockerfile_path), ".", img_uri_str]
     )
     assert result.returncode == 0, result
 
-    result = cli_runner(["neuro", "image", "tags", "image:extras-e2e"])
+    sleep(10)
+
+    result = cli_runner(["neuro", "image", "tags", "image:extras-e2e-2"])
     assert result.returncode == 0, result
     assert tag in result.stdout
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
 def test_ignored_files_are_not_copied(cli_runner: CLIRunner,) -> None:
     result = cli_runner(["neuro-extras", "init-aliases"])
     assert result.returncode == 0, result
@@ -160,6 +167,39 @@ def test_ignored_files_are_not_copied(cli_runner: CLIRunner,) -> None:
     assert ignored_file_content not in result.stdout
 
 
+def test_storage_copy(cli_runner: CLIRunner) -> None:
+    result = cli_runner(["neuro-extras", "init-aliases"])
+    assert result.returncode == 0, result
+
+    result = cli_runner(["neuro", "config", "show"])
+    username_re = re.compile(".*User Name: ([a-zA-Z0-9-]+).*", re.DOTALL)
+    cluster_re = re.compile(".*Current Cluster: ([a-zA-Z0-9-]+).*", re.DOTALL)
+    m = username_re.match(result.stdout)
+    assert m
+    username = m.groups()[0]
+    m = cluster_re.match(result.stdout)
+    assert m
+    current_cluster = m.groups()[0]
+
+    run_id = uuid.uuid4()
+    src_path = f"copy-src/{str(run_id)}"
+    result = cli_runner(["neuro", "mkdir", "-p", "storage:" + src_path])
+    assert result.returncode == 0, result
+
+    dst_path = "copy-dst/"
+
+    result = cli_runner(
+        [
+            "neuro",
+            "storage-cp",
+            f"storage://{current_cluster}/{username}/{src_path}",
+            f"storage://{current_cluster}/{username}/{dst_path}",
+        ]
+    )
+    assert result.returncode == 0, result
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
 def test_image_copy(cli_runner: CLIRunner) -> None:
     result = cli_runner(["neuro-extras", "init-aliases"])
     assert result.returncode == 0, result
@@ -178,23 +218,26 @@ def test_image_copy(cli_runner: CLIRunner) -> None:
         )
 
     tag = str(uuid.uuid4())
-    img_uri_str = f"image:extras-e2e:{tag}"
+    img_uri_str = f"image:extras-e2e-4:{tag}"
 
     result = cli_runner(
         ["neuro", "image-build", "-f", str(dockerfile_path), ".", img_uri_str]
     )
     assert result.returncode == 0, result
 
-    result = cli_runner(["neuro", "image", "tags", "image:extras-e2e"])
+    sleep(10)
+    result = cli_runner(["neuro", "image", "tags", "image:extras-e2e-4"])
     assert result.returncode == 0, result
     assert tag in result.stdout
 
     result = cli_runner(["neuro", "image-copy", img_uri_str, "image:extras-e2e-copy"])
     assert result.returncode == 0, result
+    sleep(10)
     result = cli_runner(["neuro", "image", "tags", "image:extras-e2e-copy"])
     assert result.returncode == 0, result
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
 def test_image_build_custom_build_args(cli_runner: CLIRunner) -> None:
     result = cli_runner(["neuro-extras", "init-aliases"])
     assert result.returncode == 0, result
@@ -237,13 +280,14 @@ def test_image_build_custom_build_args(cli_runner: CLIRunner) -> None:
     assert f"arg-another-{tag}" in result.stdout
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
 def test_seldon_deploy_from_local(cli_runner: CLIRunner) -> None:
     result = cli_runner(["neuro-extras", "init-aliases"])
     assert result.returncode == 0, result
 
     pkg_path = Path("pkg")
     tag = str(uuid.uuid4())
-    img_uri_str = f"image:extras-e2e:{tag}"
+    img_uri_str = f"image:extras-e2e-3:{tag}"
     result = cli_runner(["neuro", "seldon-init-package", str(pkg_path)])
     assert result.returncode == 0, result
     assert "Copying a Seldon package scaffolding" in result.stdout, result
@@ -255,7 +299,9 @@ def test_seldon_deploy_from_local(cli_runner: CLIRunner) -> None:
     )
     assert result.returncode == 0, result
 
-    result = cli_runner(["neuro", "image", "tags", "image:extras-e2e"])
+    sleep(10)
+
+    result = cli_runner(["neuro", "image", "tags", "image:extras-e2e-3"])
     assert result.returncode == 0, result
     assert tag in result.stdout
 

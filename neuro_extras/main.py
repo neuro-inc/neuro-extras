@@ -27,7 +27,6 @@ from yarl import URL
 
 logger = logging.getLogger(__name__)
 
-
 ASSETS_PATH = Path(__file__).resolve().parent / "assets"
 SELDON_CUSTOM_PATH = ASSETS_PATH / "seldon.package"
 
@@ -215,6 +214,52 @@ def image_build(file: str, build_arg: Sequence[str], path: str, image_uri: str) 
 @click.argument("destination")
 def image_copy(source: str, destination: str) -> None:
     run_async(_copy_image(source, destination))
+
+
+@main.command("cp")
+@click.argument("source")
+@click.argument("destination")
+def cluster_copy(source: str, destination: str) -> None:
+    run_async(_copy_storage(source, destination))
+
+
+async def _copy_storage(source: str, destination: str) -> None:
+    src_uri = uri_from_cli(source, "", "")
+    src_cluster = src_uri.host
+    src_path = src_uri.parts[2:]
+
+    dst_uri = uri_from_cli(destination, "", "")
+    dst_cluster = dst_uri.host
+    dst_path = dst_uri.parts[2:]
+
+    assert src_cluster
+    assert dst_cluster
+    async with neuro_api.get() as client:
+        await client.config.switch_cluster(dst_cluster)
+        await client.storage.mkdir(URL("storage:"), parents=True, exist_ok=True)
+    await _run_copy_container(src_cluster, "/".join(src_path), "/".join(dst_path))
+
+
+async def _run_copy_container(src_cluster: str, src_path: str, dst_path: str) -> None:
+    args = [
+        "neuro",
+        "run",
+        "-s",
+        "cpu-small",
+        "--pass-config",
+        "-v",
+        "storage:://storage",
+        "-e",
+        f"NEURO_CLUSTER={src_cluster}",
+        "neuromation/neuro-extras:latest",
+        f'"cp --progress -r -u -T storage:{src_path} /storage/{dst_path}"',
+    ]
+    cmd = " ".join(args)
+    print(f"Executing '{cmd}'")
+    subprocess = await asyncio.create_subprocess_shell(cmd)
+    returncode = await subprocess.wait()
+    if returncode != 0:
+        raise Exception("Unable to copy storage")
 
 
 async def _copy_image(source: str, destination: str) -> None:
@@ -424,6 +469,10 @@ def init_aliases() -> None:
     }
     config["alias"]["image-copy"] = {
         "exec": "neuro-extras image copy",
+        "args": "SOURCE DESTINATION",
+    }
+    config["alias"]["storage-cp"] = {
+        "exec": "neuro-extras cp",
         "args": "SOURCE DESTINATION",
     }
     with toml_path.open("w") as f:
