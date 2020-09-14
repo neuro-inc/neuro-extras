@@ -11,12 +11,11 @@ from dataclasses import dataclass, field
 from distutils import dir_util
 from enum import Enum
 from pathlib import Path
-from typing import Any, AsyncIterator, Callable, Dict, MutableMapping, Sequence
+from typing import Any, AsyncIterator, Dict, MutableMapping, Sequence
 
 import click
 import toml
 import yaml
-from click.types import convert_type
 from neuromation import api as neuro_api
 from neuromation.api import ConfigError, find_project_root
 from neuromation.api.config import load_user_config
@@ -26,11 +25,12 @@ from neuromation.cli.asyncio_utils import run as run_async
 from neuromation.cli.const import EX_PLATFORMERROR
 from yarl import URL
 
+
 logger = logging.getLogger(__name__)
 
 ASSETS_PATH = Path(__file__).resolve().parent / "assets"
 SELDON_CUSTOM_PATH = ASSETS_PATH / "seldon.package"
-TEMP_UNPACK_DIR = "~/.neuro/tmp"
+TEMP_UNPACK_DIR = Path.home() / ".neuro" / "tmp"
 
 
 @dataclass
@@ -91,13 +91,13 @@ class ImageBuilder:
         await self._client.storage.create(uri, _gen())
 
     async def _create_builder_container(
-            self,
-            *,
-            docker_config_uri: URL,
-            context_uri: URL,
-            dockerfile_path: str,
-            image_ref: str,
-            build_args: Sequence[str] = (),
+        self,
+        *,
+        docker_config_uri: URL,
+        context_uri: URL,
+        dockerfile_path: str,
+        image_ref: str,
+        build_args: Sequence[str] = (),
     ) -> neuro_api.Container:
 
         cache_image = neuro_api.RemoteImage(
@@ -135,11 +135,11 @@ class ImageBuilder:
         return re.sub(r"^http[s]?://", "", image.as_docker_url())
 
     async def launch(
-            self,
-            dockerfile_path: str,
-            context_uri: URL,
-            image_uri_str: str,
-            build_args: Sequence[str],
+        self,
+        dockerfile_path: str,
+        context_uri: URL,
+        image_uri_str: str,
+        build_args: Sequence[str],
     ) -> neuro_api.JobDescription:
         # TODO: check if Dockerfile exists
 
@@ -224,22 +224,6 @@ class UrlType(Enum):
         return UrlType.UNSUPPORTED
 
 
-async def _data_auth(service: str) -> None:
-    srv = ServiceType.get_type(service)
-    if srv == ServiceType.S3:
-        subprocess = await asyncio.create_subprocess_exec("aws", "configure")
-        returncode = await subprocess.wait()
-        if returncode != 0:
-            raise click.ClickException("S3 authentication failed")
-    elif srv == ServiceType.GCP:
-        subprocess = await asyncio.create_subprocess_exec("gcloud", "auth", "login")
-        returncode = await subprocess.wait()
-        if returncode != 0:
-            raise click.ClickException("GCP authentication failed")
-    else:
-        raise ValueError(f"Invalid service: {service}")
-
-
 async def _data_cp(source: str, destination: str, unpack: bool) -> None:
     source_url = URL(source)
     destination_url = URL(destination)
@@ -261,15 +245,32 @@ async def _data_cp(source: str, destination: str, unpack: bool) -> None:
             "This command can't be used to copy data between two storage locations"
         )
 
+    if unpack:
+        file = Path(source_url.path)
+        suffixes = file.suffixes
+        tmp_dir_name = tempfile.mkdtemp(dir=str(TEMP_UNPACK_DIR))
+        tmp_dst_url = URL.build(scheme="file", path=tmp_dir_name)
+        print(tmp_dst_url)
+        if suffixes[-2:] == [".tar", ".gz"]:
+            pass
+        elif suffixes[-1] == ".zip":
+            pass
+        elif suffixes[-1] == ".tar":
+            pass
+        else:
+            raise ValueError(f"Don't know how to unpack file with {file.name}")
+
     if UrlType.STORAGE in (source_url_type, destination_url_type):
         # * <-> storage:foo-bar
         # run a job that mounts storage:foo-bar to /var/storage and
         # run neuro-extras data copy to this folder /var/storage
         pass
     else:
+        if source_url_type == UrlType.CLOUD:
+            pass
         if UrlType.CLOUD in (source_url_type, destination_url_type):
             # Cloud <-> local
-            # gsutil, aws s3, neuro cp
+            # gsutil cp , aws s3 cp
             cloud_url = (
                 source_url if source_url_type == UrlType.CLOUD else destination_url
             )
@@ -314,41 +315,6 @@ def data_cp(source: str, destination: str, unpack: bool) -> None:
     run_async(_data_cp(source, destination, unpack))
 
 
-class ServiceType(Enum):
-    UNSUPPORTED = 0
-    GCP = 1
-    S3 = 2
-
-    @staticmethod
-    def get_type(name: str) -> "ServiceType":
-        if name == "gcp":
-            return ServiceType.GCP
-        if name == "s3":
-            return ServiceType.S3
-        return ServiceType.UNSUPPORTED
-
-
-class Option(click.Option):
-    def __init__(self, *args: Any, secure: bool = False, **kwargs: Any) -> None:
-        super().__init__(*args, **kwargs)
-        self.secure = secure
-
-
-def option(*param_decls: Any, **attrs: Any) -> Callable[..., Any]:
-    option_attrs = attrs.copy()
-    option_attrs.setdefault("cls", Option)
-    typ = convert_type(attrs.get("type"), attrs.get("default"))
-    autocompletion = getattr(typ, "complete", None)
-    option_attrs.setdefault("autocompletion", autocompletion)
-    return click.option(*param_decls, **option_attrs)
-
-
-@data.command("auth")
-@option("--service", prompt="Select service type", type=click.Choice(["s3", "gcp"]))
-def data_auth(service: str) -> None:
-    run_async(_data_auth(service))
-
-
 @image.command("build")
 @click.option("-f", "--file", default="Dockerfile")
 @click.option("--build-arg", multiple=True)
@@ -383,7 +349,7 @@ async def _copy_image(source: str, destination: str) -> None:
 
 
 async def _build_image(
-        dockerfile_path: str, context: str, image_uri: str, build_args: Sequence[str]
+    dockerfile_path: str, context: str, image_uri: str, build_args: Sequence[str]
 ) -> None:
     async with neuro_api.get() as client:
         context_uri = uri_from_cli(
@@ -641,12 +607,12 @@ async def _create_k8s_secret(name: str) -> Dict[str, Any]:
 
 
 async def _create_seldon_deployment(
-        *,
-        name: str,
-        neuro_secret_name: str,
-        registry_secret_name: str,
-        model_image_uri: str,
-        model_storage_uri: str,
+    *,
+    name: str,
+    neuro_secret_name: str,
+    registry_secret_name: str,
+    model_image_uri: str,
+    model_storage_uri: str,
 ) -> Dict[str, Any]:
     async with neuro_api.get() as client:
         builder = ImageBuilder(client)
@@ -732,11 +698,11 @@ def generate_k8s_registry_secret(name: str) -> None:
 @click.argument("model-image-uri")
 @click.argument("model-storage-uri")
 def generate_seldon_deployment(
-        name: str,
-        neuro_secret: str,
-        registry_secret: str,
-        model_image_uri: str,
-        model_storage_uri: str,
+    name: str,
+    neuro_secret: str,
+    registry_secret: str,
+    model_image_uri: str,
+    model_storage_uri: str,
 ) -> None:
     payload = run_async(
         _create_seldon_deployment(
