@@ -287,27 +287,21 @@ def test_image_build_env(cli_runner: CLIRunner) -> None:
     result = cli_runner(["neuro-extras", "init-aliases"])
     assert result.returncode == 0, result
 
-    result = cli_runner(
-        ["neuro", "secret", "add", "gh-token-e2e", "$TEST_GITHUB_TOKEN"]
-    )
+    secret = str(uuid.uuid4())
+    result = cli_runner(["neuro", "secret", "add", "gh-token-e2e", secret])
     assert result.returncode == 0, result
 
     dockerfile_path = Path("nested/custom.Dockerfile")
     dockerfile_path.parent.mkdir(parents=True)
 
-    github_url = (
-        "https://raw.githubusercontent.com/neuromation/platform-api/master/setup.py"
-    )
-
     with open(dockerfile_path, "w") as f:
         f.write(
             textwrap.dedent(
-                f"""\
+                """\
                 FROM ubuntu:latest
                 ARG GIT_TOKEN
                 ENV GIT_TOKEN=$GIT_TOKEN
-                RUN apt-get update && apt-get install -y wget
-                RUN wget --header "Authorization: token $GIT_TOKEN" {github_url}
+                RUN echo git_token=$GIT_TOKEN
                 """
             )
         )
@@ -328,6 +322,49 @@ def test_image_build_env(cli_runner: CLIRunner) -> None:
         ]
     )
     assert result.returncode == 0, result
+    assert f"git_token={secret}" in result.stdout
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
+def test_image_build_volume(cli_runner: CLIRunner) -> None:
+    result = cli_runner(["neuro-extras", "init-aliases"])
+    assert result.returncode == 0, result
+
+    secret = str(uuid.uuid4())
+    result = cli_runner(["neuro", "secret", "add", "gh-token-e2e", secret])
+    assert result.returncode == 0, result
+
+    dockerfile_path = Path("nested/custom.Dockerfile")
+    dockerfile_path.parent.mkdir(parents=True)
+
+    with open(dockerfile_path, "w") as f:
+        f.write(
+            textwrap.dedent(
+                """\
+                FROM ubuntu:latest
+                ADD secret.txt /
+                RUN echo git_token=$(cat secret.txt)
+                """
+            )
+        )
+
+    tag = str(uuid.uuid4())
+    img_uri_str = f"image:extras-e2e:{tag}"
+
+    result = cli_runner(
+        [
+            "neuro",
+            "image-build",
+            "-f",
+            str(dockerfile_path),
+            "-v",
+            "secret:gh-token-e2e:/workspace/secret.txt",
+            ".",
+            img_uri_str,
+        ]
+    )
+    assert result.returncode == 0, result
+    assert f"git_token={secret}" in result.stdout
 
 
 @pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
