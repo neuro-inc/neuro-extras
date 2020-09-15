@@ -121,16 +121,17 @@ def test_image_build_custom_dockerfile(cli_runner: CLIRunner) -> None:
         )
 
     tag = str(uuid.uuid4())
-    img_uri_str = f"image:extras-e2e-2:{tag}"
+    img_uri_str = f"image:extras-e2e-custom-dockerfile:{tag}"
 
     result = cli_runner(
         ["neuro", "image-build", "-f", str(dockerfile_path), ".", img_uri_str]
     )
     assert result.returncode == 0, result
-
     sleep(10)
 
-    result = cli_runner(["neuro", "image", "tags", "image:extras-e2e-2"])
+    result = cli_runner(
+        ["neuro", "image", "tags", "image:extras-e2e-custom-dockerfile"]
+    )
     assert result.returncode == 0, result
     assert tag in result.stdout
 
@@ -218,15 +219,15 @@ def test_image_copy(cli_runner: CLIRunner) -> None:
         )
 
     tag = str(uuid.uuid4())
-    img_uri_str = f"image:extras-e2e-4:{tag}"
+    img_uri_str = f"image:extras-e2e-image-copy:{tag}"
 
     result = cli_runner(
         ["neuro", "image-build", "-f", str(dockerfile_path), ".", img_uri_str]
     )
     assert result.returncode == 0, result
-
     sleep(10)
-    result = cli_runner(["neuro", "image", "tags", "image:extras-e2e-4"])
+
+    result = cli_runner(["neuro", "image", "tags", "image:extras-e2e-image-copy"])
     assert result.returncode == 0, result
     assert tag in result.stdout
 
@@ -281,13 +282,98 @@ def test_image_build_custom_build_args(cli_runner: CLIRunner) -> None:
 
 
 @pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
+def test_image_build_env(cli_runner: CLIRunner) -> None:
+    result = cli_runner(["neuro-extras", "init-aliases"])
+    assert result.returncode == 0, result
+
+    secret = str(uuid.uuid4())
+    result = cli_runner(["neuro", "secret", "add", "gh-token-e2e", secret])
+    assert result.returncode == 0, result
+
+    dockerfile_path = Path("nested/custom.Dockerfile")
+    dockerfile_path.parent.mkdir(parents=True)
+
+    with open(dockerfile_path, "w") as f:
+        f.write(
+            textwrap.dedent(
+                """\
+                FROM ubuntu:latest
+                ARG GIT_TOKEN
+                ENV GIT_TOKEN=$GIT_TOKEN
+                RUN echo git_token=$GIT_TOKEN
+                """
+            )
+        )
+
+    tag = str(uuid.uuid4())
+    img_uri_str = f"image:extras-e2e:{tag}"
+
+    result = cli_runner(
+        [
+            "neuro",
+            "image-build",
+            "-f",
+            str(dockerfile_path),
+            "-e",
+            "GIT_TOKEN=secret:gh-token-e2e",
+            ".",
+            img_uri_str,
+        ]
+    )
+    assert result.returncode == 0, result
+    assert f"git_token={secret}" in result.stdout
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
+def test_image_build_volume(cli_runner: CLIRunner) -> None:
+    result = cli_runner(["neuro-extras", "init-aliases"])
+    assert result.returncode == 0, result
+
+    secret = str(uuid.uuid4())
+    result = cli_runner(["neuro", "secret", "add", "gh-token-e2e", secret])
+    assert result.returncode == 0, result
+
+    dockerfile_path = Path("nested/custom.Dockerfile")
+    dockerfile_path.parent.mkdir(parents=True)
+
+    with open(dockerfile_path, "w") as f:
+        f.write(
+            textwrap.dedent(
+                """\
+                FROM ubuntu:latest
+                ADD secret.txt /
+                RUN echo git_token=$(cat secret.txt)
+                """
+            )
+        )
+
+    tag = str(uuid.uuid4())
+    img_uri_str = f"image:extras-e2e:{tag}"
+
+    result = cli_runner(
+        [
+            "neuro",
+            "image-build",
+            "-f",
+            str(dockerfile_path),
+            "-v",
+            "secret:gh-token-e2e:/workspace/secret.txt",
+            ".",
+            img_uri_str,
+        ]
+    )
+    assert result.returncode == 0, result
+    assert f"git_token={secret}" in result.stdout
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
 def test_seldon_deploy_from_local(cli_runner: CLIRunner) -> None:
     result = cli_runner(["neuro-extras", "init-aliases"])
     assert result.returncode == 0, result
 
     pkg_path = Path("pkg")
     tag = str(uuid.uuid4())
-    img_uri_str = f"image:extras-e2e-3:{tag}"
+    img_uri_str = f"image:extras-e2e-seldon-local:{tag}"
     result = cli_runner(["neuro", "seldon-init-package", str(pkg_path)])
     assert result.returncode == 0, result
     assert "Copying a Seldon package scaffolding" in result.stdout, result
@@ -298,10 +384,9 @@ def test_seldon_deploy_from_local(cli_runner: CLIRunner) -> None:
         ["neuro", "image-build", "-f", "seldon.Dockerfile", str(pkg_path), img_uri_str]
     )
     assert result.returncode == 0, result
-
     sleep(10)
 
-    result = cli_runner(["neuro", "image", "tags", "image:extras-e2e-3"])
+    result = cli_runner(["neuro", "image", "tags", "image:extras-e2e-seldon-local"])
     assert result.returncode == 0, result
     assert tag in result.stdout
 
