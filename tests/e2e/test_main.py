@@ -221,19 +221,19 @@ def test_image_copy(cli_runner: CLIRunner) -> None:
             )
         )
 
+    # WORKAROUND: Fixing 401 Not Authorized because of this problem:
+    # https://github.com/neuromation/platform-registry-api/issues/209
+    rnd = uuid.uuid4().hex[:6]
+    image = f"image:extras-e2e-image-copy-{rnd}"
+
     tag = str(uuid.uuid4())
-    img_uri_str = f"image:extras-e2e-image-copy:{tag}"
+    img_uri_str = f"{image}:{tag}"
 
     result = cli_runner(
         ["neuro", "image-build", "-f", str(dockerfile_path), ".", img_uri_str]
     )
     assert result.returncode == 0, result
     sleep(10)
-
-    # WORKAROUND: Fixing 401 Not Authorized because of this problem:
-    # https://github.com/neuromation/platform-registry-api/issues/209
-    rnd = uuid.uuid4().hex[:6]
-    image = f"image:extras-e2e-image-copy-{rnd}"
 
     result = cli_runner(["neuro", "image", "tags", image])
     assert result.returncode == 0, result
