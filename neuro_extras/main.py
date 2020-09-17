@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 from distutils import dir_util
 from enum import Enum
 from pathlib import Path
-from typing import Any, AsyncIterator, Dict, MutableMapping, Optional, Sequence
+from typing import Any, AsyncIterator, Dict, MutableMapping, Sequence
 
 import click
 import toml
@@ -183,14 +183,8 @@ class DataCopier:
         self._client = client
 
     async def launch(
-        self,
-        storage_uri: URL,
-        unpack: bool,
-        src_uri: Optional[URL] = None,
-        dst_uri: Optional[URL] = None,
+        self, storage_uri: URL, unpack: bool, src_uri: URL, dst_uri: URL,
     ) -> neuro_api.JobDescription:
-        if src_uri is None and dst_uri is None:
-            raise ValueError("Can't copy from None to None")
         logger.info("Submitting a copy job")
         copier_container = await self._create_copier_container(
             storage_uri, unpack, src_uri, dst_uri
@@ -200,16 +194,9 @@ class DataCopier:
         return job
 
     async def _create_copier_container(
-        self,
-        storage_uri: URL,
-        unpack: bool,
-        src_uri: Optional[URL],
-        dst_uri: Optional[URL],
+        self, storage_uri: URL, unpack: bool, src_uri: URL, dst_uri: URL,
     ) -> neuro_api.Container:
-        if src_uri is not None:
-            args = f"{src_uri} /var/storage"
-        else:
-            args = f"/var/storage {dst_uri}"
+        args = f"{str(src_uri)} {str(dst_uri)}"
         if unpack:
             args = f"-u {args}"
         return neuro_api.Container(
@@ -288,15 +275,22 @@ async def _data_cp(source: str, destination: str, unpack: bool) -> None:
         )
 
     if UrlType.STORAGE in (source_url_type, destination_url_type):
+        # raise ValueError("Storage operations are not supported yet")
         async with neuro_api.get() as client:
             data_copier = DataCopier(client)
             if source_url_type == UrlType.STORAGE:
                 job = await data_copier.launch(
-                    storage_uri=source_url, dst_uri=destination_url, unpack=unpack
+                    storage_uri=source_url,
+                    src_uri=URL("/var/storage"),
+                    dst_uri=destination_url,
+                    unpack=unpack,
                 )
             else:
                 job = await data_copier.launch(
-                    storage_uri=destination_url, src_uri=source_url, unpack=unpack
+                    storage_uri=destination_url,
+                    src_uri=source_url,
+                    dst_uri=URL("/var/storage"),
+                    unpack=unpack,
                 )
             while job.status == neuro_api.JobStatus.PENDING:
                 job = await client.jobs.status(job.id)
@@ -318,51 +312,53 @@ async def _data_cp(source: str, destination: str, unpack: bool) -> None:
                 logger.info("Successfully copied data")
     else:
         tmp_dir_name = tempfile.mkdtemp(dir=str(TEMP_UNPACK_DIR))
-        tmp_dst_url = URL.build(path=tmp_dir_name)
+        tmp_dst_url = URL.build(path=(tmp_dir_name + "/"))
         print(f"temp destination url = {tmp_dst_url}")
 
-        if source_url_type == UrlType.CLOUD:  # otherwise source is file in this branch
-            await _cloud_cp(source_url, tmp_dst_url)
-            source_url = tmp_dst_url
-            # for clarity
-            source_url_type = UrlType.LOCAL
+        await _nonstorage_cp(source_url, tmp_dst_url)
+        source_url = tmp_dst_url
+        # for clarity
+        source_url_type = UrlType.LOCAL
 
-        # at this point source is is always local
+        # at this point source is always local
         if unpack:
-            # TODO: implement unpacking
-            # TODO: verify temp url is a file
-            #  (it's likely not in case of s3 recursive copy)
             file = Path(source_url.path)
+            if file.is_dir():
+                file = list(file.glob("*"))[0]
             suffixes = file.suffixes
-            if suffixes[-2:] == [".tar", ".gz"] or suffixes[-1] == ".tgz":
-                pass
+            if (
+                suffixes[-2:] == [".tar", ".gz"]
+                or suffixes[-1] == ".tgz"
+                or suffixes[-1] == ".tar"
+            ):
+                command = "tar"
+                args = ["zxvf", str(file), "-C", str(destination_url)]
+                click.echo(f"Running {command} {' '.join(args)}")
+                subprocess = await asyncio.create_subprocess_exec(command, *args)
+                returncode = await subprocess.wait()
+                if returncode != 0:
+                    raise click.ClickException("Cloud copy failed")
             elif suffixes[-1] == ".zip":
-                pass
-            elif suffixes[-1] == ".tar":
+                # TODO: Implement gunzip
+                # gunzip -c file.gz > /THERE/file
                 pass
             else:
                 raise ValueError(f"Don't know how to unpack file with {file.name}")
 
-        # handle upload/sync
-        if destination_url_type == UrlType.CLOUD:
-            await _cloud_cp(source_url, destination_url)
-        else:
-            # destination = local
-            subprocess = await asyncio.create_subprocess_exec(
-                "rsync", "-avzh", "--progress", source_url.path, destination_url.path
-            )
-            returncode = await subprocess.wait()
-            if returncode != 0:
-                raise click.ClickException("Copy failed")
+        # handle upload/rsync
+        await _nonstorage_cp(source_url, destination_url)
 
 
-async def _cloud_cp(source_url: URL, destination_url: URL) -> None:
+async def _nonstorage_cp(source_url: URL, destination_url: URL) -> None:
     if "s3" in (source_url.scheme, destination_url.scheme):
         command = "aws"
         args = ["s3", "cp", "--recursive", str(source_url), str(destination_url)]
     elif "gs" in (source_url.scheme, destination_url.scheme):
         command = "gsutil"
         args = ["-m", "cp", "-r", str(source_url), str(destination_url)]
+    elif source_url.scheme == "" and destination_url.scheme == "":
+        command = "rsync"
+        args = ["-avzh", "--progress", str(source_url), str(destination_url)]
     else:
         raise ValueError("Unknown cloud provider")
     click.echo(f"Running {command} {' '.join(args)}")
