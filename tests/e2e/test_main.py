@@ -230,14 +230,19 @@ def test_image_copy(cli_runner: CLIRunner) -> None:
     assert result.returncode == 0, result
     sleep(10)
 
-    result = cli_runner(["neuro", "image", "tags", "image:extras-e2e-image-copy"])
+    # WORKAROUND: Fixing 401 Not Authorized because of this problem:
+    # https://github.com/neuromation/platform-registry-api/issues/209
+    rnd = uuid.uuid4().hex[:6]
+    image = f"image:extras-e2e-image-copy-{rnd}"
+
+    result = cli_runner(["neuro", "image", "tags", image])
     assert result.returncode == 0, result
     assert tag in result.stdout
 
-    result = cli_runner(["neuro", "image-copy", img_uri_str, "image:extras-e2e-copy"])
+    result = cli_runner(["neuro", "image-copy", img_uri_str, image])
     assert result.returncode == 0, result
     sleep(10)
-    result = cli_runner(["neuro", "image", "tags", "image:extras-e2e-copy"])
+    result = cli_runner(["neuro", "image", "tags", image])
     assert result.returncode == 0, result
 
 
@@ -376,7 +381,11 @@ def test_seldon_deploy_from_local(cli_runner: CLIRunner) -> None:
 
     pkg_path = Path("pkg")
     tag = str(uuid.uuid4())
-    img_uri_str = f"image:extras-e2e-seldon-local:{tag}"
+    # WORKAROUND: Fixing 401 Not Authorized because of this problem:
+    # https://github.com/neuromation/platform-registry-api/issues/209
+    rnd = uuid.uuid4().hex[:6]
+    img_name = f"image:extras-e2e-seldon-local-{rnd}"
+    img_uri_str = f"{img_name}:{tag}"
     result = cli_runner(["neuro", "seldon-init-package", str(pkg_path)])
     assert result.returncode == 0, result
     assert "Copying a Seldon package scaffolding" in result.stdout, result
@@ -389,7 +398,7 @@ def test_seldon_deploy_from_local(cli_runner: CLIRunner) -> None:
     assert result.returncode == 0, result
     sleep(10)
 
-    result = cli_runner(["neuro", "image", "tags", "image:extras-e2e-seldon-local"])
+    result = cli_runner(["neuro", "image", "tags", img_name])
     assert result.returncode == 0, result
     assert tag in result.stdout
 
