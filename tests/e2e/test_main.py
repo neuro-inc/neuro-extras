@@ -355,8 +355,13 @@ def test_image_build_volume(cli_runner: CLIRunner) -> None:
             )
         )
 
+    # WORKAROUND: Fixing 401 Not Authorized because of this problem:
+    # https://github.com/neuromation/platform-registry-api/issues/209
+    rnd = uuid.uuid4().hex[:6]
+    image = f"image:extras-e2e-image-copy-{rnd}"
+
     tag = str(uuid.uuid4())
-    img_uri_str = f"image:extras-e2e:{tag}"
+    img_uri_str = f"{image}:{tag}"
 
     result = cli_runner(
         [
