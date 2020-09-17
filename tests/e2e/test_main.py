@@ -55,6 +55,9 @@ def cli_runner(capfd: CaptureFixture, project_dir: Path) -> CLIRunner:
         if cmd == "neuro":
             args = [
                 "--show-traceback",
+                "--trace",
+                "--hide-token",
+                "--verbose",
                 "--disable-pypi-version-check",
                 "--color=no",
             ] + args
