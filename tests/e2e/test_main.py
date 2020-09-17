@@ -121,7 +121,12 @@ def test_image_build_custom_dockerfile(cli_runner: CLIRunner) -> None:
         )
 
     tag = str(uuid.uuid4())
-    img_uri_str = f"image:extras-e2e-custom-dockerfile:{tag}"
+
+    # WORKAROUND: Fixing 401 Not Authorized because of this problem:
+    # https://github.com/neuromation/platform-registry-api/issues/209
+    rnd = uuid.uuid4().hex[:6]
+    img_name = f"image:extras-e2e-custom-dockerfile-{rnd}"
+    img_uri_str = f"{img_name}:{tag}"
 
     result = cli_runner(
         ["neuro", "image-build", "-f", str(dockerfile_path), ".", img_uri_str]
@@ -129,9 +134,7 @@ def test_image_build_custom_dockerfile(cli_runner: CLIRunner) -> None:
     assert result.returncode == 0, result
     sleep(10)
 
-    result = cli_runner(
-        ["neuro", "image", "tags", "image:extras-e2e-custom-dockerfile"]
-    )
+    result = cli_runner(["neuro", "image", "tags", img_name])
     assert result.returncode == 0, result
     assert tag in result.stdout
 
