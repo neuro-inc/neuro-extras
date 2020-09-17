@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 from distutils import dir_util
 from enum import Enum
 from pathlib import Path
-from typing import Any, AsyncIterator, Dict, MutableMapping, Sequence
+from typing import Any, AsyncIterator, Dict, MutableMapping, Optional, Sequence
 
 import click
 import toml
@@ -178,6 +178,48 @@ class ImageBuilder:
         return job
 
 
+class DataCopier:
+    def __init__(self, client: neuro_api.Client):
+        self._client = client
+
+    async def launch(
+        self,
+        storage_uri: URL,
+        unpack: bool,
+        src_uri: Optional[URL] = None,
+        dst_uri: Optional[URL] = None,
+    ) -> neuro_api.JobDescription:
+        if src_uri is None and dst_uri is None:
+            raise ValueError("Can't copy from None to None")
+        logger.info("Submitting a copy job")
+        copier_container = await self._create_copier_container(
+            storage_uri, unpack, src_uri, dst_uri
+        )
+        job = await self._client.jobs.run(copier_container, life_span=60 * 60)
+        logger.info(f"The copy job ID: {job.id}")
+        return job
+
+    async def _create_copier_container(
+        self,
+        storage_uri: URL,
+        unpack: bool,
+        src_uri: Optional[URL],
+        dst_uri: Optional[URL],
+    ) -> neuro_api.Container:
+        if src_uri is not None:
+            args = f"{src_uri} /var/storage"
+        else:
+            args = f"/var/storage {dst_uri}"
+        if unpack:
+            args = f"-u {args}"
+        return neuro_api.Container(
+            image=neuro_api.RemoteImage.new_external_image("neuromation/neuro-extras"),
+            resources=neuro_api.Resources(cpu=1.0, memory_mb=4096),
+            volumes=[neuro_api.Volume(storage_uri, "/var/storage")],
+            command=f"neuro-extras data cp {args}",
+        )
+
+
 class ClickLogHandler(logging.Handler):
     def emit(self, record: logging.LogRecord) -> None:
         try:
@@ -217,7 +259,7 @@ class UrlType(Enum):
     def get_type(url: URL) -> "UrlType":
         if url.scheme == "storage":
             return UrlType.STORAGE
-        if url.scheme == "file":
+        if url.scheme == "":
             return UrlType.LOCAL
         if url.scheme in ("s3", "gs"):
             return UrlType.CLOUD
@@ -245,66 +287,89 @@ async def _data_cp(source: str, destination: str, unpack: bool) -> None:
             "This command can't be used to copy data between two storage locations"
         )
 
-    if unpack:
-        file = Path(source_url.path)
-        suffixes = file.suffixes
-        tmp_dir_name = tempfile.mkdtemp(dir=str(TEMP_UNPACK_DIR))
-        tmp_dst_url = URL.build(scheme="file", path=tmp_dir_name)
-        print(tmp_dst_url)
-        if suffixes[-2:] == [".tar", ".gz"]:
-            pass
-        elif suffixes[-1] == ".zip":
-            pass
-        elif suffixes[-1] == ".tar":
-            pass
-        else:
-            raise ValueError(f"Don't know how to unpack file with {file.name}")
-
     if UrlType.STORAGE in (source_url_type, destination_url_type):
-        # * <-> storage:foo-bar
-        # run a job that mounts storage:foo-bar to /var/storage and
-        # run neuro-extras data copy to this folder /var/storage
-        pass
+        async with neuro_api.get() as client:
+            data_copier = DataCopier(client)
+            if source_url_type == UrlType.STORAGE:
+                job = await data_copier.launch(
+                    storage_uri=source_url, dst_uri=destination_url, unpack=unpack
+                )
+            else:
+                job = await data_copier.launch(
+                    storage_uri=destination_url, src_uri=source_url, unpack=unpack
+                )
+            while job.status == neuro_api.JobStatus.PENDING:
+                job = await client.jobs.status(job.id)
+                await asyncio.sleep(1.0)
+            async for chunk in client.jobs.monitor(job.id):
+                if not chunk:
+                    break
+                click.echo(chunk.decode(errors="ignore"), nl=False)
+            job = await client.jobs.status(job.id)
+            if job.status == neuro_api.JobStatus.FAILED:
+                logger.error("The copy job has failed due to:")
+                logger.error(f"  Reason: {job.history.reason}")
+                logger.error(f"  Description: {job.history.description}")
+                exit_code = job.history.exit_code
+                if exit_code is None:
+                    exit_code = EX_PLATFORMERROR
+                sys.exit(exit_code)
+            else:
+                logger.info("Successfully copied data")
     else:
-        if source_url_type == UrlType.CLOUD:
-            pass
-        if UrlType.CLOUD in (source_url_type, destination_url_type):
-            # Cloud <-> local
-            # gsutil cp , aws s3 cp
-            cloud_url = (
-                source_url if source_url_type == UrlType.CLOUD else destination_url
-            )
-            if cloud_url.scheme == "s3":
-                subprocess = await asyncio.create_subprocess_exec(
-                    "aws",
-                    "s3",
-                    "cp",
-                    "--recursive",
-                    source_url.path,
-                    destination_url.path,
-                )
-                returncode = await subprocess.wait()
-                if returncode != 0:
-                    raise click.ClickException("Copy failed")
-            elif cloud_url.scheme == "gs":
-                subprocess = await asyncio.create_subprocess_exec(
-                    "gsutil", "-m", "cp", "-r", source_url.path, destination_url.path
-                )
-                returncode = await subprocess.wait()
-                if returncode != 0:
-                    raise click.ClickException("Copy failed")
-        elif UrlType.LOCAL in (source_url_type, destination_url_type):
-            # Local <-> local
+        tmp_dir_name = tempfile.mkdtemp(dir=str(TEMP_UNPACK_DIR))
+        tmp_dst_url = URL.build(path=tmp_dir_name)
+        print(f"temp destination url = {tmp_dst_url}")
+
+        if source_url_type == UrlType.CLOUD:  # otherwise source is file in this branch
+            await _cloud_cp(source_url, tmp_dst_url)
+            source_url = tmp_dst_url
+            # for clarity
+            source_url_type = UrlType.LOCAL
+
+        # at this point source is is always local
+        if unpack:
+            # TODO: implement unpacking
+            # TODO: verify temp url is a file
+            #  (it's likely not in case of s3 recursive copy)
+            file = Path(source_url.path)
+            suffixes = file.suffixes
+            if suffixes[-2:] == [".tar", ".gz"] or suffixes[-1] == ".tgz":
+                pass
+            elif suffixes[-1] == ".zip":
+                pass
+            elif suffixes[-1] == ".tar":
+                pass
+            else:
+                raise ValueError(f"Don't know how to unpack file with {file.name}")
+
+        # handle upload/sync
+        if destination_url_type == UrlType.CLOUD:
+            await _cloud_cp(source_url, destination_url)
+        else:
+            # destination = local
             subprocess = await asyncio.create_subprocess_exec(
                 "rsync", "-avzh", "--progress", source_url.path, destination_url.path
             )
             returncode = await subprocess.wait()
             if returncode != 0:
                 raise click.ClickException("Copy failed")
-        else:
-            raise ValueError(
-                "Unknown/unsupported combination of source and destination URLs"
-            )
+
+
+async def _cloud_cp(source_url: URL, destination_url: URL) -> None:
+    if "s3" in (source_url.scheme, destination_url.scheme):
+        command = "aws"
+        args = ["s3", "cp", "--recursive", str(source_url), str(destination_url)]
+    elif "gs" in (source_url.scheme, destination_url.scheme):
+        command = "gsutil"
+        args = ["-m", "cp", "-r", str(source_url), str(destination_url)]
+    else:
+        raise ValueError("Unknown cloud provider")
+    click.echo(f"Running {command} {' '.join(args)}")
+    subprocess = await asyncio.create_subprocess_exec(command, *args)
+    returncode = await subprocess.wait()
+    if returncode != 0:
+        raise click.ClickException("Cloud copy failed")
 
 
 @data.command("cp")
@@ -312,6 +377,13 @@ async def _data_cp(source: str, destination: str, unpack: bool) -> None:
 @click.argument("destination")
 @click.option("-u", "--unpack", default=False)
 def data_cp(source: str, destination: str, unpack: bool) -> None:
+    """
+    Sample test commands:
+    neuro-extras data cp s3://sra-pub-sars-cov2/sra-src/SRR9967744/ /tmp/
+    neuro-extras data cp gs://gcp-public-data--broad-references/refdisk_manifest.json \
+            /tmp/refdisk_manifest.json
+    neuro-extras data cp s3://sra-pub-sars-cov2/sra-src/SRR9967744/ storage:
+    """
     run_async(_data_cp(source, destination, unpack))
 
 
