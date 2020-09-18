@@ -383,7 +383,7 @@ def test_image_build_volume(cli_runner: CLIRunner, temp_random_secret: Secret) -
             "-f",
             str(dockerfile_path),
             "-v",
-            "secret:gh-token-e2e:/workspace/secret.txt",
+            f"secret:{sec.name}:/workspace/secret.txt",
             ".",
             img_uri_str,
         ]
