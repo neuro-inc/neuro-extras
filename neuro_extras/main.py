@@ -183,22 +183,22 @@ class DataCopier:
         self._client = client
 
     async def launch(
-        self, storage_uri: URL, unpack: bool, src_uri: URL, dst_uri: URL,
+        self, storage_uri: URL, extract: bool, src_uri: URL, dst_uri: URL,
     ) -> neuro_api.JobDescription:
         logger.info("Submitting a copy job")
         copier_container = await self._create_copier_container(
-            storage_uri, unpack, src_uri, dst_uri
+            storage_uri, extract, src_uri, dst_uri
         )
         job = await self._client.jobs.run(copier_container, life_span=60 * 60)
         logger.info(f"The copy job ID: {job.id}")
         return job
 
     async def _create_copier_container(
-        self, storage_uri: URL, unpack: bool, src_uri: URL, dst_uri: URL,
+        self, storage_uri: URL, extract: bool, src_uri: URL, dst_uri: URL,
     ) -> neuro_api.Container:
         args = f"{str(src_uri)} {str(dst_uri)}"
-        if unpack:
-            args = f"-u {args}"
+        if extract:
+            args = f"-x {args}"
         return neuro_api.Container(
             image=neuro_api.RemoteImage.new_external_image("neuromation/neuro-extras"),
             resources=neuro_api.Resources(cpu=4.0, memory_mb=4096),
@@ -253,7 +253,7 @@ class UrlType(Enum):
         return UrlType.UNSUPPORTED
 
 
-async def _data_cp(source: str, destination: str, unpack: bool) -> None:
+async def _data_cp(source: str, destination: str, extract: bool) -> None:
     source_url = URL(source)
     destination_url = URL(destination)
     source_url_type = UrlType.get_type(source_url)
@@ -282,14 +282,14 @@ async def _data_cp(source: str, destination: str, unpack: bool) -> None:
                     storage_uri=source_url,
                     src_uri=URL("/var/storage"),
                     dst_uri=destination_url,
-                    unpack=unpack,
+                    extract=extract,
                 )
             else:
                 job = await data_copier.launch(
                     storage_uri=destination_url,
                     src_uri=source_url,
                     dst_uri=URL("/var/storage"),
-                    unpack=unpack,
+                    extract=extract,
                 )
             while job.status == neuro_api.JobStatus.PENDING:
                 job = await client.jobs.status(job.id)
@@ -320,7 +320,7 @@ async def _data_cp(source: str, destination: str, unpack: bool) -> None:
         source_url_type = UrlType.LOCAL
 
         # at this point source is always local
-        if unpack:
+        if extract:
             file = Path(source_url.path)
             if file.is_dir():
                 file = list(file.glob("*"))[0]
@@ -338,7 +338,7 @@ async def _data_cp(source: str, destination: str, unpack: bool) -> None:
                 # gunzip -c file.gz > /THERE/file
                 raise NotImplementedError("Pure gzip is not supported yet")
             else:
-                raise ValueError(f"Don't know how to unpack file with {file.name}")
+                raise ValueError(f"Don't know how to extract file {file.name}")
 
         # handle upload/rsync
         await _nonstorage_cp(source_url, destination_url)
@@ -368,16 +368,17 @@ async def _nonstorage_cp(source_url: URL, destination_url: URL) -> None:
 @data.command("cp")
 @click.argument("source")
 @click.argument("destination")
-@click.option("-u", "--unpack", default=False, is_flag=True)
-def data_cp(source: str, destination: str, unpack: bool) -> None:
+@click.option("-x", "--extract", default=False, is_flag=True)
+def data_cp(source: str, destination: str, extract: bool) -> None:
     """
     Sample test commands:
+    neuro-extras data cp -x s3://my-bucket/data.zip /tmp/
     neuro-extras data cp s3://sra-pub-sars-cov2/sra-src/SRR9967744/ /tmp/
     neuro-extras data cp gs://gcp-public-data--broad-references/refdisk_manifest.json \
             /tmp/refdisk_manifest.json
     neuro-extras data cp s3://sra-pub-sars-cov2/sra-src/SRR9967744/ storage:
     """
-    run_async(_data_cp(source, destination, unpack))
+    run_async(_data_cp(source, destination, extract))
 
 
 @image.command("build")
@@ -552,7 +553,7 @@ async def _upload(path: str) -> int:
             "neuro",
             "cp",
             "--recursive",
-            "-u",
+            "-x",
             str(target),
             "-T",
             f"storage:{remote_project_root / path}",
@@ -572,7 +573,7 @@ async def _download(path: str) -> int:
         "neuro",
         "cp",
         "--recursive",
-        "-u",
+        "-x",
         f"storage:{remote_project_root / path}",
         "-T",
         str(project_root / path),
