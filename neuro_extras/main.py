@@ -201,9 +201,9 @@ class DataCopier:
             args = f"-u {args}"
         return neuro_api.Container(
             image=neuro_api.RemoteImage.new_external_image("neuromation/neuro-extras"),
-            resources=neuro_api.Resources(cpu=1.0, memory_mb=4096),
+            resources=neuro_api.Resources(cpu=4.0, memory_mb=4096),
             volumes=[neuro_api.Volume(storage_uri, "/var/storage")],
-            command=f"neuro-extras data cp {args}",
+            entrypoint=f"neuro-extras data cp {args}",
         )
 
 
@@ -275,7 +275,6 @@ async def _data_cp(source: str, destination: str, unpack: bool) -> None:
         )
 
     if UrlType.STORAGE in (source_url_type, destination_url_type):
-        # raise ValueError("Storage operations are not supported yet")
         async with neuro_api.get() as client:
             data_copier = DataCopier(client)
             if source_url_type == UrlType.STORAGE:
@@ -337,7 +336,7 @@ async def _data_cp(source: str, destination: str, unpack: bool) -> None:
             elif suffixes[-1] in (".zip", ".gz"):
                 # TODO: Implement gunzip
                 # gunzip -c file.gz > /THERE/file
-                raise ValueError("Pure gzip is not supported yet")
+                raise NotImplementedError("Pure gzip is not supported yet")
             else:
                 raise ValueError(f"Don't know how to unpack file with {file.name}")
 
