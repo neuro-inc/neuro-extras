@@ -27,6 +27,11 @@ from .conftest import CLIRunner, Secret
 
 logger = logging.getLogger(__name__)
 
+# XXX: tiny random command to disable docker cache when used in Dockerfile
+DISABLE_CACHE_CMD = (
+    "head -c 10 /dev/urandom >/dev/null  # disable cache by this commmand"
+)
+
 
 @pytest.fixture
 def project_dir() -> Iterator[Path]:
@@ -112,8 +117,9 @@ def test_image_build_custom_dockerfile(cli_runner: CLIRunner) -> None:
     with open(dockerfile_path, "w") as f:
         f.write(
             textwrap.dedent(
-                """\
+                f"""\
                 FROM ubuntu:latest
+                RUN {DISABLE_CACHE_CMD}
                 RUN echo !
                 """
             )
@@ -154,10 +160,11 @@ def test_ignored_files_are_not_copied(cli_runner: CLIRunner,) -> None:
     Path(dockerfile_path).write_text(
         textwrap.dedent(
             f"""\
-                FROM ubuntu:latest
-                ADD {ignored_file} /
-                RUN cat /{ignored_file}
-                """
+            FROM ubuntu:latest
+            RUN {DISABLE_CACHE_CMD}
+            ADD {ignored_file} /
+            RUN cat /{ignored_file}
+            """
         )
     )
 
@@ -213,8 +220,9 @@ def test_image_copy(cli_runner: CLIRunner) -> None:
     with open(dockerfile_path, "w") as f:
         f.write(
             textwrap.dedent(
-                """\
+                f"""\
                 FROM alpine:latest
+                RUN {DISABLE_CACHE_CMD}
                 RUN echo !
                 """
             )
@@ -256,8 +264,9 @@ def test_image_build_custom_build_args(cli_runner: CLIRunner) -> None:
     with open(dockerfile_path, "w") as f:
         f.write(
             textwrap.dedent(
-                """\
+                f"""\
                 FROM ubuntu:latest
+                RUN {DISABLE_CACHE_CMD}
                 ARG TEST_ARG
                 ARG ANOTHER_TEST_ARG
                 RUN echo $TEST_ARG
@@ -304,8 +313,9 @@ def test_image_build_env(cli_runner: CLIRunner, temp_random_secret: Secret) -> N
     with open(dockerfile_path, "w") as f:
         f.write(
             textwrap.dedent(
-                """\
+                f"""\
                 FROM ubuntu:latest
+                RUN {DISABLE_CACHE_CMD}
                 ARG GIT_TOKEN
                 ENV GIT_TOKEN=$GIT_TOKEN
                 RUN echo git_token=$GIT_TOKEN
@@ -323,12 +333,13 @@ def test_image_build_env(cli_runner: CLIRunner, temp_random_secret: Secret) -> N
             "-f",
             str(dockerfile_path),
             "-e",
-            "GIT_TOKEN=secret:gh-token-e2e",
+            f"GIT_TOKEN=secret:{sec.name}",
             ".",
             img_uri_str,
         ]
     )
     assert result.returncode == 0, result
+    print(result.stdout)
     assert f"git_token={sec.value}" in result.stdout
 
 
@@ -348,8 +359,9 @@ def test_image_build_volume(cli_runner: CLIRunner, temp_random_secret: Secret) -
     with open(dockerfile_path, "w") as f:
         f.write(
             textwrap.dedent(
-                """\
+                f"""\
                 FROM ubuntu:latest
+                RUN {DISABLE_CACHE_CMD}
                 ADD secret.txt /
                 RUN echo git_token=$(cat secret.txt)
                 """
