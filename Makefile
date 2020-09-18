@@ -13,7 +13,7 @@ format:
 	black neuro_extras tests setup.py
 
 test_e2e:
-	pytest -vv --maxfail=3 ${PYTEST_FLAGS} tests/e2e
+	pytest -vv --maxfail=3 ${PYTEST_FLAGS} tests/e2e -s -k test_image
 
 test: lint test_e2e
 

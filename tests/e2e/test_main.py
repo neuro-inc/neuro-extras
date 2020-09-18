@@ -10,7 +10,7 @@ from pathlib import Path
 from subprocess import CompletedProcess
 from tempfile import TemporaryDirectory
 from time import sleep
-from typing import Callable, Iterator, List
+from typing import Iterator, List
 from unittest import mock
 
 import pytest
@@ -21,6 +21,8 @@ from neuromation.cli.const import EX_OK
 from neuromation.cli.main import cli as neuro_main
 
 from neuro_extras.main import main as extras_main
+
+from .conftest import CLIRunner, Secret
 
 
 logger = logging.getLogger(__name__)
@@ -36,9 +38,6 @@ def project_dir() -> Iterator[Path]:
             yield cwd
         finally:
             os.chdir(old_cwd)
-
-
-CLIRunner = Callable[[List[str]], CompletedProcess]
 
 
 @pytest.fixture()
@@ -290,12 +289,13 @@ def test_image_build_custom_build_args(cli_runner: CLIRunner) -> None:
 
 
 @pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
-def test_image_build_env(cli_runner: CLIRunner) -> None:
+def test_image_build_env(cli_runner: CLIRunner, temp_random_secret: Secret) -> None:
+    sec = temp_random_secret
+
     result = cli_runner(["neuro-extras", "init-aliases"])
     assert result.returncode == 0, result
 
-    secret = str(uuid.uuid4())
-    result = cli_runner(["neuro", "secret", "add", "gh-token-e2e", secret])
+    result = cli_runner(["neuro", "secret", "add", sec.name, sec.value])
     assert result.returncode == 0, result
 
     dockerfile_path = Path("nested/custom.Dockerfile")
@@ -329,16 +329,17 @@ def test_image_build_env(cli_runner: CLIRunner) -> None:
         ]
     )
     assert result.returncode == 0, result
-    assert f"git_token={secret}" in result.stdout
+    assert f"git_token={sec.value}" in result.stdout
 
 
 @pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
-def test_image_build_volume(cli_runner: CLIRunner) -> None:
+def test_image_build_volume(cli_runner: CLIRunner, temp_random_secret: Secret) -> None:
+    sec = temp_random_secret
+
     result = cli_runner(["neuro-extras", "init-aliases"])
     assert result.returncode == 0, result
 
-    secret = str(uuid.uuid4())
-    result = cli_runner(["neuro", "secret", "add", "gh-token-e2e", secret])
+    result = cli_runner(["neuro", "secret", "add", sec.name, sec.value])
     assert result.returncode == 0, result
 
     dockerfile_path = Path("nested/custom.Dockerfile")
@@ -376,7 +377,7 @@ def test_image_build_volume(cli_runner: CLIRunner) -> None:
         ]
     )
     assert result.returncode == 0, result
-    assert f"git_token={secret}" in result.stdout
+    assert f"git_token={sec.value}" in result.stdout
 
 
 @pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
