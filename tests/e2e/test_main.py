@@ -27,11 +27,6 @@ from .conftest import CLIRunner, Secret, gen_random_file
 
 logger = logging.getLogger(__name__)
 
-# XXX: tiny random command to disable docker cache when used in Dockerfile
-DOCKERFILE_DISABLE_CACHE_CMD = (
-    'ADD "https://www.random.org/cgi-bin/randbyte?nbytes=10&format=h" skipcache'
-)
-
 
 @pytest.fixture
 def project_dir() -> Iterator[Path]:
@@ -120,7 +115,7 @@ def test_image_build_custom_dockerfile(cli_runner: CLIRunner) -> None:
             textwrap.dedent(
                 f"""\
                 FROM ubuntu:latest
-                ADD {random_file_to_disable_layer_caching} .
+                ADD {random_file_to_disable_layer_caching} /tmp
                 RUN echo !
                 """
             )
@@ -163,7 +158,7 @@ def test_ignored_files_are_not_copied(cli_runner: CLIRunner,) -> None:
         textwrap.dedent(
             f"""\
             FROM ubuntu:latest
-            ADD {random_file_to_disable_layer_caching}
+            ADD {random_file_to_disable_layer_caching} /tmp
             ADD {ignored_file} /
             RUN cat /{ignored_file}
             """
@@ -225,7 +220,7 @@ def test_image_copy(cli_runner: CLIRunner) -> None:
             textwrap.dedent(
                 f"""\
                 FROM alpine:latest
-                ADD {random_file_to_disable_layer_caching}
+                ADD {random_file_to_disable_layer_caching} /tmp
                 RUN echo !
                 """
             )
@@ -270,7 +265,7 @@ def test_image_build_custom_build_args(cli_runner: CLIRunner) -> None:
             textwrap.dedent(
                 f"""\
                 FROM ubuntu:latest
-                ADD {random_file_to_disable_layer_caching}
+                ADD {random_file_to_disable_layer_caching} /tmp
                 ARG TEST_ARG
                 ARG ANOTHER_TEST_ARG
                 RUN echo $TEST_ARG
@@ -320,7 +315,7 @@ def test_image_build_env(cli_runner: CLIRunner, temp_random_secret: Secret) -> N
             textwrap.dedent(
                 f"""\
                 FROM ubuntu:latest
-                ADD {random_file_to_disable_layer_caching}
+                ADD {random_file_to_disable_layer_caching} /tmp
                 ARG GIT_TOKEN
                 ENV GIT_TOKEN=$GIT_TOKEN
                 RUN echo git_token=$GIT_TOKEN
@@ -366,7 +361,7 @@ def test_image_build_volume(cli_runner: CLIRunner, temp_random_secret: Secret) -
             textwrap.dedent(
                 f"""\
                 FROM ubuntu:latest
-                ADD {random_file_to_disable_layer_caching}
+                ADD {random_file_to_disable_layer_caching} /tmp
                 ADD secret.txt /
                 RUN echo git_token=$(cat secret.txt)
                 """
