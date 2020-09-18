@@ -22,14 +22,14 @@ from neuromation.cli.main import cli as neuro_main
 
 from neuro_extras.main import main as extras_main
 
-from .conftest import CLIRunner, Secret
+from .conftest import CLIRunner, Secret, gen_random_file
 
 
 logger = logging.getLogger(__name__)
 
 # XXX: tiny random command to disable docker cache when used in Dockerfile
-DISABLE_CACHE_CMD = (
-    "head -c 10 /dev/urandom >/dev/null  # disable cache by this commmand"
+DOCKERFILE_DISABLE_CACHE_CMD = (
+    'ADD "https://www.random.org/cgi-bin/randbyte?nbytes=10&format=h" skipcache'
 )
 
 
@@ -114,12 +114,13 @@ def test_image_build_custom_dockerfile(cli_runner: CLIRunner) -> None:
     dockerfile_path = Path("nested/custom.Dockerfile")
     dockerfile_path.parent.mkdir(parents=True)
 
+    random_file_to_disable_layer_caching = gen_random_file(dockerfile_path.parent)
     with open(dockerfile_path, "w") as f:
         f.write(
             textwrap.dedent(
                 f"""\
                 FROM ubuntu:latest
-                RUN {DISABLE_CACHE_CMD}
+                ADD {random_file_to_disable_layer_caching} .
                 RUN echo !
                 """
             )
@@ -157,11 +158,12 @@ def test_ignored_files_are_not_copied(cli_runner: CLIRunner,) -> None:
 
     Path(".neuroignore").write_text(f"{ignored_file}\n")
     Path(ignored_file).write_text(ignored_file_content)
+    random_file_to_disable_layer_caching = gen_random_file(dockerfile_path.parent)
     Path(dockerfile_path).write_text(
         textwrap.dedent(
             f"""\
             FROM ubuntu:latest
-            RUN {DISABLE_CACHE_CMD}
+            ADD {random_file_to_disable_layer_caching}
             ADD {ignored_file} /
             RUN cat /{ignored_file}
             """
@@ -217,12 +219,13 @@ def test_image_copy(cli_runner: CLIRunner) -> None:
     dockerfile_path = Path("nested/custom.Dockerfile")
     dockerfile_path.parent.mkdir(parents=True)
 
+    random_file_to_disable_layer_caching = gen_random_file(dockerfile_path.parent)
     with open(dockerfile_path, "w") as f:
         f.write(
             textwrap.dedent(
                 f"""\
                 FROM alpine:latest
-                RUN {DISABLE_CACHE_CMD}
+                ADD {random_file_to_disable_layer_caching}
                 RUN echo !
                 """
             )
@@ -261,12 +264,13 @@ def test_image_build_custom_build_args(cli_runner: CLIRunner) -> None:
     dockerfile_path = Path("nested/custom.Dockerfile")
     dockerfile_path.parent.mkdir(parents=True)
 
+    random_file_to_disable_layer_caching = gen_random_file(dockerfile_path.parent)
     with open(dockerfile_path, "w") as f:
         f.write(
             textwrap.dedent(
                 f"""\
                 FROM ubuntu:latest
-                RUN {DISABLE_CACHE_CMD}
+                ADD {random_file_to_disable_layer_caching}
                 ARG TEST_ARG
                 ARG ANOTHER_TEST_ARG
                 RUN echo $TEST_ARG
@@ -310,12 +314,13 @@ def test_image_build_env(cli_runner: CLIRunner, temp_random_secret: Secret) -> N
     dockerfile_path = Path("nested/custom.Dockerfile")
     dockerfile_path.parent.mkdir(parents=True)
 
+    random_file_to_disable_layer_caching = gen_random_file(dockerfile_path.parent)
     with open(dockerfile_path, "w") as f:
         f.write(
             textwrap.dedent(
                 f"""\
                 FROM ubuntu:latest
-                RUN {DISABLE_CACHE_CMD}
+                ADD {random_file_to_disable_layer_caching}
                 ARG GIT_TOKEN
                 ENV GIT_TOKEN=$GIT_TOKEN
                 RUN echo git_token=$GIT_TOKEN
@@ -339,7 +344,6 @@ def test_image_build_env(cli_runner: CLIRunner, temp_random_secret: Secret) -> N
         ]
     )
     assert result.returncode == 0, result
-    print(result.stdout)
     assert f"git_token={sec.value}" in result.stdout
 
 
@@ -356,12 +360,13 @@ def test_image_build_volume(cli_runner: CLIRunner, temp_random_secret: Secret) -
     dockerfile_path = Path("nested/custom.Dockerfile")
     dockerfile_path.parent.mkdir(parents=True)
 
+    random_file_to_disable_layer_caching = gen_random_file(dockerfile_path.parent)
     with open(dockerfile_path, "w") as f:
         f.write(
             textwrap.dedent(
                 f"""\
                 FROM ubuntu:latest
-                RUN {DISABLE_CACHE_CMD}
+                ADD {random_file_to_disable_layer_caching}
                 ADD secret.txt /
                 RUN echo git_token=$(cat secret.txt)
                 """
