@@ -368,7 +368,7 @@ async def _nonstorage_cp(source_url: URL, destination_url: URL) -> None:
 @data.command("cp")
 @click.argument("source")
 @click.argument("destination")
-@click.option("-u", "--unpack", default=False)
+@click.option("-u", "--unpack", default=False, is_flag=True)
 def data_cp(source: str, destination: str, unpack: bool) -> None:
     """
     Sample test commands:
