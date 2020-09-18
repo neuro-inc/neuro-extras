@@ -37,6 +37,9 @@ def project_dir() -> Iterator[Path]:
 
 CLIRunner = Callable[[List[str]], CompletedProcess]
 
+GCP_BUCKET = "gs://cookiecutter-e2e"
+AWS_BUCKET = "s3://cookiecutter-e2e"
+
 
 @pytest.fixture()
 def cli_runner(capfd: CaptureFixture, project_dir: Path) -> CLIRunner:
@@ -529,3 +532,44 @@ def test_upload_download_subdir(
     assert not file_in_root.exists(), "File in project root should not be downloaded"
     file_in_subdir = project_dir / subdir_name / test_file_name
     assert file_in_subdir.read_text() == test_file_content
+
+
+@pytest.mark.parametrize(
+    "src_type,dst_type,archive_extension,extract",
+    [
+        ("gcp", "local", "tar.gz", False),
+        ("gcp", "local", "tar.gz", True),
+        ("gcp", "local", "zip", False),
+        ("gcp", "local", "zip", True),
+    ],
+)
+def test_data_cp_tar_gz_from_gcp_to_local_without_extract(
+    project_dir: Path,
+    remote_project_dir: Path,
+    cli_runner: CLIRunner,
+    src_type: str,
+    dst_type: str,
+    archive_extension: str,
+    extract: bool,
+) -> None:
+    with TemporaryDirectory() as dst:
+        src = f"{GCP_BUCKET}/hello.{archive_extension}"
+        args = ["neuro-extras", "data", "cp", src, dst]
+        if extract:
+            args.append("-x")
+
+        result = cli_runner(args)
+        assert result.returncode == 0, result
+
+        expected_archive = Path(dst) / f"hello.{archive_extension}"
+        assert expected_archive.is_file()
+        if extract:
+            expected_file = Path(dst) / "data" / "hello.txt"
+            assert "Hello world!" in expected_file.read_text()
+
+
+# TODO: add other tests: "test_data_cp_{ARCHIVE_EXTENSION}_from_{SRC_TYPE}_to_{DST_TYPE}_{WITH_OR_WITHOUT}_extract"  # noqa
+# ARCHIVE_EXTENSION: tar_gz, tar, tgz, tar, zip, bz2
+# SRC_TYPE: aws, gcp / local, storage
+# DST_TYPE: local, storage / aws, gcp
+# WITH_OR_WITHOUT: with, without
