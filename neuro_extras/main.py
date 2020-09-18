@@ -311,9 +311,9 @@ async def _data_cp(source: str, destination: str, unpack: bool) -> None:
             else:
                 logger.info("Successfully copied data")
     else:
+        TEMP_UNPACK_DIR.mkdir(parents=True, exist_ok=True)
         tmp_dir_name = tempfile.mkdtemp(dir=str(TEMP_UNPACK_DIR))
         tmp_dst_url = URL.build(path=(tmp_dir_name + "/"))
-        print(f"temp destination url = {tmp_dst_url}")
 
         await _nonstorage_cp(source_url, tmp_dst_url)
         source_url = tmp_dst_url
@@ -326,11 +326,7 @@ async def _data_cp(source: str, destination: str, unpack: bool) -> None:
             if file.is_dir():
                 file = list(file.glob("*"))[0]
             suffixes = file.suffixes
-            if (
-                suffixes[-2:] == [".tar", ".gz"]
-                or suffixes[-1] == ".tgz"
-                or suffixes[-1] == ".tar"
-            ):
+            if suffixes[-2:] == [".tar", ".gz"] or suffixes[-1] == ".tgz":
                 command = "tar"
                 args = ["zxvf", str(file), "-C", str(destination_url)]
                 click.echo(f"Running {command} {' '.join(args)}")
@@ -338,10 +334,10 @@ async def _data_cp(source: str, destination: str, unpack: bool) -> None:
                 returncode = await subprocess.wait()
                 if returncode != 0:
                     raise click.ClickException("Cloud copy failed")
-            elif suffixes[-1] == ".zip":
+            elif suffixes[-1] in (".zip", ".gz"):
                 # TODO: Implement gunzip
                 # gunzip -c file.gz > /THERE/file
-                pass
+                raise ValueError("Pure gzip is not supported yet")
             else:
                 raise ValueError(f"Don't know how to unpack file with {file.name}")
 
@@ -352,7 +348,9 @@ async def _data_cp(source: str, destination: str, unpack: bool) -> None:
 async def _nonstorage_cp(source_url: URL, destination_url: URL) -> None:
     if "s3" in (source_url.scheme, destination_url.scheme):
         command = "aws"
-        args = ["s3", "cp", "--recursive", str(source_url), str(destination_url)]
+        args = ["s3", "cp", str(source_url), str(destination_url)]
+        if source_url.path.endswith("/"):
+            args.insert(2, "--recursive")
     elif "gs" in (source_url.scheme, destination_url.scheme):
         command = "gsutil"
         args = ["-m", "cp", "-r", str(source_url), str(destination_url)]
