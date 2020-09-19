@@ -98,6 +98,8 @@ class ImageBuilder:
         dockerfile_path: str,
         image_ref: str,
         build_args: Sequence[str] = (),
+        volume: Sequence[str],
+        env: Sequence[str],
     ) -> neuro_api.Container:
 
         cache_image = neuro_api.RemoteImage(
@@ -111,23 +113,38 @@ class ImageBuilder:
         command = (
             f"--dockerfile={dockerfile_path} --destination={image_ref} "
             f"--cache=true --cache-repo={cache_repo}"
+            " --snapshotMode=redo"
         )
 
         if build_args:
             command += "".join([f" --build-arg {arg}" for arg in build_args])
+
+        env_dict, secret_env_dict = self._client.parse.env(env)
+        volumes, secret_files = self._client.parse.volumes(volume)
+
+        command += "".join([f" --build-arg {arg}" for arg in env_dict.keys()])
+        command += "".join([f" --build-arg {arg}" for arg in secret_env_dict.keys()])
+
+        default_volumes = [
+            neuro_api.Volume(
+                docker_config_uri, "/kaniko/.docker/config.json", read_only=True
+            ),
+            # TODO: try read only
+            neuro_api.Volume(context_uri, "/workspace"),
+        ]
+
+        volumes.extend(default_volumes)
+
         return neuro_api.Container(
             image=neuro_api.RemoteImage(
                 name="gcr.io/kaniko-project/executor", tag="latest",
             ),
             resources=neuro_api.Resources(cpu=1.0, memory_mb=4096),
-            volumes=[
-                neuro_api.Volume(
-                    docker_config_uri, "/kaniko/.docker/config.json", read_only=True
-                ),
-                # TODO: try read only
-                neuro_api.Volume(context_uri, "/workspace"),
-            ],
             command=command,
+            volumes=volumes,
+            secret_files=secret_files,
+            env=env_dict,
+            secret_env=secret_env_dict,
         )
 
     def parse_image_ref(self, image_uri_str: str) -> str:
@@ -140,6 +157,8 @@ class ImageBuilder:
         context_uri: URL,
         image_uri_str: str,
         build_args: Sequence[str],
+        volume: Sequence[str],
+        env: Sequence[str],
     ) -> neuro_api.JobDescription:
         # TODO: check if Dockerfile exists
 
@@ -171,6 +190,8 @@ class ImageBuilder:
             dockerfile_path=dockerfile_path,
             image_ref=image_ref,
             build_args=build_args,
+            volume=volume,
+            env=env,
         )
         # TODO: set proper tags
         job = await self._client.jobs.run(builder_container, life_span=60 * 60)
@@ -384,10 +405,38 @@ def data_cp(source: str, destination: str, extract: bool) -> None:
 @image.command("build")
 @click.option("-f", "--file", default="Dockerfile")
 @click.option("--build-arg", multiple=True)
+@click.option(
+    "-v",
+    "--volume",
+    metavar="MOUNT",
+    multiple=True,
+    help=(
+        "Mounts directory from vault into container. "
+        "Use multiple options to mount more than one volume. "
+        "Use --volume=ALL to mount all accessible storage directories."
+    ),
+)
+@click.option(
+    "-e",
+    "--env",
+    metavar="VAR=VAL",
+    multiple=True,
+    help=(
+        "Set environment variable in container "
+        "Use multiple options to define more than one variable"
+    ),
+)
 @click.argument("path")
 @click.argument("image_uri")
-def image_build(file: str, build_arg: Sequence[str], path: str, image_uri: str) -> None:
-    run_async(_build_image(file, path, image_uri, build_arg))
+def image_build(
+    file: str,
+    build_arg: Sequence[str],
+    path: str,
+    image_uri: str,
+    volume: Sequence[str],
+    env: Sequence[str],
+) -> None:
+    run_async(_build_image(file, path, image_uri, build_arg, volume, env))
 
 
 @image.command("copy")
@@ -395,6 +444,52 @@ def image_build(file: str, build_arg: Sequence[str], path: str, image_uri: str) 
 @click.argument("destination")
 def image_copy(source: str, destination: str) -> None:
     run_async(_copy_image(source, destination))
+
+
+@main.command("cp")
+@click.argument("source")
+@click.argument("destination")
+def cluster_copy(source: str, destination: str) -> None:
+    run_async(_copy_storage(source, destination))
+
+
+async def _copy_storage(source: str, destination: str) -> None:
+    src_uri = uri_from_cli(source, "", "")
+    src_cluster = src_uri.host
+    src_path = src_uri.parts[2:]
+
+    dst_uri = uri_from_cli(destination, "", "")
+    dst_cluster = dst_uri.host
+    dst_path = dst_uri.parts[2:]
+
+    assert src_cluster
+    assert dst_cluster
+    async with neuro_api.get() as client:
+        await client.config.switch_cluster(dst_cluster)
+        await client.storage.mkdir(URL("storage:"), parents=True, exist_ok=True)
+    await _run_copy_container(src_cluster, "/".join(src_path), "/".join(dst_path))
+
+
+async def _run_copy_container(src_cluster: str, src_path: str, dst_path: str) -> None:
+    args = [
+        "neuro",
+        "run",
+        "-s",
+        "cpu-small",
+        "--pass-config",
+        "-v",
+        "storage:://storage",
+        "-e",
+        f"NEURO_CLUSTER={src_cluster}",
+        "neuromation/neuro-extras:latest",
+        f'"cp --progress -r -u -T storage:{src_path} /storage/{dst_path}"',
+    ]
+    cmd = " ".join(args)
+    print(f"Executing '{cmd}'")
+    subprocess = await asyncio.create_subprocess_shell(cmd)
+    returncode = await subprocess.wait()
+    if returncode != 0:
+        raise Exception("Unable to copy storage")
 
 
 async def _copy_image(source: str, destination: str) -> None:
@@ -411,11 +506,16 @@ async def _copy_image(source: str, destination: str) -> None:
                     """
                 )
             )
-        await _build_image("Dockerfile", tmpdir, destination, [])
+        await _build_image("Dockerfile", tmpdir, destination, [], [], [])
 
 
 async def _build_image(
-    dockerfile_path: str, context: str, image_uri: str, build_args: Sequence[str]
+    dockerfile_path: str,
+    context: str,
+    image_uri: str,
+    build_args: Sequence[str],
+    volume: Sequence[str],
+    env: Sequence[str],
 ) -> None:
     async with neuro_api.get() as client:
         context_uri = uri_from_cli(
@@ -425,7 +525,9 @@ async def _build_image(
             allowed_schemes=("file", "storage"),
         )
         builder = ImageBuilder(client)
-        job = await builder.launch(dockerfile_path, context_uri, image_uri, build_args)
+        job = await builder.launch(
+            dockerfile_path, context_uri, image_uri, build_args, volume, env
+        )
         while job.status == neuro_api.JobStatus.PENDING:
             job = await client.jobs.status(job.id)
             await asyncio.sleep(1.0)
@@ -595,6 +697,8 @@ def init_aliases() -> None:
         "options": [
             "-f, --file path to the Dockerfile within CONTEXT",
             "--build-arg build arguments for Docker",
+            "-e, --env environment variables for container",
+            "-v, --volume list of volumes for container",
         ],
         "args": "CONTEXT IMAGE_URI",
     }
@@ -604,6 +708,10 @@ def init_aliases() -> None:
     }
     config["alias"]["image-copy"] = {
         "exec": "neuro-extras image copy",
+        "args": "SOURCE DESTINATION",
+    }
+    config["alias"]["storage-cp"] = {
+        "exec": "neuro-extras cp",
         "args": "SOURCE DESTINATION",
     }
     with toml_path.open("w") as f:

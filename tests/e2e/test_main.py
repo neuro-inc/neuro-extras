@@ -2,12 +2,15 @@ import base64
 import json
 import logging
 import os
+import re
+import sys
 import textwrap
 import uuid
 from pathlib import Path
 from subprocess import CompletedProcess
 from tempfile import TemporaryDirectory
-from typing import Callable, Iterator, List
+from time import sleep
+from typing import Iterator, List
 from unittest import mock
 
 import pytest
@@ -18,6 +21,8 @@ from neuromation.cli.const import EX_OK
 from neuromation.cli.main import cli as neuro_main
 
 from neuro_extras.main import main as extras_main
+
+from .conftest import CLIRunner, Secret, gen_random_file
 
 
 logger = logging.getLogger(__name__)
@@ -102,6 +107,7 @@ def test_image_build_failure(cli_runner: CLIRunner) -> None:
     assert "repository can only contain" in result.stdout
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
 def test_image_build_custom_dockerfile(cli_runner: CLIRunner) -> None:
     result = cli_runner(["neuro-extras", "init-aliases"])
     assert result.returncode == 0, result
@@ -109,29 +115,38 @@ def test_image_build_custom_dockerfile(cli_runner: CLIRunner) -> None:
     dockerfile_path = Path("nested/custom.Dockerfile")
     dockerfile_path.parent.mkdir(parents=True)
 
+    random_file_to_disable_layer_caching = gen_random_file(dockerfile_path.parent)
     with open(dockerfile_path, "w") as f:
         f.write(
             textwrap.dedent(
-                """\
+                f"""\
                 FROM ubuntu:latest
+                ADD {random_file_to_disable_layer_caching} /tmp
                 RUN echo !
                 """
             )
         )
 
     tag = str(uuid.uuid4())
-    img_uri_str = f"image:extras-e2e:{tag}"
+
+    # WORKAROUND: Fixing 401 Not Authorized because of this problem:
+    # https://github.com/neuromation/platform-registry-api/issues/209
+    rnd = uuid.uuid4().hex[:6]
+    img_name = f"image:extras-e2e-custom-dockerfile-{rnd}"
+    img_uri_str = f"{img_name}:{tag}"
 
     result = cli_runner(
         ["neuro", "image-build", "-f", str(dockerfile_path), ".", img_uri_str]
     )
     assert result.returncode == 0, result
+    sleep(10)
 
-    result = cli_runner(["neuro", "image", "tags", "image:extras-e2e"])
+    result = cli_runner(["neuro", "image", "tags", img_name])
     assert result.returncode == 0, result
     assert tag in result.stdout
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
 def test_ignored_files_are_not_copied(cli_runner: CLIRunner,) -> None:
     result = cli_runner(["neuro-extras", "init-aliases"])
     assert result.returncode == 0, result
@@ -144,13 +159,15 @@ def test_ignored_files_are_not_copied(cli_runner: CLIRunner,) -> None:
 
     Path(".neuroignore").write_text(f"{ignored_file}\n")
     Path(ignored_file).write_text(ignored_file_content)
+    random_file_to_disable_layer_caching = gen_random_file(dockerfile_path.parent)
     Path(dockerfile_path).write_text(
         textwrap.dedent(
             f"""\
-                FROM ubuntu:latest
-                ADD {ignored_file} /
-                RUN cat /{ignored_file}
-                """
+            FROM ubuntu:latest
+            ADD {random_file_to_disable_layer_caching} /tmp
+            ADD {ignored_file} /
+            RUN cat /{ignored_file}
+            """
         )
     )
 
@@ -163,6 +180,39 @@ def test_ignored_files_are_not_copied(cli_runner: CLIRunner,) -> None:
     assert ignored_file_content not in result.stdout
 
 
+def test_storage_copy(cli_runner: CLIRunner) -> None:
+    result = cli_runner(["neuro-extras", "init-aliases"])
+    assert result.returncode == 0, result
+
+    result = cli_runner(["neuro", "config", "show"])
+    username_re = re.compile(".*User Name: ([a-zA-Z0-9-]+).*", re.DOTALL)
+    cluster_re = re.compile(".*Current Cluster: ([a-zA-Z0-9-]+).*", re.DOTALL)
+    m = username_re.match(result.stdout)
+    assert m
+    username = m.groups()[0]
+    m = cluster_re.match(result.stdout)
+    assert m
+    current_cluster = m.groups()[0]
+
+    run_id = uuid.uuid4()
+    src_path = f"copy-src/{str(run_id)}"
+    result = cli_runner(["neuro", "mkdir", "-p", "storage:" + src_path])
+    assert result.returncode == 0, result
+
+    dst_path = "copy-dst/"
+
+    result = cli_runner(
+        [
+            "neuro",
+            "storage-cp",
+            f"storage://{current_cluster}/{username}/{src_path}",
+            f"storage://{current_cluster}/{username}/{dst_path}",
+        ]
+    )
+    assert result.returncode == 0, result
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
 def test_image_copy(cli_runner: CLIRunner) -> None:
     result = cli_runner(["neuro-extras", "init-aliases"])
     assert result.returncode == 0, result
@@ -170,34 +220,44 @@ def test_image_copy(cli_runner: CLIRunner) -> None:
     dockerfile_path = Path("nested/custom.Dockerfile")
     dockerfile_path.parent.mkdir(parents=True)
 
+    random_file_to_disable_layer_caching = gen_random_file(dockerfile_path.parent)
     with open(dockerfile_path, "w") as f:
         f.write(
             textwrap.dedent(
-                """\
+                f"""\
                 FROM alpine:latest
+                ADD {random_file_to_disable_layer_caching} /tmp
                 RUN echo !
                 """
             )
         )
 
+    # WORKAROUND: Fixing 401 Not Authorized because of this problem:
+    # https://github.com/neuromation/platform-registry-api/issues/209
+    rnd = uuid.uuid4().hex[:6]
+    image = f"image:extras-e2e-image-copy-{rnd}"
+
     tag = str(uuid.uuid4())
-    img_uri_str = f"image:extras-e2e:{tag}"
+    img_uri_str = f"{image}:{tag}"
 
     result = cli_runner(
         ["neuro", "image-build", "-f", str(dockerfile_path), ".", img_uri_str]
     )
     assert result.returncode == 0, result
+    sleep(10)
 
-    result = cli_runner(["neuro", "image", "tags", "image:extras-e2e"])
+    result = cli_runner(["neuro", "image", "tags", image])
     assert result.returncode == 0, result
     assert tag in result.stdout
 
-    result = cli_runner(["neuro", "image-copy", img_uri_str, "image:extras-e2e-copy"])
+    result = cli_runner(["neuro", "image-copy", img_uri_str, image])
     assert result.returncode == 0, result
-    result = cli_runner(["neuro", "image", "tags", "image:extras-e2e-copy"])
+    sleep(10)
+    result = cli_runner(["neuro", "image", "tags", image])
     assert result.returncode == 0, result
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
 def test_image_build_custom_build_args(cli_runner: CLIRunner) -> None:
     result = cli_runner(["neuro-extras", "init-aliases"])
     assert result.returncode == 0, result
@@ -205,11 +265,13 @@ def test_image_build_custom_build_args(cli_runner: CLIRunner) -> None:
     dockerfile_path = Path("nested/custom.Dockerfile")
     dockerfile_path.parent.mkdir(parents=True)
 
+    random_file_to_disable_layer_caching = gen_random_file(dockerfile_path.parent)
     with open(dockerfile_path, "w") as f:
         f.write(
             textwrap.dedent(
-                """\
+                f"""\
                 FROM ubuntu:latest
+                ADD {random_file_to_disable_layer_caching} /tmp
                 ARG TEST_ARG
                 ARG ANOTHER_TEST_ARG
                 RUN echo $TEST_ARG
@@ -240,13 +302,114 @@ def test_image_build_custom_build_args(cli_runner: CLIRunner) -> None:
     assert f"arg-another-{tag}" in result.stdout
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
+def test_image_build_env(cli_runner: CLIRunner, temp_random_secret: Secret) -> None:
+    sec = temp_random_secret
+
+    result = cli_runner(["neuro-extras", "init-aliases"])
+    assert result.returncode == 0, result
+
+    result = cli_runner(["neuro", "secret", "add", sec.name, sec.value])
+    assert result.returncode == 0, result
+
+    dockerfile_path = Path("nested/custom.Dockerfile")
+    dockerfile_path.parent.mkdir(parents=True)
+
+    random_file_to_disable_layer_caching = gen_random_file(dockerfile_path.parent)
+    with open(dockerfile_path, "w") as f:
+        f.write(
+            textwrap.dedent(
+                f"""\
+                FROM ubuntu:latest
+                ADD {random_file_to_disable_layer_caching} /tmp
+                ARG GIT_TOKEN
+                ENV GIT_TOKEN=$GIT_TOKEN
+                RUN echo git_token=$GIT_TOKEN
+                """
+            )
+        )
+
+    tag = str(uuid.uuid4())
+    img_uri_str = f"image:extras-e2e:{tag}"
+
+    result = cli_runner(
+        [
+            "neuro",
+            "image-build",
+            "-f",
+            str(dockerfile_path),
+            "-e",
+            f"GIT_TOKEN=secret:{sec.name}",
+            ".",
+            img_uri_str,
+        ]
+    )
+    assert result.returncode == 0, result
+    assert f"git_token={sec.value}" in result.stdout
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
+def test_image_build_volume(cli_runner: CLIRunner, temp_random_secret: Secret) -> None:
+    sec = temp_random_secret
+
+    result = cli_runner(["neuro-extras", "init-aliases"])
+    assert result.returncode == 0, result
+
+    result = cli_runner(["neuro", "secret", "add", sec.name, sec.value])
+    assert result.returncode == 0, result
+
+    dockerfile_path = Path("nested/custom.Dockerfile")
+    dockerfile_path.parent.mkdir(parents=True)
+
+    random_file_to_disable_layer_caching = gen_random_file(dockerfile_path.parent)
+    with open(dockerfile_path, "w") as f:
+        f.write(
+            textwrap.dedent(
+                f"""\
+                FROM ubuntu:latest
+                ADD {random_file_to_disable_layer_caching} /tmp
+                ADD secret.txt /
+                RUN echo git_token=$(cat secret.txt)
+                """
+            )
+        )
+
+    # WORKAROUND: Fixing 401 Not Authorized because of this problem:
+    # https://github.com/neuromation/platform-registry-api/issues/209
+    rnd = uuid.uuid4().hex[:6]
+    image = f"image:extras-e2e-image-copy-{rnd}"
+
+    tag = str(uuid.uuid4())
+    img_uri_str = f"{image}:{tag}"
+
+    result = cli_runner(
+        [
+            "neuro",
+            "image-build",
+            "-f",
+            str(dockerfile_path),
+            "-v",
+            f"secret:{sec.name}:/workspace/secret.txt",
+            ".",
+            img_uri_str,
+        ]
+    )
+    assert result.returncode == 0, result
+    assert f"git_token={sec.value}" in result.stdout
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
 def test_seldon_deploy_from_local(cli_runner: CLIRunner) -> None:
     result = cli_runner(["neuro-extras", "init-aliases"])
     assert result.returncode == 0, result
 
     pkg_path = Path("pkg")
     tag = str(uuid.uuid4())
-    img_uri_str = f"image:extras-e2e:{tag}"
+    # WORKAROUND: Fixing 401 Not Authorized because of this problem:
+    # https://github.com/neuromation/platform-registry-api/issues/209
+    rnd = uuid.uuid4().hex[:6]
+    img_name = f"image:extras-e2e-seldon-local-{rnd}"
+    img_uri_str = f"{img_name}:{tag}"
     result = cli_runner(["neuro", "seldon-init-package", str(pkg_path)])
     assert result.returncode == 0, result
     assert "Copying a Seldon package scaffolding" in result.stdout, result
@@ -257,8 +420,9 @@ def test_seldon_deploy_from_local(cli_runner: CLIRunner) -> None:
         ["neuro", "image-build", "-f", "seldon.Dockerfile", str(pkg_path), img_uri_str]
     )
     assert result.returncode == 0, result
+    sleep(10)
 
-    result = cli_runner(["neuro", "image", "tags", "image:extras-e2e"])
+    result = cli_runner(["neuro", "image", "tags", img_name])
     assert result.returncode == 0, result
     assert tag in result.stdout
 
