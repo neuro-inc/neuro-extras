@@ -342,24 +342,32 @@ async def _data_cp(source: str, destination: str, extract: bool) -> None:
 
         # at this point source is always local
         if extract:
+            # extract to tmp dir
             file = Path(source_url.path)
             if file.is_dir():
                 file = list(file.glob("*"))[0]
             suffixes = file.suffixes
             if suffixes[-2:] == [".tar", ".gz"] or suffixes[-1] == ".tgz":
                 command = "tar"
-                args = ["zxvf", str(file), "-C", str(destination_url)]
-                click.echo(f"Running {command} {' '.join(args)}")
-                subprocess = await asyncio.create_subprocess_exec(command, *args)
-                returncode = await subprocess.wait()
-                if returncode != 0:
-                    raise click.ClickException("Cloud copy failed")
-            elif suffixes[-1] in (".zip", ".gz"):
-                # TODO: Implement gunzip
-                # gunzip -c file.gz > /THERE/file
-                raise NotImplementedError("Pure gzip is not supported yet")
+                args = ["zxvf", str(file), "-C", str(tmp_dst_url)]
+            elif suffixes[-1] == ".gz":
+                command = "gunzip"
+                args = [str(file), str(tmp_dst_url) + file.name[:-3]]
+            elif suffixes[-1] == ".zip":
+                command = "unzip"
+                args = [str(file), "-d", str(tmp_dst_url)]
             else:
                 raise ValueError(f"Don't know how to extract file {file.name}")
+
+            click.echo(f"Running {command} {' '.join(args)}")
+            subprocess = await asyncio.create_subprocess_exec(command, *args)
+            returncode = await subprocess.wait()
+            if returncode != 0:
+                raise click.ClickException(f"Extraction failed: {subprocess.stderr}")
+            else:
+                if file.exists():
+                    # gunzip removes src after extraction, while tar - not
+                    file.unlink()
 
         # handle upload/rsync
         await _nonstorage_cp(source_url, destination_url)
@@ -376,7 +384,7 @@ async def _nonstorage_cp(source_url: URL, destination_url: URL) -> None:
         args = ["-m", "cp", "-r", str(source_url), str(destination_url)]
     elif source_url.scheme == "" and destination_url.scheme == "":
         command = "rsync"
-        args = ["-avzh", "--progress", str(source_url), str(destination_url)]
+        args = ["-avzh", "--progress", "--remove-source-files", str(source_url), str(destination_url)]
     else:
         raise ValueError("Unknown cloud provider")
     click.echo(f"Running {command} {' '.join(args)}")
@@ -384,6 +392,12 @@ async def _nonstorage_cp(source_url: URL, destination_url: URL) -> None:
     returncode = await subprocess.wait()
     if returncode != 0:
         raise click.ClickException("Cloud copy failed")
+    elif UrlType.get_type(source_url) == UrlType.LOCAL:
+        source_path = Path(source_url.path)
+        if source_path.is_dir():
+            dir_util.remove_tree(source_path)
+        else:
+            source_path.unlink()
 
 
 @data.command("cp")
