@@ -1,21 +1,19 @@
+from dataclasses import dataclass, field
+
 import asyncio
 import base64
+import click
 import json
 import logging
 import re
 import sys
 import tempfile
 import textwrap
+import toml
 import uuid
-from dataclasses import dataclass, field
+import yaml
 from distutils import dir_util
 from enum import Enum
-from pathlib import Path
-from typing import Any, AsyncIterator, Dict, MutableMapping, Sequence
-
-import click
-import toml
-import yaml
 from neuromation import api as neuro_api
 from neuromation.api import ConfigError, find_project_root
 from neuromation.api.config import load_user_config
@@ -23,6 +21,8 @@ from neuromation.api.parsing_utils import _as_repo_str
 from neuromation.api.url_utils import normalize_storage_path_uri, uri_from_cli
 from neuromation.cli.asyncio_utils import run as run_async
 from neuromation.cli.const import EX_PLATFORMERROR
+from pathlib import Path
+from typing import Any, AsyncIterator, Dict, MutableMapping, Sequence
 from yarl import URL
 
 
@@ -137,7 +137,8 @@ class ImageBuilder:
 
         return neuro_api.Container(
             image=neuro_api.RemoteImage(
-                name="gcr.io/kaniko-project/executor", tag="latest",
+                name="gcr.io/kaniko-project/executor",
+                tag="latest",
             ),
             resources=neuro_api.Resources(cpu=1.0, memory_mb=4096),
             command=command,
@@ -204,7 +205,11 @@ class DataCopier:
         self._client = client
 
     async def launch(
-        self, storage_uri: URL, extract: bool, src_uri: URL, dst_uri: URL,
+        self,
+        storage_uri: URL,
+        extract: bool,
+        src_uri: URL,
+        dst_uri: URL,
     ) -> neuro_api.JobDescription:
         logger.info("Submitting a copy job")
         copier_container = await self._create_copier_container(
@@ -215,7 +220,11 @@ class DataCopier:
         return job
 
     async def _create_copier_container(
-        self, storage_uri: URL, extract: bool, src_uri: URL, dst_uri: URL,
+        self,
+        storage_uri: URL,
+        extract: bool,
+        src_uri: URL,
+        dst_uri: URL,
     ) -> neuro_api.Container:
         args = f"{str(src_uri)} {str(dst_uri)}"
         if extract:
@@ -384,7 +393,13 @@ async def _nonstorage_cp(source_url: URL, destination_url: URL) -> None:
         args = ["-m", "cp", "-r", str(source_url), str(destination_url)]
     elif source_url.scheme == "" and destination_url.scheme == "":
         command = "rsync"
-        args = ["-avzh", "--progress", "--remove-source-files", str(source_url), str(destination_url)]
+        args = [
+            "-avzh",
+            "--progress",
+            "--remove-source-files",
+            str(source_url),
+            str(destination_url),
+        ]
     else:
         raise ValueError("Unknown cloud provider")
     click.echo(f"Running {command} {' '.join(args)}")
@@ -395,7 +410,7 @@ async def _nonstorage_cp(source_url: URL, destination_url: URL) -> None:
     elif UrlType.get_type(source_url) == UrlType.LOCAL:
         source_path = Path(source_url.path)
         if source_path.is_dir():
-            dir_util.remove_tree(source_path)
+            dir_util.remove_tree(str(source_path))
         else:
             source_path.unlink()
 

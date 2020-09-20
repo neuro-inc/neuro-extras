@@ -1,11 +1,11 @@
-import logging
-import uuid
 from dataclasses import dataclass
+
+import logging
+import pytest
+import uuid
 from pathlib import Path
 from subprocess import CompletedProcess
 from typing import Callable, Iterator, List, Optional, Union
-
-import pytest
 
 
 CLIRunner = Callable[[List[str]], CompletedProcess]
@@ -21,7 +21,8 @@ class Secret:
 
 def generate_random_secret(name_prefix: str = "secret") -> Secret:
     return Secret(
-        name=f"{name_prefix}-{uuid.uuid4().hex[:8]}", value=str(uuid.uuid4()),
+        name=f"{name_prefix}-{uuid.uuid4().hex[:8]}",
+        value=str(uuid.uuid4()),
     )
 
 
