@@ -3,7 +3,7 @@ import uuid
 from dataclasses import dataclass
 from pathlib import Path
 from subprocess import CompletedProcess
-from typing import Callable, Iterator, List, Optional, Union
+from typing import Callable, Iterator, List, Optional, Union, Tuple
 
 import pytest
 
@@ -44,3 +44,15 @@ def gen_random_file(location: Union[str, Path], name: Optional[str] = None) -> P
     file = location / name
     file.write_text(str(uuid.uuid4()))
     return file
+
+
+def gen_ing_extr_strategies_grid() -> List[Tuple[str, str, str, bool]]:
+    grid = []
+    for src_type in ("gcp", "aws"):
+        for dst_type in ("local",): #"storage:", ): # need to release new img of NE
+            for archive_extension in ("tar.gz", "tgz", "zip", "tar", "bz2"):
+                for extract in (True, False):
+                    grid.append(
+                        (src_type, dst_type, archive_extension, extract)
+                    )
+    return grid

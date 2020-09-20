@@ -22,7 +22,7 @@ from neuromation.cli.main import cli as neuro_main
 
 from neuro_extras.main import main as extras_main
 
-from .conftest import CLIRunner, Secret, gen_random_file
+from .conftest import CLIRunner, Secret, gen_random_file, gen_ing_extr_strategies_grid
 
 
 logger = logging.getLogger(__name__)
@@ -697,15 +697,9 @@ def test_upload_download_subdir(
 
 
 @pytest.mark.parametrize(
-    "src_type,dst_type,archive_extension,extract",
-    [
-        ("gcp", "local", "tar.gz", False),
-        ("gcp", "local", "tar.gz", True),
-        ("gcp", "local", "zip", False),
-        ("gcp", "local", "zip", True),
-    ],
+    "src_type,dst_type,archive_extension,extract", gen_ing_extr_strategies_grid()
 )
-def test_data_cp_tar_gz_from_gcp_to_local_without_extract(
+def test_data_cp_cloud_local(
     project_dir: Path,
     remote_project_dir: Path,
     cli_runner: CLIRunner,
@@ -714,20 +708,35 @@ def test_data_cp_tar_gz_from_gcp_to_local_without_extract(
     archive_extension: str,
     extract: bool,
 ) -> None:
-    with TemporaryDirectory() as dst:
-        src = f"{GCP_BUCKET}/hello.{archive_extension}"
+    with TemporaryDirectory(dir="/tmp/") as tmp_f_name:
+        bucket = GCP_BUCKET if src_type == "gcp" else AWS_BUCKET
+        src = f"{bucket}/hello.{archive_extension}"
+
+        if dst_type == "storage:":
+            dst = dst_type + "./" + tmp_f_name
+        elif dst_type == "local":
+            dst = tmp_f_name
+        else:
+            return
+
         args = ["neuro-extras", "data", "cp", src, dst]
         if extract:
             args.append("-x")
-
+        logging.info(f"Executing command: '{args}'")
         result = cli_runner(args)
         assert result.returncode == 0, result
 
-        expected_archive = Path(dst) / f"hello.{archive_extension}"
-        assert expected_archive.is_file()
+        if dst_type == "storage:":
+            # download injected into storage data from storage for verification
+            result = cli_runner(["neuro-extras", "data", "cp", dst, tmp_f_name])
+            assert result.returncode == 0, result
+
         if extract:
             expected_file = Path(dst) / "data" / "hello.txt"
             assert "Hello world!" in expected_file.read_text()
+        else:
+            expected_archive = Path(dst) / f"hello.{archive_extension}"
+            assert expected_archive.is_file()
 
 
 # TODO: add other tests: "test_data_cp_{ARCHIVE_EXTENSION}_from_{SRC_TYPE}_to_{DST_TYPE}_{WITH_OR_WITHOUT}_extract"  # noqa
@@ -735,3 +744,7 @@ def test_data_cp_tar_gz_from_gcp_to_local_without_extract(
 # SRC_TYPE: aws, gcp / local, storage
 # DST_TYPE: local, storage / aws, gcp
 # WITH_OR_WITHOUT: with, without
+
+# mostly covered in test_data_cp_cloud_local. Left:
+# SRC_TYPE: local, storage
+# DST_TYPE: aws, gcp
