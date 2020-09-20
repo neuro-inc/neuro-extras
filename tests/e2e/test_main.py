@@ -2,22 +2,23 @@ import base64
 import json
 import logging
 import os
-import pytest
 import re
 import sys
 import textwrap
-import toml
 import uuid
-import yaml
-from _pytest.capture import CaptureFixture
-from neuromation.cli.const import EX_OK
-from neuromation.cli.main import cli as neuro_main
 from pathlib import Path
 from subprocess import CompletedProcess
 from tempfile import TemporaryDirectory
 from time import sleep
 from typing import Iterator, List
 from unittest import mock
+
+import pytest
+import toml
+import yaml
+from _pytest.capture import CaptureFixture
+from neuromation.cli.const import EX_OK
+from neuromation.cli.main import cli as neuro_main
 
 from neuro_extras.main import main as extras_main
 
@@ -50,9 +51,7 @@ def cli_runner(capfd: CaptureFixture, project_dir: Path) -> CLIRunner:
         if cmd not in ("neuro", "neuro-extras"):
             pytest.fail(f"Illegal command: {cmd}")
 
-        logger.info(
-            f"Run '{cmd} {' '.join(args)}'",
-        )
+        logger.info(f"Run '{cmd} {' '.join(args)}'",)
         capfd.readouterr()
 
         main = extras_main
@@ -146,9 +145,7 @@ def test_image_build_custom_dockerfile(cli_runner: CLIRunner) -> None:
 
 
 @pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
-def test_ignored_files_are_not_copied(
-    cli_runner: CLIRunner,
-) -> None:
+def test_ignored_files_are_not_copied(cli_runner: CLIRunner,) -> None:
     result = cli_runner(["neuro-extras", "init-aliases"])
     assert result.returncode == 0, result
 

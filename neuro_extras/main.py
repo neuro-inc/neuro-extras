@@ -1,19 +1,21 @@
-from dataclasses import dataclass, field
-
 import asyncio
 import base64
-import click
 import json
 import logging
 import re
 import sys
 import tempfile
 import textwrap
-import toml
 import uuid
-import yaml
+from dataclasses import dataclass, field
 from distutils import dir_util
 from enum import Enum
+from pathlib import Path
+from typing import Any, AsyncIterator, Dict, MutableMapping, Sequence
+
+import click
+import toml
+import yaml
 from neuromation import api as neuro_api
 from neuromation.api import ConfigError, find_project_root
 from neuromation.api.config import load_user_config
@@ -21,8 +23,6 @@ from neuromation.api.parsing_utils import _as_repo_str
 from neuromation.api.url_utils import normalize_storage_path_uri, uri_from_cli
 from neuromation.cli.asyncio_utils import run as run_async
 from neuromation.cli.const import EX_PLATFORMERROR
-from pathlib import Path
-from typing import Any, AsyncIterator, Dict, MutableMapping, Sequence
 from yarl import URL
 
 
@@ -137,8 +137,7 @@ class ImageBuilder:
 
         return neuro_api.Container(
             image=neuro_api.RemoteImage(
-                name="gcr.io/kaniko-project/executor",
-                tag="latest",
+                name="gcr.io/kaniko-project/executor", tag="latest",
             ),
             resources=neuro_api.Resources(cpu=1.0, memory_mb=4096),
             command=command,
@@ -205,11 +204,7 @@ class DataCopier:
         self._client = client
 
     async def launch(
-        self,
-        storage_uri: URL,
-        extract: bool,
-        src_uri: URL,
-        dst_uri: URL,
+        self, storage_uri: URL, extract: bool, src_uri: URL, dst_uri: URL,
     ) -> neuro_api.JobDescription:
         logger.info("Submitting a copy job")
         copier_container = await self._create_copier_container(
@@ -220,11 +215,7 @@ class DataCopier:
         return job
 
     async def _create_copier_container(
-        self,
-        storage_uri: URL,
-        extract: bool,
-        src_uri: URL,
-        dst_uri: URL,
+        self, storage_uri: URL, extract: bool, src_uri: URL, dst_uri: URL,
     ) -> neuro_api.Container:
         args = f"{str(src_uri)} {str(dst_uri)}"
         if extract:
