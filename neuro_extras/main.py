@@ -347,7 +347,7 @@ async def _data_cp(source: str, destination: str, extract: bool) -> None:
             if file.is_dir():
                 file = list(file.glob("*"))[0]
             suffixes = file.suffixes
-            if suffixes[-2:] == [".tar", ".gz"] or suffixes[-1] == ".tgz":
+            if suffixes[-2:] == [".tar", ".gz"] or suffixes[-1] in (".tgz", ".tar", ".bz2"):
                 command = "tar"
                 args = ["zxvf", str(file), "-C", str(tmp_dst_url)]
             elif suffixes[-1] == ".gz":
