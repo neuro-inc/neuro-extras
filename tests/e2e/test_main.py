@@ -22,7 +22,7 @@ from neuromation.cli.main import cli as neuro_main
 
 from neuro_extras.main import main as extras_main
 
-from .conftest import CLIRunner, Secret, gen_random_file, gen_ing_extr_strategies_grid
+from .conftest import CLIRunner, Secret, gen_ing_extr_strategies_grid, gen_random_file
 
 
 logger = logging.getLogger(__name__)
