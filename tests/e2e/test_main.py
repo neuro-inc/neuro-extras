@@ -40,8 +40,6 @@ def project_dir() -> Iterator[Path]:
             os.chdir(old_cwd)
 
 
-CLIRunner = Callable[[List[str]], CompletedProcess]
-
 GCP_BUCKET = "gs://cookiecutter-e2e"
 AWS_BUCKET = "s3://cookiecutter-e2e"
 
