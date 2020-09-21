@@ -275,8 +275,12 @@ class UrlType(Enum):
 
 
 async def _data_cp(source: str, destination: str, extract: bool) -> None:
-    source_url = URL(source)
-    destination_url = URL(destination)
+    source_url = uri_from_cli(
+        source, "", "", allowed_schemes=("storage", "s3", "gs", "")
+    )
+    destination_url = uri_from_cli(
+        destination, "", "", allowed_schemes=("storage", "s3", "gs", "")
+    )
     source_url_type = UrlType.get_type(source_url)
     if source_url_type == UrlType.UNSUPPORTED:
         raise ValueError(f"Unsupported source URL scheme: {source_url.scheme}")
