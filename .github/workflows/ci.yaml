@@ -46,6 +46,18 @@ jobs:
         run: |
           neuro config login-with-token ${{ secrets.NEURO_TOKEN }} ${{ secrets.NEURO_STAGING_URL }}
           neuro config show
+      - name: Configure GCP access
+        uses: GoogleCloudPlatform/github-actions/setup-gcloud@master
+        with:
+          project_id: ${{ secrets.E2E_COOKIECUTTER_GCP_PROJECT_ID }}
+          service_account_key: ${{ secrets.E2E_COOKIECUTTER_GCP_SA_KEY }}
+          export_default_credentials: true
+      - name: Configure AWS access
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.E2E_COOKIECUTTER_AWS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.E2E_COOKIECUTTER_AWS_ACCESS_KEY }}
+          aws-region: us-east-1
       - name: Lint
         run: |
           make lint

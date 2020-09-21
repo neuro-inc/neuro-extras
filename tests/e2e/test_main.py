@@ -20,9 +20,9 @@ from _pytest.capture import CaptureFixture
 from neuromation.cli.const import EX_OK
 from neuromation.cli.main import cli as neuro_main
 
-from neuro_extras.main import main as extras_main
+from neuro_extras.main import TEMP_UNPACK_DIR, main as extras_main
 
-from .conftest import CLIRunner, Secret, gen_random_file
+from .conftest import CLIRunner, Secret, gen_ing_extr_strategies_grid, gen_random_file
 
 
 logger = logging.getLogger(__name__)
@@ -38,6 +38,10 @@ def project_dir() -> Iterator[Path]:
             yield cwd
         finally:
             os.chdir(old_cwd)
+
+
+GCP_BUCKET = "gs://cookiecutter-e2e"
+AWS_BUCKET = "s3://cookiecutter-e2e"
 
 
 @pytest.fixture()
@@ -690,3 +694,61 @@ def test_upload_download_subdir(
     assert not file_in_root.exists(), "File in project root should not be downloaded"
     file_in_subdir = project_dir / subdir_name / test_file_name
     assert file_in_subdir.read_text() == test_file_content
+
+
+@pytest.mark.parametrize(
+    "src_type,dst_type,archive_extension,extract", gen_ing_extr_strategies_grid()
+)
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="Windows path are not supported yet"
+)
+def test_data_cp_cloud_local(
+    project_dir: Path,
+    remote_project_dir: Path,
+    cli_runner: CLIRunner,
+    src_type: str,
+    dst_type: str,
+    archive_extension: str,
+    extract: bool,
+) -> None:
+    TEMP_UNPACK_DIR.mkdir(parents=True, exist_ok=True)
+    with TemporaryDirectory(dir=TEMP_UNPACK_DIR.expanduser()) as tmp_f_name:
+        bucket = GCP_BUCKET if src_type == "gcp" else AWS_BUCKET
+        src = f"{bucket}/hello.{archive_extension}"
+
+        if dst_type == "storage:":
+            dst = dst_type + "./" + tmp_f_name
+        elif dst_type == "local":
+            dst = tmp_f_name
+        else:
+            return
+
+        args = ["neuro-extras", "data", "cp", src, dst]
+        if extract:
+            args.append("-x")
+        result = cli_runner(args)
+        assert result.returncode == 0, result
+
+        if dst_type == "storage:":
+            # download injected into storage data from storage for verification
+            result = cli_runner(["neuro-extras", "data", "cp", dst, tmp_f_name])
+            assert result.returncode == 0, result
+
+        if extract:
+            expected_file = Path(dst) / "data" / "hello.txt"
+            assert "Hello world!" in expected_file.read_text()
+        else:
+            expected_archive = Path(dst) / f"hello.{archive_extension}"
+            assert expected_archive.is_file()
+
+
+# TODO: add other tests: "test_data_cp_{ARCHIVE_EXTENSION}_from_{SRC_TYPE}_to_{DST_TYPE}_{WITH_OR_WITHOUT}_extract"  # noqa
+# ARCHIVE_EXTENSION: tar_gz, tar, tgz, tar, zip, bz2
+# SRC_TYPE: aws, gcp / local, storage
+# DST_TYPE: local, storage / aws, gcp
+# WITH_OR_WITHOUT: with, without
+
+# mostly covered in test_data_cp_cloud_local. Left:
+# ARCHIVE_EXTENSION: bz2, tbz2
+# SRC_TYPE: local, storage
+# DST_TYPE: aws, gcp
