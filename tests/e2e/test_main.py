@@ -708,7 +708,7 @@ def test_data_cp_cloud_local(
     archive_extension: str,
     extract: bool,
 ) -> None:
-    with TemporaryDirectory(dir="/tmp/") as tmp_f_name:
+    with TemporaryDirectory(dir=os.path.expanduser("~/.neuro/tmp")) as tmp_f_name:
         bucket = GCP_BUCKET if src_type == "gcp" else AWS_BUCKET
         src = f"{bucket}/hello.{archive_extension}"
 
@@ -722,7 +722,6 @@ def test_data_cp_cloud_local(
         args = ["neuro-extras", "data", "cp", src, dst]
         if extract:
             args.append("-x")
-        logging.info(f"Executing command: '{args}'")
         result = cli_runner(args)
         assert result.returncode == 0, result
 
