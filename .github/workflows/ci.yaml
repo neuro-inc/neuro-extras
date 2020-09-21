@@ -20,6 +20,7 @@ jobs:
     env:
       NEURO_STAGING_URL: ${{ secrets.NEURO_STAGING_URL }}
       NEURO_TOKEN: ${{ secrets.NEURO_TOKEN }}
+      TEST_GITHUB_TOKEN: ${{ secrets.TEST_GITHUB_TOKEN }}
     steps:
       - name: Checkout commit
         uses: actions/checkout@v2
