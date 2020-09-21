@@ -20,7 +20,7 @@ from _pytest.capture import CaptureFixture
 from neuromation.cli.const import EX_OK
 from neuromation.cli.main import cli as neuro_main
 
-from neuro_extras.main import main as extras_main
+from neuro_extras.main import TEMP_UNPACK_DIR, main as extras_main
 
 from .conftest import CLIRunner, Secret, gen_ing_extr_strategies_grid, gen_random_file
 
@@ -708,7 +708,8 @@ def test_data_cp_cloud_local(
     archive_extension: str,
     extract: bool,
 ) -> None:
-    with TemporaryDirectory(dir=os.path.expanduser("~/.neuro/tmp")) as tmp_f_name:
+    TEMP_UNPACK_DIR.mkdir(parents=True, exist_ok=True)
+    with TemporaryDirectory(dir=TEMP_UNPACK_DIR.expanduser()) as tmp_f_name:
         bucket = GCP_BUCKET if src_type == "gcp" else AWS_BUCKET
         src = f"{bucket}/hello.{archive_extension}"
 
