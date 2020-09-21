@@ -699,6 +699,9 @@ def test_upload_download_subdir(
 @pytest.mark.parametrize(
     "src_type,dst_type,archive_extension,extract", gen_ing_extr_strategies_grid()
 )
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="Windows path are not supported yet"
+)
 def test_data_cp_cloud_local(
     project_dir: Path,
     remote_project_dir: Path,
