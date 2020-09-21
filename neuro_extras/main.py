@@ -111,7 +111,7 @@ class ImageBuilder:
         command = (
             f"--dockerfile={dockerfile_path} --destination={image_ref} "
             f"--cache=true --cache-repo={cache_repo}"
-            " --snapshotMode=redo"
+            " --snapshotMode=redo --verbosity=debug"
         )
 
         if build_args:
