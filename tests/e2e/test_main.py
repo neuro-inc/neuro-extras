@@ -745,5 +745,6 @@ def test_data_cp_cloud_local(
 # WITH_OR_WITHOUT: with, without
 
 # mostly covered in test_data_cp_cloud_local. Left:
+# ARCHIVE_EXTENSION: bz2, tbz2
 # SRC_TYPE: local, storage
 # DST_TYPE: aws, gcp
