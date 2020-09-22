@@ -3,7 +3,7 @@ from neuromation.api import PluginManager
 from .main import main  # noqa
 
 
-__version__ = "20.9.21a4"
+__version__ = "20.9.22a1"
 
 
 def setup_plugin(manager: PluginManager) -> None:
