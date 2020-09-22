@@ -222,7 +222,7 @@ class DataCopier:
             args = f"-x {args}"
         return neuro_api.Container(
             image=neuro_api.RemoteImage.new_external_image("neuromation/neuro-extras"),
-            resources=neuro_api.Resources(cpu=4.0, memory_mb=4096),
+            resources=neuro_api.Resources(cpu=2.0, memory_mb=4096),
             volumes=[neuro_api.Volume(storage_uri, "/var/storage")],
             entrypoint=f"neuro-extras data cp {args}",
         )
