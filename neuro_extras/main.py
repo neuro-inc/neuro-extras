@@ -204,27 +204,46 @@ class DataCopier:
         self._client = client
 
     async def launch(
-        self, storage_uri: URL, extract: bool, src_uri: URL, dst_uri: URL,
+        self,
+        storage_uri: URL,
+        extract: bool,
+        src_uri: URL,
+        dst_uri: URL,
+        volume: Sequence[str],
+        env: Sequence[str],
     ) -> neuro_api.JobDescription:
         logger.info("Submitting a copy job")
         copier_container = await self._create_copier_container(
-            storage_uri, extract, src_uri, dst_uri
+            storage_uri, extract, src_uri, dst_uri, volume, env
         )
         job = await self._client.jobs.run(copier_container, life_span=60 * 60)
         logger.info(f"The copy job ID: {job.id}")
         return job
 
     async def _create_copier_container(
-        self, storage_uri: URL, extract: bool, src_uri: URL, dst_uri: URL,
+        self,
+        storage_uri: URL,
+        extract: bool,
+        src_uri: URL,
+        dst_uri: URL,
+        volume: Sequence[str],
+        env: Sequence[str],
     ) -> neuro_api.Container:
         args = f"{str(src_uri)} {str(dst_uri)}"
         if extract:
             args = f"-x {args}"
+
+        env_dict, secret_env_dict = self._client.parse.env(env)
+        volumes, secret_files = self._client.parse.volumes(volume)
+        volumes.append(neuro_api.Volume(storage_uri, "/var/storage"))
         return neuro_api.Container(
             image=neuro_api.RemoteImage.new_external_image("neuromation/neuro-extras"),
             resources=neuro_api.Resources(cpu=2.0, memory_mb=4096),
-            volumes=[neuro_api.Volume(storage_uri, "/var/storage")],
+            volumes=volumes,
             entrypoint=f"neuro-extras data cp {args}",
+            env=env_dict,
+            secret_env=secret_env_dict,
+            secret_files=secret_files,
         )
 
 
@@ -274,7 +293,13 @@ class UrlType(Enum):
         return UrlType.UNSUPPORTED
 
 
-async def _data_cp(source: str, destination: str, extract: bool) -> None:
+async def _data_cp(
+    source: str,
+    destination: str,
+    extract: bool,
+    volume: Sequence[str],
+    env: Sequence[str],
+) -> None:
     source_url = URL(source)
     destination_url = URL(destination)
     source_url_type = UrlType.get_type(source_url)
@@ -304,6 +329,8 @@ async def _data_cp(source: str, destination: str, extract: bool) -> None:
                     src_uri=URL("/var/storage"),
                     dst_uri=destination_url,
                     extract=extract,
+                    volume=volume,
+                    env=env,
                 )
             else:
                 job = await data_copier.launch(
@@ -311,6 +338,8 @@ async def _data_cp(source: str, destination: str, extract: bool) -> None:
                     src_uri=source_url,
                     dst_uri=URL("/var/storage"),
                     extract=extract,
+                    volume=volume,
+                    env=env,
                 )
             while job.status == neuro_api.JobStatus.PENDING:
                 job = await client.jobs.status(job.id)
@@ -416,7 +445,34 @@ async def _nonstorage_cp(source_url: URL, destination_url: URL) -> None:
 @click.argument("source")
 @click.argument("destination")
 @click.option("-x", "--extract", default=False, is_flag=True)
-def data_cp(source: str, destination: str, extract: bool) -> None:
+@click.option(
+    "-v",
+    "--volume",
+    metavar="MOUNT",
+    multiple=True,
+    help=(
+        "Mounts directory from vault into container. "
+        "Use multiple options to mount more than one volume. "
+        "Use --volume=ALL to mount all accessible storage directories."
+    ),
+)
+@click.option(
+    "-e",
+    "--env",
+    metavar="VAR=VAL",
+    multiple=True,
+    help=(
+        "Set environment variable in container "
+        "Use multiple options to define more than one variable"
+    ),
+)
+def data_cp(
+    source: str,
+    destination: str,
+    extract: bool,
+    volume: Sequence[str],
+    env: Sequence[str],
+) -> None:
     """
     Sample test commands:
     neuro-extras data cp -x s3://my-bucket/data.zip /tmp/
@@ -425,7 +481,7 @@ def data_cp(source: str, destination: str, extract: bool) -> None:
             /tmp/refdisk_manifest.json
     neuro-extras data cp s3://sra-pub-sars-cov2/sra-src/SRR9967744/ storage:
     """
-    run_async(_data_cp(source, destination, extract))
+    run_async(_data_cp(source, destination, extract, volume, env))
 
 
 @image.command("build")
