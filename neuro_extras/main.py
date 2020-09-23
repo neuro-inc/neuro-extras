@@ -240,7 +240,9 @@ class DataCopier:
             image=neuro_api.RemoteImage.new_external_image("neuromation/neuro-extras"),
             resources=neuro_api.Resources(cpu=2.0, memory_mb=4096),
             volumes=volumes,
-            entrypoint=f"neuro-extras data cp {args}",
+            entrypoint=f"(gcloud auth activate-service-account "
+            f"--key-file $GOOGLE_APPLICATION_CREDENTIALS) ||"
+            f" (neuro-extras data cp {args})",
             env=env_dict,
             secret_env=secret_env_dict,
             secret_files=secret_files,
