@@ -731,7 +731,7 @@ def test_data_cp(
 
         if dst_type == "storage:":
             # download injected into storage data from storage for verification
-            result = cli_runner(["neuro-extras", "data", "cp", dst, tmp_f_name])
+            result = cli_runner(["neuro-extras", "data", "cp", dst, "/tmp"])
             assert result.returncode == 0, result
 
         if extract:
