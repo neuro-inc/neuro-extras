@@ -48,9 +48,9 @@ def gen_random_file(location: Union[str, Path], name: Optional[str] = None) -> P
 
 def gen_ing_extr_strategies_grid() -> List[Tuple[str, str, str, bool]]:
     grid = []
-    for src_type in ("gcp", "aws"):
-        for dst_type in ("local",):  # "storage:", ): # need to release new img of NE
-            for archive_extension in ("tar.gz", "tgz", "zip", "tar"):
-                for extract in (True, False):
+    for src_type in ["gcp"]:
+        for dst_type in ["storage:"]:
+            for archive_extension in ["tar.gz"]:
+                for extract in [False]:
                     grid.append((src_type, dst_type, archive_extension, extract))
     return grid
