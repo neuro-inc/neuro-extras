@@ -729,8 +729,12 @@ def test_data_cp(
             "cp",
             "-v",
             "secret:neuro-extras-aws:/aws-creds.txt",
+            "-v",
+            "secret:neuro-extras-gcp:/gcp-creds.txt",
             "-e",
             "AWS_CONFIG_FILE=/aws-creds.txt",
+            "-e",
+            "GOOGLE_APPLICATION_CREDENTIALS=/gcp-creds.txt",
             src,
             dst,
         ]
@@ -743,13 +747,13 @@ def test_data_cp(
             # download injected into storage data from storage for verification
             result = cli_runner(["neuro-extras", "data", "cp", dst, "/tmp"])
             assert result.returncode == 0, result
-
-        if extract:
-            expected_file = Path(dst) / "data" / "hello.txt"
-            assert "Hello world!" in expected_file.read_text()
         else:
-            expected_archive = Path(dst) / f"hello.{archive_extension}"
-            assert expected_archive.is_file()
+            if extract:
+                expected_file = Path(dst) / "data" / "hello.txt"
+                assert "Hello world!" in expected_file.read_text()
+            else:
+                expected_archive = Path(dst) / f"hello.{archive_extension}"
+                assert expected_archive.is_file()
 
 
 # TODO: add other tests: "test_data_cp_{ARCHIVE_EXTENSION}_from_{SRC_TYPE}_to_{DST_TYPE}_{WITH_OR_WITHOUT}_extract"  # noqa
