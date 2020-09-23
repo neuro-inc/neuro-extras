@@ -723,7 +723,17 @@ def test_data_cp(
         else:
             return
 
-        args = ["neuro-extras", "data", "cp", src, dst]
+        args = [
+            "neuro-extras",
+            "data",
+            "cp",
+            "-v",
+            "secret:neuro-extras-aws:/aws-creds.txt",
+            "-e",
+            "AWS_CONFIG_FILE=/aws-creds.txt",
+            src,
+            dst,
+        ]
         if extract:
             args.append("-x")
         result = cli_runner(args)
