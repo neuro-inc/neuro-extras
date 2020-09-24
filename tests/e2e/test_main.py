@@ -798,8 +798,6 @@ def test_data_cp_from_cloud_to_storage(
         assert expected_file in res.stdout.decode(), res
 
     finally:
-        pass
-        # res = cli_runner(["neuro", "rm", "-r", storage_url])
-        # if res.returncode != 0:
-        #     logger.error(f"WARNING: Finalization failed! {res}")
-        # assert res.returncode == 0, f"Finalization failed: {res}"
+        res = cli_runner(["neuro", "rm", "-r", storage_url])
+        if res.returncode != 0:
+            logger.error(f"WARNING: Finalization failed! {res}")
