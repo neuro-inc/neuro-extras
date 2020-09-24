@@ -120,7 +120,8 @@ class ImageBuilder:
             command += "".join([f" --build-arg {arg}" for arg in build_args])
 
         env_dict, secret_env_dict = self._client.parse.env(env)
-        volumes, secret_files = self._client.parse.volumes(volume)
+        vol = self._client.parse.volumes(volume)
+        volumes, secret_files = list(vol.volumes), list(vol.secret_files)
 
         command += "".join([f" --build-arg {arg}" for arg in env_dict.keys()])
         command += "".join([f" --build-arg {arg}" for arg in secret_env_dict.keys()])
@@ -234,7 +235,8 @@ class DataCopier:
             args = f"-x {args}"
 
         env_dict, secret_env_dict = self._client.parse.env(env)
-        volumes, secret_files = self._client.parse.volumes(volume)
+        vol = self._client.parse.volumes(volume)
+        volumes, secret_files = list(vol.volumes), list(vol.secret_files)
         volumes.append(neuro_api.Volume(storage_uri, "/var/storage"))
         return neuro_api.Container(
             image=neuro_api.RemoteImage.new_external_image("neuromation/neuro-extras"),
