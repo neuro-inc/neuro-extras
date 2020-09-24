@@ -790,7 +790,7 @@ def test_data_cp_from_cloud_to_storage(
         # BUG: (yartem) cli_runner returns wrong result here putting neuro's debug info
         # to stdout and not putting result of neuro-ls to stdout.
         # So prob cli_runner is to be re-written with subprocess.run
-        res = subprocess.run(
+        res = subprocess.run(  # type: ignore
             ["neuro", "ls", check_url], capture_output=True, encoding="utf-8"
         )
         assert res.returncode == 0, res
