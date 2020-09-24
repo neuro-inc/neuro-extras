@@ -727,20 +727,50 @@ def _run_data_cp_from_cloud_test(cli_runner: CLIRunner) -> Callable[..., None]:
 
 
 @pytest.mark.parametrize("src_type", ["gcp", "aws"])
-@pytest.mark.parametrize("dst_type", ["local", "storage:"])
 @pytest.mark.parametrize("archive_extension", ["tar.gz", "tgz", "zip", "tar"])
 @pytest.mark.parametrize("extract", [True, False])
 @pytest.mark.skipif(
     sys.platform == "win32",
     reason="Windows path are not supported yet + no utilities on windows",
 )
-def test_data_cp_from_cloud(
+def test_data_cp_from_cloud_to_local(
     project_dir: Path,
     remote_project_dir: Path,
     cli_runner: CLIRunner,
     _run_data_cp_from_cloud_test: Callable[..., None],
     src_type: str,
-    dst_type: str,
+    archive_extension: str,
+    extract: bool,
+) -> None:
+    TEMP_UNPACK_DIR.mkdir(parents=True, exist_ok=True)
+    with TemporaryDirectory(dir=TEMP_UNPACK_DIR.expanduser()) as tmp_f_name:
+        bucket = GCP_BUCKET if src_type == "gcp" else AWS_BUCKET
+        src = f"{bucket}/hello.{archive_extension}"
+        dst = tmp_f_name
+
+        _run_data_cp_from_cloud_test(src_type, src, dst, extract)
+
+        if extract:
+            expected_file = Path(dst) / "data" / "hello.txt"
+            assert "Hello world!" in expected_file.read_text()
+        else:
+            expected_archive = Path(dst) / f"hello.{archive_extension}"
+            assert expected_archive.is_file()
+
+
+@pytest.mark.parametrize("src_type", ["gcp", "aws"])
+@pytest.mark.parametrize("archive_extension", ["tar.gz", "tgz", "zip", "tar"])
+@pytest.mark.parametrize("extract", [True, False])
+@pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="Windows path are not supported yet + no utilities on windows",
+)
+def test_data_cp_from_cloud_to_storage(
+    project_dir: Path,
+    remote_project_dir: Path,
+    cli_runner: CLIRunner,
+    _run_data_cp_from_cloud_test: Callable[..., None],
+    src_type: str,
     archive_extension: str,
     extract: bool,
 ) -> None:
@@ -749,22 +779,15 @@ def test_data_cp_from_cloud(
         bucket = GCP_BUCKET if src_type == "gcp" else AWS_BUCKET
         src = f"{bucket}/hello.{archive_extension}"
 
-        if dst_type == "storage:":
-            dst = f"storage:{tmp_f_name.lstrip('/')}"
-        elif dst_type == "local":
-            dst = tmp_f_name
-        else:
-            raise NotImplementedError(dst_type)
+        dst = f"storage:{tmp_f_name.lstrip('/')}"
 
         _run_data_cp_from_cloud_test(src_type, src, dst, extract)
 
-        if dst_type == "storage:":
-            result = cli_runner(["neuro", "ls", "-d", dst])
-            assert result.returncode == 0, result
+        result = cli_runner(["neuro", "ls", dst])
+        assert result.returncode == 0, result
 
         if extract:
-            expected_file = Path(dst) / "data" / "hello.txt"
-            assert "Hello world!" in expected_file.read_text()
+            expected_file = "hello.txt"
         else:
-            expected_archive = Path(dst) / f"hello.{archive_extension}"
-            assert expected_archive.is_file()
+            expected_file = f"hello.{archive_extension}"
+        assert expected_file in result.stdout, result
