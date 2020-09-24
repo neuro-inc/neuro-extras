@@ -238,11 +238,18 @@ class DataCopier:
         vol = self._client.parse.volumes(volume)
         volumes, secret_files = list(vol.volumes), list(vol.secret_files)
         volumes.append(neuro_api.Volume(storage_uri, "/var/storage"))
+
+        gcp_env = "GOOGLE_APPLICATION_CREDENTIALS"
+        cmd = (
+            f'( [ "${gcp_env}" ]'
+            f" && gcloud auth activate-service-account --key-file ${gcp_env} ) ; "
+            f"neuro-extras data cp {args}"
+        )
         return neuro_api.Container(
             image=neuro_api.RemoteImage.new_external_image("neuromation/neuro-extras"),
             resources=neuro_api.Resources(cpu=2.0, memory_mb=4096),
             volumes=volumes,
-            entrypoint=f"neuro-extras data cp {args}",
+            entrypoint=f"bash -c '{cmd} '",
             env=env_dict,
             secret_env=secret_env_dict,
             secret_files=secret_files,
