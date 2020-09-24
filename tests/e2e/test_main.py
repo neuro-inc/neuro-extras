@@ -3,11 +3,11 @@ import json
 import logging
 import os
 import re
-import subprocess
 import sys
 import textwrap
 import uuid
 from pathlib import Path
+from subprocess import CompletedProcess, run as subprocess_run
 from tempfile import TemporaryDirectory
 from time import sleep
 from typing import Callable, Iterator, List
@@ -46,7 +46,7 @@ AWS_BUCKET = "s3://cookiecutter-e2e"
 
 @pytest.fixture()
 def cli_runner(capfd: CaptureFixture, project_dir: Path) -> CLIRunner:
-    def _run_cli(args: List[str]) -> subprocess.CompletedProcess:  # type: ignore
+    def _run_cli(args: List[str]) -> CompletedProcess:  # type: ignore
         cmd = args.pop(0)
         if cmd not in ("neuro", "neuro-extras"):
             pytest.fail(f"Illegal command: {cmd}")
@@ -69,7 +69,7 @@ def cli_runner(capfd: CaptureFixture, project_dir: Path) -> CLIRunner:
         except SystemExit as e:
             code = e.code
         out, err = capfd.readouterr()
-        return subprocess.CompletedProcess(
+        return CompletedProcess(
             args=[cmd] + args, returncode=code, stdout=out.strip(), stderr=err.strip()
         )
 
@@ -790,7 +790,7 @@ def test_data_cp_from_cloud_to_storage(
         # BUG: (yartem) cli_runner returns wrong result here putting neuro's debug info
         # to stdout and not putting result of neuro-ls to stdout.
         # So prob cli_runner is to be re-written with subprocess.run
-        res = subprocess.run(  # noqa
+        res = subprocess_run(
             ["neuro", "ls", check_url], capture_output=True, encoding="utf-8"
         )
         assert res.returncode == 0, res
