@@ -1,3 +1,4 @@
 -e .
 -r syntax.txt
 pytest==6.0.1
+pytest-xdist==2.1.0
