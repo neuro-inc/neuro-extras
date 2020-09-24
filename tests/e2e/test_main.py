@@ -10,7 +10,7 @@ from pathlib import Path
 from subprocess import CompletedProcess
 from tempfile import TemporaryDirectory
 from time import sleep
-from typing import Iterator, List
+from typing import Callable, Iterator, List
 from unittest import mock
 
 import pytest
@@ -696,35 +696,9 @@ def test_upload_download_subdir(
     assert file_in_subdir.read_text() == test_file_content
 
 
-@pytest.mark.parametrize("src_type", ["gcp", "aws"])
-@pytest.mark.parametrize("dst_type", ["local", "storage:"])
-@pytest.mark.parametrize("archive_extension", ["tar.gz", "tgz", "zip", "tar"])
-@pytest.mark.parametrize("extract", [True, False])
-@pytest.mark.skipif(
-    sys.platform == "win32",
-    reason="Windows path are not supported yet + no utilities on windows",
-)
-def test_data_cp_from_cloud(
-    project_dir: Path,
-    remote_project_dir: Path,
-    cli_runner: CLIRunner,
-    src_type: str,
-    dst_type: str,
-    archive_extension: str,
-    extract: bool,
-) -> None:
-    TEMP_UNPACK_DIR.mkdir(parents=True, exist_ok=True)
-    with TemporaryDirectory(dir=TEMP_UNPACK_DIR.expanduser()) as tmp_f_name:
-        bucket = GCP_BUCKET if src_type == "gcp" else AWS_BUCKET
-        src = f"{bucket}/hello.{archive_extension}"
-
-        if dst_type == "storage:":
-            dst = dst_type + "./" + tmp_f_name
-        elif dst_type == "local":
-            dst = tmp_f_name
-        else:
-            raise NotImplementedError(dst_type)
-
+@pytest.mark.fixture
+def _run_data_cp_from_cloud_test(cli_runner: CLIRunner) -> Callable[..., None]:
+    def _f(src_type: str, src: str, dst: str, extract: bool) -> None:
         args = ["neuro-extras", "data", "cp", src, dst]
         if src_type == "gcp":
             args.extend(
@@ -748,6 +722,41 @@ def test_data_cp_from_cloud(
             args.append("-x")
         result = cli_runner(args)
         assert result.returncode == 0, result
+
+    return _f
+
+
+@pytest.mark.parametrize("src_type", ["gcp", "aws"])
+@pytest.mark.parametrize("dst_type", ["local", "storage:"])
+@pytest.mark.parametrize("archive_extension", ["tar.gz", "tgz", "zip", "tar"])
+@pytest.mark.parametrize("extract", [True, False])
+@pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="Windows path are not supported yet + no utilities on windows",
+)
+def test_data_cp_from_cloud(
+    project_dir: Path,
+    remote_project_dir: Path,
+    cli_runner: CLIRunner,
+    _run_data_cp_from_cloud_test: Callable[..., None],
+    src_type: str,
+    dst_type: str,
+    archive_extension: str,
+    extract: bool,
+) -> None:
+    TEMP_UNPACK_DIR.mkdir(parents=True, exist_ok=True)
+    with TemporaryDirectory(dir=TEMP_UNPACK_DIR.expanduser()) as tmp_f_name:
+        bucket = GCP_BUCKET if src_type == "gcp" else AWS_BUCKET
+        src = f"{bucket}/hello.{archive_extension}"
+
+        if dst_type == "storage:":
+            dst = f"storage:{tmp_f_name.lstrip('/')}"
+        elif dst_type == "local":
+            dst = tmp_f_name
+        else:
+            raise NotImplementedError(dst_type)
+
+        _run_data_cp_from_cloud_test(src_type, src, dst, extract)
 
         if dst_type == "storage:":
             result = cli_runner(["neuro", "ls", "-d", dst])
