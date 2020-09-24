@@ -241,8 +241,8 @@ class DataCopier:
 
         gcp_env = "GOOGLE_APPLICATION_CREDENTIALS"
         cmd = (
-            f'( [ "${gcp_env}" ]'
-            f" && gcloud auth activate-service-account --key-file ${gcp_env} ) ; "
+            f'( [ "${gcp_env}" ] && '
+            f"gcloud auth activate-service-account --key-file ${gcp_env} ) ; "
             f"neuro-extras data cp {args}"
         )
         return neuro_api.Container(
