@@ -748,7 +748,6 @@ def test_data_cp_from_cloud_to_local(
     with TemporaryDirectory(dir=TEMP_UNPACK_DIR.expanduser()) as tmp_dir:
         src = f"{bucket}/hello.{archive_extension}"
         res = cli_runner(args_data_cp_from_cloud(bucket, src, tmp_dir, extract))
-        logger.debug(res)
         assert res.returncode == 0, res
 
         if extract:
@@ -780,7 +779,6 @@ def test_data_cp_from_cloud_to_storage(
         src = f"{bucket}/hello.{archive_extension}"
         res = cli_runner(args_data_cp_from_cloud(bucket, src, storage_url, extract))
         assert res.returncode == 0, res
-        logger.debug(res)
 
         if extract:
             check_url = storage_url + "/data"
@@ -792,11 +790,11 @@ def test_data_cp_from_cloud_to_storage(
         # BUG: (yartem) cli_runner returns wrong result here putting neuro's debug info
         # to stdout and not putting result of neuro-ls to stdout.
         # So prob cli_runner is to be re-written with subprocess.run
-        args = ["neuro", "ls", check_url]
-        res = subprocess.run(args, capture_output=True)  # typing: ignore  # noqa
-        logger.debug(res)
+        res = subprocess.run(
+            ["neuro", "ls", check_url], capture_output=True, encoding="utf-8"
+        )
         assert res.returncode == 0, res
-        assert expected_file in res.stdout.decode(), res
+        assert expected_file in res.stdout, res
 
     finally:
         res = cli_runner(["neuro", "rm", "-r", storage_url])
