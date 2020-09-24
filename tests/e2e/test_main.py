@@ -7,7 +7,7 @@ import sys
 import textwrap
 import uuid
 from pathlib import Path
-from subprocess import CompletedProcess, run as subprocess_run
+from subprocess import CompletedProcess, check_output
 from tempfile import TemporaryDirectory
 from time import sleep
 from typing import Callable, Iterator, List
@@ -790,11 +790,8 @@ def test_data_cp_from_cloud_to_storage(
         # BUG: (yartem) cli_runner returns wrong result here putting neuro's debug info
         # to stdout and not putting result of neuro-ls to stdout.
         # So prob cli_runner is to be re-written with subprocess.run
-        res = subprocess_run(
-            ["neuro", "ls", check_url], capture_output=True, encoding="utf-8"
-        )
-        assert res.returncode == 0, res
-        assert expected_file in res.stdout, res
+        out = check_output(["neuro", "ls", check_url]).decode()
+        assert expected_file in out, out
 
     finally:
         res = cli_runner(["neuro", "rm", "-r", storage_url])
