@@ -12,7 +12,7 @@ with open("neuro_extras/__init__.py") as f:
 
 
 install_requires = [
-    "neuromation",
+    "neuromation>=20.9.24",
     "yarl",
     "click",
     "toml",
