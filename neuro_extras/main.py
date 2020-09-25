@@ -867,7 +867,7 @@ async def _create_k8s_secret(name: str) -> Dict[str, Any]:
         }
         config_path = Path(client.config._path)
         for path in config_path.iterdir():
-            if path.is_dir():
+            if path.is_dir() or path.name in ("db-shm", "db-wal"):
                 continue
             payload["data"][path.name] = base64.b64encode(path.read_bytes()).decode()
         return payload
