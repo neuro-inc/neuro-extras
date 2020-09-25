@@ -178,7 +178,6 @@ def test_ignored_files_are_not_copied(cli_runner: CLIRunner,) -> None:
     assert ignored_file_content not in result.stdout
 
 
-@pytest.mark.skip(reason="'cp' temporarily disabled due to broken '--pass-config'")
 def test_storage_copy(cli_runner: CLIRunner) -> None:
     result = cli_runner(["neuro-extras", "init-aliases"])
     assert result.returncode == 0, result
