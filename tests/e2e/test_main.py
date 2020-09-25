@@ -7,10 +7,10 @@ import sys
 import textwrap
 import uuid
 from pathlib import Path
-from subprocess import CompletedProcess
+from subprocess import CompletedProcess, check_output
 from tempfile import TemporaryDirectory
 from time import sleep
-from typing import Iterator, List
+from typing import Callable, Iterator, List
 from unittest import mock
 
 import pytest
@@ -22,7 +22,7 @@ from neuromation.cli.main import cli as neuro_main
 
 from neuro_extras.main import TEMP_UNPACK_DIR, main as extras_main
 
-from .conftest import CLIRunner, Secret, gen_ing_extr_strategies_grid, gen_random_file
+from .conftest import CLIRunner, Secret, gen_random_file
 
 
 logger = logging.getLogger(__name__)
@@ -197,7 +197,7 @@ def test_storage_copy(cli_runner: CLIRunner) -> None:
     result = cli_runner(["neuro", "mkdir", "-p", "storage:" + src_path])
     assert result.returncode == 0, result
 
-    dst_path = "copy-dst/"
+    dst_path = "copy-dst"
 
     result = cli_runner(
         [
@@ -696,59 +696,104 @@ def test_upload_download_subdir(
     assert file_in_subdir.read_text() == test_file_content
 
 
-@pytest.mark.parametrize(
-    "src_type,dst_type,archive_extension,extract", gen_ing_extr_strategies_grid()
-)
+@pytest.fixture
+def args_data_cp_from_cloud(cli_runner: CLIRunner) -> Callable[..., List[str]]:
+    def _f(bucket: str, src: str, dst: str, extract: bool) -> List[str]:
+        args = ["neuro-extras", "data", "cp", src, dst]
+        if src.startswith("storage:") or dst.startswith("storage:"):
+            if bucket.startswith("gs://"):
+                args.extend(
+                    [
+                        "-v",
+                        "secret:neuro-extras-gcp:/gcp-creds.txt",
+                        "-e",
+                        "GOOGLE_APPLICATION_CREDENTIALS=/gcp-creds.txt",
+                    ]
+                )
+            elif bucket.startswith("s3://"):
+                args.extend(
+                    [
+                        "-v",
+                        "secret:neuro-extras-aws:/aws-creds.txt",
+                        "-e",
+                        "AWS_CONFIG_FILE=/aws-creds.txt",
+                    ]
+                )
+            else:
+                raise NotImplementedError(bucket)
+        if extract:
+            args.append("-x")
+        return args
+
+    return _f
+
+
+@pytest.mark.parametrize("bucket", [GCP_BUCKET, AWS_BUCKET])
+@pytest.mark.parametrize("archive_extension", ["tar.gz", "tgz", "zip", "tar"])
+@pytest.mark.parametrize("extract", [True, False])
 @pytest.mark.skipif(
-    sys.platform == "win32", reason="Windows path are not supported yet"
+    sys.platform == "win32",
+    reason="Windows path are not supported yet + no utilities on windows",
 )
-def test_data_cp_cloud_local(
+def test_data_cp_from_cloud_to_local(
     project_dir: Path,
     remote_project_dir: Path,
     cli_runner: CLIRunner,
-    src_type: str,
-    dst_type: str,
+    args_data_cp_from_cloud: Callable[..., List[str]],
+    bucket: str,
     archive_extension: str,
     extract: bool,
 ) -> None:
     TEMP_UNPACK_DIR.mkdir(parents=True, exist_ok=True)
-    with TemporaryDirectory(dir=TEMP_UNPACK_DIR.expanduser()) as tmp_f_name:
-        bucket = GCP_BUCKET if src_type == "gcp" else AWS_BUCKET
+    with TemporaryDirectory(dir=TEMP_UNPACK_DIR.expanduser()) as tmp_dir:
         src = f"{bucket}/hello.{archive_extension}"
-
-        if dst_type == "storage:":
-            dst = dst_type + "./" + tmp_f_name
-        elif dst_type == "local":
-            dst = tmp_f_name
-        else:
-            return
-
-        args = ["neuro-extras", "data", "cp", src, dst]
-        if extract:
-            args.append("-x")
-        result = cli_runner(args)
-        assert result.returncode == 0, result
-
-        if dst_type == "storage:":
-            # download injected into storage data from storage for verification
-            result = cli_runner(["neuro-extras", "data", "cp", dst, tmp_f_name])
-            assert result.returncode == 0, result
+        res = cli_runner(args_data_cp_from_cloud(bucket, src, tmp_dir, extract))
+        assert res.returncode == 0, res
 
         if extract:
-            expected_file = Path(dst) / "data" / "hello.txt"
+            expected_file = Path(tmp_dir) / "data" / "hello.txt"
             assert "Hello world!" in expected_file.read_text()
         else:
-            expected_archive = Path(dst) / f"hello.{archive_extension}"
+            expected_archive = Path(tmp_dir) / f"hello.{archive_extension}"
             assert expected_archive.is_file()
 
 
-# TODO: add other tests: "test_data_cp_{ARCHIVE_EXTENSION}_from_{SRC_TYPE}_to_{DST_TYPE}_{WITH_OR_WITHOUT}_extract"  # noqa
-# ARCHIVE_EXTENSION: tar_gz, tar, tgz, tar, zip, bz2
-# SRC_TYPE: aws, gcp / local, storage
-# DST_TYPE: local, storage / aws, gcp
-# WITH_OR_WITHOUT: with, without
+@pytest.mark.parametrize("bucket", [GCP_BUCKET, AWS_BUCKET])
+@pytest.mark.parametrize("archive_extension", ["tar.gz"])
+@pytest.mark.parametrize("extract", [True, False])
+@pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="Windows path are not supported yet + no utilities on windows",
+)
+def test_data_cp_from_cloud_to_storage(
+    project_dir: Path,
+    remote_project_dir: Path,
+    cli_runner: CLIRunner,
+    args_data_cp_from_cloud: Callable[..., List[str]],
+    bucket: str,
+    archive_extension: str,
+    extract: bool,
+) -> None:
+    storage_url = f"storage:neuro-extras-data-cp/{uuid.uuid4()}"
+    try:
+        src = f"{bucket}/hello.{archive_extension}"
+        res = cli_runner(args_data_cp_from_cloud(bucket, src, storage_url, extract))
+        assert res.returncode == 0, res
 
-# mostly covered in test_data_cp_cloud_local. Left:
-# ARCHIVE_EXTENSION: bz2, tbz2
-# SRC_TYPE: local, storage
-# DST_TYPE: aws, gcp
+        if extract:
+            check_url = storage_url + "/data"
+            expected_file = "hello.txt"
+        else:
+            check_url = storage_url
+            expected_file = f"hello.{archive_extension}"
+
+        # BUG: (yartem) cli_runner returns wrong result here putting neuro's debug info
+        # to stdout and not putting result of neuro-ls to stdout.
+        # So prob cli_runner is to be re-written with subprocess.run
+        out = check_output(["neuro", "ls", check_url]).decode()
+        assert expected_file in out, out
+
+    finally:
+        res = cli_runner(["neuro", "rm", "-r", storage_url])
+        if res.returncode != 0:
+            logger.error(f"WARNING: Finalization failed! {res}")
