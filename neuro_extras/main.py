@@ -537,7 +537,9 @@ def image_copy(source: str, destination: str) -> None:
     run_async(_copy_image(source, destination))
 
 
-@main.command("cp")
+# TODO (yartem): Uncomment once --pass-config becomes working:
+# https://github.com/neuromation/platform-client-python/issues/1755
+# @main.command("cp")
 @click.argument("source")
 @click.argument("destination")
 def cluster_copy(source: str, destination: str) -> None:
