@@ -4,6 +4,7 @@
     directory = "CHANGELOG.D"
     filename = "CHANGELOG.md"
     template = "CHANGELOG.D/towncrier_template.md"
+    issue_format = "[#{issue}](https://github.com/neuromation/neuro-extras/issues/{issue})"
     start_string = "[comment]: # (towncrier release notes start)\n"
 
     [[tool.towncrier.type]]
