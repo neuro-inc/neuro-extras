@@ -27,3 +27,11 @@ build:
 	docker build -t neuromation/neuro-extras:latest \
 	    --build-arg NEURO_EXTRAS_VERSION="$(shell python setup.py --version)" \
 	    .
+
+.PHONY: changelog-draft
+changelog-draft:
+	towncrier --draft
+
+.PHONY: changelog
+changelog:
+	towncrier
