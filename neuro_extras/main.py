@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 
 ASSETS_PATH = Path(__file__).resolve().parent / "assets"
 SELDON_CUSTOM_PATH = ASSETS_PATH / "seldon.package"
-TEMP_UNPACK_DIR = Path.home() / ".neuro-tmp"
+TEMP_UNPACK_DIR = Path.home() / ".neuro-extras" / "tmp"
 
 
 @dataclass
