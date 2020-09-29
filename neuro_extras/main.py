@@ -576,7 +576,7 @@ async def _run_copy_container(src_cluster: str, src_path: str, dst_path: str) ->
         "-e",
         f"NEURO_CLUSTER={src_cluster}",
         NEURO_EXTRAS_IMAGE,
-        f'neuro-extras cp --progress -r -u -T storage:{src_path} /storage/{dst_path}',
+        f"neuro-extras cp --progress -r -u -T storage:{src_path} /storage/{dst_path}",
     ]
     cmd = " ".join(args)
     print(f"Executing '{cmd}'")
