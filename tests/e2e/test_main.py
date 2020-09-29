@@ -20,7 +20,7 @@ from _pytest.capture import CaptureFixture
 from neuromation.cli.const import EX_OK
 from neuromation.cli.main import cli as neuro_main
 
-from neuro_extras.main import TEMP_UNPACK_DIR, main as extras_main
+from neuro_extras.main import NEURO_EXTRAS_IMAGE, TEMP_UNPACK_DIR, main as extras_main
 
 from .conftest import CLIRunner, Secret, gen_random_file
 
@@ -521,7 +521,7 @@ def test_seldon_generate_deployment(cli_runner: CLIRunner) -> None:
         "initContainers": [
             {
                 "name": "neuro-download",
-                "image": "neuromation/neuro-extras:latest",
+                "image": NEURO_EXTRAS_IMAGE,
                 "imagePullPolicy": "Always",
                 "command": ["bash", "-c"],
                 "args": [
@@ -594,7 +594,7 @@ def test_seldon_generate_deployment_custom(cli_runner: CLIRunner) -> None:
         "initContainers": [
             {
                 "name": "neuro-download",
-                "image": "neuromation/neuro-extras:latest",
+                "image": NEURO_EXTRAS_IMAGE,
                 "imagePullPolicy": "Always",
                 "command": ["bash", "-c"],
                 "args": [
