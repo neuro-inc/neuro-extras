@@ -7,4 +7,4 @@ then
     neuro config switch-cluster "$NEURO_CLUSTER" 1>/dev/null
 fi
 
-exec neuro "$@"
+exec "$@"
