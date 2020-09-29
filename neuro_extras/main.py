@@ -32,6 +32,9 @@ ASSETS_PATH = Path(__file__).resolve().parent / "assets"
 SELDON_CUSTOM_PATH = ASSETS_PATH / "seldon.package"
 TEMP_UNPACK_DIR = Path.home() / ".neuro-extras" / "tmp"
 
+NEURO_EXTRAS_IMAGE_TAG = "v20.9.22a2"
+NEURO_EXTRAS_IMAGE = f"neuromation/neuro-extras:{NEURO_EXTRAS_IMAGE_TAG}"
+
 
 @dataclass
 class DockerConfigAuth:
@@ -246,7 +249,7 @@ class DataCopier:
             f"neuro-extras data cp {args}"
         )
         return neuro_api.Container(
-            image=neuro_api.RemoteImage.new_external_image("neuromation/neuro-extras"),
+            image=neuro_api.RemoteImage.new_external_image(NEURO_EXTRAS_IMAGE),
             resources=neuro_api.Resources(cpu=2.0, memory_mb=4096),
             volumes=volumes,
             entrypoint=f"bash -c '{cmd} '",
@@ -572,7 +575,7 @@ async def _run_copy_container(src_cluster: str, src_path: str, dst_path: str) ->
         "storage:://storage",
         "-e",
         f"NEURO_CLUSTER={src_cluster}",
-        "neuromation/neuro-extras:latest",
+        NEURO_EXTRAS_IMAGE,
         f'"cp --progress -r -u -T storage:{src_path} /storage/{dst_path}"',
     ]
     cmd = " ".join(args)
@@ -894,7 +897,7 @@ async def _create_seldon_deployment(
         "initContainers": [
             {
                 "name": "neuro-download",
-                "image": "neuromation/neuro-extras:latest",
+                "image": NEURO_EXTRAS_IMAGE,
                 "imagePullPolicy": "Always",
                 "command": ["bash", "-c"],
                 "args": [
