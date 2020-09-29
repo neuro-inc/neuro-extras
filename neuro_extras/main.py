@@ -32,7 +32,7 @@ ASSETS_PATH = Path(__file__).resolve().parent / "assets"
 SELDON_CUSTOM_PATH = ASSETS_PATH / "seldon.package"
 TEMP_UNPACK_DIR = Path.home() / ".neuro-extras" / "tmp"
 
-NEURO_EXTRAS_IMAGE_TAG = "v20.9.22a2"
+NEURO_EXTRAS_IMAGE_TAG = "20.9.25"
 NEURO_EXTRAS_IMAGE = f"neuromation/neuro-extras:{NEURO_EXTRAS_IMAGE_TAG}"
 
 
