@@ -100,6 +100,7 @@ jobs:
       DOCKER_SERVER: docker.io
       DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
       DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+    steps:
       - name: Wait until package becomes available on PyPI
         timeout-minutes: 5
         run: |
@@ -108,7 +109,6 @@ jobs:
               echo "Waiting for the pypi package ..."
               sleep 1
           done
-    steps:
       - name: Build image
         run: make build
       - name: Push image
