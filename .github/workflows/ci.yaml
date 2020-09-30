@@ -115,9 +115,10 @@ jobs:
         timeout-minutes: 5
         run: |
           PYPIVERSION=$(python setup.py --version)
-          until python -m pip install neuro-extras==$PYPIVERSION
+          PYPIPACKAGE=neuro-extras==$PYPIVERSION
+          until python -m pip install $PYPIPACKAGE
           do
-              echo "Waiting for the pypi package ..."
+              echo "Waiting for the pypi package $PYPIPACKAGE..."
               sleep 1
           done
       - name: Build image
