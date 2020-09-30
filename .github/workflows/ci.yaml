@@ -39,7 +39,17 @@ jobs:
           path: ${{ steps.pip-cache.outputs.dir }}
           restore-keys: |
               pip-ci-${{ runner.os }}-${{ matrix.python-version }}-
-      - name: Install dependencies
+      - name: Install libraries on Linux
+        if: matrix.os == 'ubuntu'
+        shell: bash
+        run: |
+          curl https://rclone.org/install.sh | sudo bash
+      - name: Install libraries on macOS
+        if: matrix.os == 'macos'
+        shell: bash
+        run: |
+          curl https://rclone.org/install.sh | sudo bash
+      - name: Install python dependencies
         run: |
           make setup
       - name: Configure environment

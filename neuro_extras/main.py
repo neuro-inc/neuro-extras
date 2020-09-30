@@ -417,7 +417,7 @@ async def _data_cp(
                     # gunzip removes src after extraction, while tar - not
                     file.unlink()
 
-        # handle upload/rsync
+        # handle upload/rclone
         await _nonstorage_cp(source_url, destination_url)
 
 
@@ -431,11 +431,12 @@ async def _nonstorage_cp(source_url: URL, destination_url: URL) -> None:
         command = "gsutil"
         args = ["-m", "cp", "-r", str(source_url), str(destination_url)]
     elif source_url.scheme == "" and destination_url.scheme == "":
-        command = "rsync"
+        command = "rclone"
         args = [
-            "-avzh",
-            "--progress",
-            "--remove-source-files",
+            "copy",  # TODO: investigate usage of 'sync' for potential speedup.
+            "--checkers=16",  # https://rclone.org/docs/#checkers-n , default is 8
+            "--transfers=8",  # https://rclone.org/docs/#transfers-n , default is 4.
+            "--verbose=1",  # default is 0, set 2 for debug
             str(source_url),
             str(destination_url),
         ]
