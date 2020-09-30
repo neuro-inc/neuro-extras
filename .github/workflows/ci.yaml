@@ -115,10 +115,7 @@ jobs:
         timeout-minutes: 5
         run: |
           PYPIVERSION=$(python setup.py --version)
-
-          curl https://ya.ru >/dev/null
-
-          until pip install neuro-extras==$PYPIVERSION
+          until python -m pip install neuro-extras==$PYPIVERSION
           do
               echo "Waiting for the pypi package ..."
               sleep 1
