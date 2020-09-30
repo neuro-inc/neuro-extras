@@ -32,7 +32,7 @@ ASSETS_PATH = Path(__file__).resolve().parent / "assets"
 SELDON_CUSTOM_PATH = ASSETS_PATH / "seldon.package"
 TEMP_UNPACK_DIR = Path.home() / ".neuro-extras" / "tmp"
 
-NEURO_EXTRAS_IMAGE_TAG = "20.9.25"
+NEURO_EXTRAS_IMAGE_TAG = "v20.9.29a2"
 NEURO_EXTRAS_IMAGE = f"neuromation/neuro-extras:{NEURO_EXTRAS_IMAGE_TAG}"
 
 
@@ -252,7 +252,7 @@ class DataCopier:
             image=neuro_api.RemoteImage.new_external_image(NEURO_EXTRAS_IMAGE),
             resources=neuro_api.Resources(cpu=2.0, memory_mb=4096),
             volumes=volumes,
-            entrypoint=f"bash -c '{cmd} '",
+            command=f"bash -c '{cmd} '",
             env=env_dict,
             secret_env=secret_env_dict,
             secret_files=secret_files,
@@ -576,7 +576,7 @@ async def _run_copy_container(src_cluster: str, src_path: str, dst_path: str) ->
         "-e",
         f"NEURO_CLUSTER={src_cluster}",
         NEURO_EXTRAS_IMAGE,
-        f'"cp --progress -r -u -T storage:{src_path} /storage/{dst_path}"',
+        f"neuro cp --progress -r -u -T storage:{src_path} /storage/{dst_path}",
     ]
     cmd = " ".join(args)
     print(f"Executing '{cmd}'")
