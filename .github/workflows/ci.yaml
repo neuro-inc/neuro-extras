@@ -116,10 +116,9 @@ jobs:
         run: |
           PYPIVERSION=$(python setup.py --version)
 
-          ping -c 3 8.8.8.8
-          ping -c 3 google.com
+          curl https://ya.ru >/dev/null
 
-          until pip install --pre neuro-extras==$PYPIVERSION
+          until pip install neuro-extras==$PYPIVERSION
           do
               echo "Waiting for the pypi package ..."
               sleep 1
