@@ -108,6 +108,7 @@ jobs:
               echo "Waiting for the pypi package ..."
               sleep 1
           done
+    steps:
       - name: Build image
         run: make build
       - name: Push image
