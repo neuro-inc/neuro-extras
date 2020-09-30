@@ -11,7 +11,7 @@ from neuromation import api as neuro_api
 from neuromation.cli.const import EX_PLATFORMERROR
 from yarl import URL
 
-from neuro_extras.main import logger
+from neuro_extras.main import NEURO_EXTRAS_IMAGE, logger
 
 
 TEMP_UNPACK_DIR = Path.home() / ".neuro-tmp"
@@ -63,10 +63,10 @@ class DataCopier:
             f"neuro-extras data cp {args}"
         )
         return neuro_api.Container(
-            image=neuro_api.RemoteImage.new_external_image("neuromation/neuro-extras"),
+            image=neuro_api.RemoteImage.new_external_image(NEURO_EXTRAS_IMAGE),
             resources=neuro_api.Resources(cpu=2.0, memory_mb=4096),
             volumes=volumes,
-            entrypoint=f"bash -c '{cmd} '",
+            command=f"bash -c '{cmd} '",
             env=env_dict,
             secret_env=secret_env_dict,
             secret_files=secret_files,
@@ -239,7 +239,7 @@ async def _data_cp(
                     scheme=destination_url.scheme, path=str(destination_dir)
                 )
 
-        # handle upload/rsync
+        # handle upload/rclone
         await _nonstorage_cp(source_url, destination_url, remove_source=True)
         if compress:
             if tmp_dst_archive.exists():
@@ -260,9 +260,10 @@ async def _nonstorage_cp(
     elif source_url.scheme == "" and destination_url.scheme == "":
         command = "rclone"
         args = [
-            "copy",
-            "--checkers=16",
-            "--transfers=8",
+            "copy",  # TODO: investigate usage of 'sync' for potential speedup.
+            "--checkers=16",  # https://rclone.org/docs/#checkers-n , default is 8
+            "--transfers=8",  # https://rclone.org/docs/#transfers-n , default is 4.
+            "--verbose=1",  # default is 0, set 2 for debug
             str(source_url),
             str(destination_url),
         ]

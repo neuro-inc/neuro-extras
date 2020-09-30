@@ -8,6 +8,7 @@ from neuromation.api.url_utils import uri_from_cli
 from yarl import URL
 
 from neuro_extras.image_builder import ImageBuilder
+from neuro_extras.main import NEURO_EXTRAS_IMAGE
 
 
 async def _init_seldon_package(path: str) -> None:
@@ -47,7 +48,7 @@ async def _create_seldon_deployment(
         "initContainers": [
             {
                 "name": "neuro-download",
-                "image": "neuromation/neuro-extras:latest",
+                "image": NEURO_EXTRAS_IMAGE,
                 "imagePullPolicy": "Always",
                 "command": ["bash", "-c"],
                 "args": [

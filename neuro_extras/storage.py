@@ -4,6 +4,8 @@ from neuromation import api as neuro_api
 from neuromation.api.url_utils import uri_from_cli
 from yarl import URL
 
+from neuro_extras.main import NEURO_EXTRAS_IMAGE
+
 
 async def _copy_storage(source: str, destination: str) -> None:
     src_uri = uri_from_cli(source, "", "")
@@ -33,8 +35,8 @@ async def _run_copy_container(src_cluster: str, src_path: str, dst_path: str) ->
         "storage:://storage",
         "-e",
         f"NEURO_CLUSTER={src_cluster}",
-        "neuromation/neuro-extras:latest",
-        f'"cp --progress -r -u -T storage:{src_path} /storage/{dst_path}"',
+        NEURO_EXTRAS_IMAGE,
+        f'"neuro cp --progress -r -u -T storage:{src_path} /storage/{dst_path}"',
     ]
     cmd = " ".join(args)
     print(f"Executing '{cmd}'")
