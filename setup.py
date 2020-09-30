@@ -12,7 +12,7 @@ with open("neuro_extras/__init__.py") as f:
 
 
 install_requires = [
-    "neuromation",
+    "neuromation>=20.9.24",
     "yarl",
     "click",
     "toml",
@@ -27,7 +27,10 @@ setup(
     url="https://github.com/neuromation/neuro-extras",
     packages=find_packages(),
     install_requires=install_requires,
-    entry_points={"console_scripts": ["neuro-extras=neuro_extras:main"]},
+    entry_points={
+        "console_scripts": ["neuro-extras=neuro_extras:main"],
+        "neuro_api": ["neuro-extras=neuro_extras:setup_plugin"],
+    },
     zip_safe=False,
     include_package_data=True,
 )

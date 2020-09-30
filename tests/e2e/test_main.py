@@ -2,21 +2,27 @@ import base64
 import json
 import logging
 import os
+import re
+import sys
 import textwrap
 import uuid
 from pathlib import Path
-from subprocess import CompletedProcess
+from subprocess import CompletedProcess, check_output
 from tempfile import TemporaryDirectory
+from time import sleep
 from typing import Callable, Iterator, List
 from unittest import mock
 
 import pytest
+import toml
 import yaml
 from _pytest.capture import CaptureFixture
 from neuromation.cli.const import EX_OK
 from neuromation.cli.main import cli as neuro_main
 
-from neuro_extras.main import main as extras_main
+from neuro_extras.main import NEURO_EXTRAS_IMAGE, TEMP_UNPACK_DIR, main as extras_main
+
+from .conftest import CLIRunner, Secret, gen_random_file
 
 
 logger = logging.getLogger(__name__)
@@ -34,11 +40,12 @@ def project_dir() -> Iterator[Path]:
             os.chdir(old_cwd)
 
 
-CLIRunner = Callable[[List[str]], CompletedProcess]
+GCP_BUCKET = "gs://cookiecutter-e2e"
+AWS_BUCKET = "s3://cookiecutter-e2e"
 
 
 @pytest.fixture()
-def cli_runner(capfd: CaptureFixture, project_dir: Path) -> CLIRunner:
+def cli_runner(capfd: CaptureFixture[str], project_dir: Path) -> CLIRunner:
     def _run_cli(args: List[str]) -> CompletedProcess:  # type: ignore
         cmd = args.pop(0)
         if cmd not in ("neuro", "neuro-extras"):
@@ -98,6 +105,7 @@ def test_image_build_failure(cli_runner: CLIRunner) -> None:
     assert "repository can only contain" in result.stdout
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
 def test_image_build_custom_dockerfile(cli_runner: CLIRunner) -> None:
     result = cli_runner(["neuro-extras", "init-aliases"])
     assert result.returncode == 0, result
@@ -105,29 +113,38 @@ def test_image_build_custom_dockerfile(cli_runner: CLIRunner) -> None:
     dockerfile_path = Path("nested/custom.Dockerfile")
     dockerfile_path.parent.mkdir(parents=True)
 
+    random_file_to_disable_layer_caching = gen_random_file(dockerfile_path.parent)
     with open(dockerfile_path, "w") as f:
         f.write(
             textwrap.dedent(
-                """\
+                f"""\
                 FROM ubuntu:latest
+                ADD {random_file_to_disable_layer_caching} /tmp
                 RUN echo !
                 """
             )
         )
 
     tag = str(uuid.uuid4())
-    img_uri_str = f"image:extras-e2e:{tag}"
+
+    # WORKAROUND: Fixing 401 Not Authorized because of this problem:
+    # https://github.com/neuromation/platform-registry-api/issues/209
+    rnd = uuid.uuid4().hex[:6]
+    img_name = f"image:extras-e2e-custom-dockerfile-{rnd}"
+    img_uri_str = f"{img_name}:{tag}"
 
     result = cli_runner(
         ["neuro", "image-build", "-f", str(dockerfile_path), ".", img_uri_str]
     )
     assert result.returncode == 0, result
+    sleep(10)
 
-    result = cli_runner(["neuro", "image", "tags", "image:extras-e2e"])
+    result = cli_runner(["neuro", "image", "tags", img_name])
     assert result.returncode == 0, result
     assert tag in result.stdout
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
 def test_ignored_files_are_not_copied(cli_runner: CLIRunner,) -> None:
     result = cli_runner(["neuro-extras", "init-aliases"])
     assert result.returncode == 0, result
@@ -140,13 +157,15 @@ def test_ignored_files_are_not_copied(cli_runner: CLIRunner,) -> None:
 
     Path(".neuroignore").write_text(f"{ignored_file}\n")
     Path(ignored_file).write_text(ignored_file_content)
+    random_file_to_disable_layer_caching = gen_random_file(dockerfile_path.parent)
     Path(dockerfile_path).write_text(
         textwrap.dedent(
             f"""\
-                FROM ubuntu:latest
-                ADD {ignored_file} /
-                RUN cat /{ignored_file}
-                """
+            FROM ubuntu:latest
+            ADD {random_file_to_disable_layer_caching} /tmp
+            ADD {ignored_file} /
+            RUN cat /{ignored_file}
+            """
         )
     )
 
@@ -159,6 +178,39 @@ def test_ignored_files_are_not_copied(cli_runner: CLIRunner,) -> None:
     assert ignored_file_content not in result.stdout
 
 
+def test_storage_copy(cli_runner: CLIRunner) -> None:
+    result = cli_runner(["neuro-extras", "init-aliases"])
+    assert result.returncode == 0, result
+
+    result = cli_runner(["neuro", "config", "show"])
+    username_re = re.compile(".*User Name: ([a-zA-Z0-9-]+).*", re.DOTALL)
+    cluster_re = re.compile(".*Current Cluster: ([a-zA-Z0-9-]+).*", re.DOTALL)
+    m = username_re.match(result.stdout)
+    assert m
+    username = m.groups()[0]
+    m = cluster_re.match(result.stdout)
+    assert m
+    current_cluster = m.groups()[0]
+
+    run_id = uuid.uuid4()
+    src_path = f"copy-src/{str(run_id)}"
+    result = cli_runner(["neuro", "mkdir", "-p", "storage:" + src_path])
+    assert result.returncode == 0, result
+
+    dst_path = "copy-dst"
+
+    result = cli_runner(
+        [
+            "neuro",
+            "storage-cp",
+            f"storage://{current_cluster}/{username}/{src_path}",
+            f"storage://{current_cluster}/{username}/{dst_path}",
+        ]
+    )
+    assert result.returncode == 0, result
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
 def test_image_copy(cli_runner: CLIRunner) -> None:
     result = cli_runner(["neuro-extras", "init-aliases"])
     assert result.returncode == 0, result
@@ -166,34 +218,44 @@ def test_image_copy(cli_runner: CLIRunner) -> None:
     dockerfile_path = Path("nested/custom.Dockerfile")
     dockerfile_path.parent.mkdir(parents=True)
 
+    random_file_to_disable_layer_caching = gen_random_file(dockerfile_path.parent)
     with open(dockerfile_path, "w") as f:
         f.write(
             textwrap.dedent(
-                """\
+                f"""\
                 FROM alpine:latest
+                ADD {random_file_to_disable_layer_caching} /tmp
                 RUN echo !
                 """
             )
         )
 
+    # WORKAROUND: Fixing 401 Not Authorized because of this problem:
+    # https://github.com/neuromation/platform-registry-api/issues/209
+    rnd = uuid.uuid4().hex[:6]
+    image = f"image:extras-e2e-image-copy-{rnd}"
+
     tag = str(uuid.uuid4())
-    img_uri_str = f"image:extras-e2e:{tag}"
+    img_uri_str = f"{image}:{tag}"
 
     result = cli_runner(
         ["neuro", "image-build", "-f", str(dockerfile_path), ".", img_uri_str]
     )
     assert result.returncode == 0, result
+    sleep(10)
 
-    result = cli_runner(["neuro", "image", "tags", "image:extras-e2e"])
+    result = cli_runner(["neuro", "image", "tags", image])
     assert result.returncode == 0, result
     assert tag in result.stdout
 
-    result = cli_runner(["neuro", "image-copy", img_uri_str, "image:extras-e2e-copy"])
+    result = cli_runner(["neuro", "image-copy", img_uri_str, image])
     assert result.returncode == 0, result
-    result = cli_runner(["neuro", "image", "tags", "image:extras-e2e-copy"])
+    sleep(10)
+    result = cli_runner(["neuro", "image", "tags", image])
     assert result.returncode == 0, result
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
 def test_image_build_custom_build_args(cli_runner: CLIRunner) -> None:
     result = cli_runner(["neuro-extras", "init-aliases"])
     assert result.returncode == 0, result
@@ -201,11 +263,13 @@ def test_image_build_custom_build_args(cli_runner: CLIRunner) -> None:
     dockerfile_path = Path("nested/custom.Dockerfile")
     dockerfile_path.parent.mkdir(parents=True)
 
+    random_file_to_disable_layer_caching = gen_random_file(dockerfile_path.parent)
     with open(dockerfile_path, "w") as f:
         f.write(
             textwrap.dedent(
-                """\
+                f"""\
                 FROM ubuntu:latest
+                ADD {random_file_to_disable_layer_caching} /tmp
                 ARG TEST_ARG
                 ARG ANOTHER_TEST_ARG
                 RUN echo $TEST_ARG
@@ -236,13 +300,114 @@ def test_image_build_custom_build_args(cli_runner: CLIRunner) -> None:
     assert f"arg-another-{tag}" in result.stdout
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
+def test_image_build_env(cli_runner: CLIRunner, temp_random_secret: Secret) -> None:
+    sec = temp_random_secret
+
+    result = cli_runner(["neuro-extras", "init-aliases"])
+    assert result.returncode == 0, result
+
+    result = cli_runner(["neuro", "secret", "add", sec.name, sec.value])
+    assert result.returncode == 0, result
+
+    dockerfile_path = Path("nested/custom.Dockerfile")
+    dockerfile_path.parent.mkdir(parents=True)
+
+    random_file_to_disable_layer_caching = gen_random_file(dockerfile_path.parent)
+    with open(dockerfile_path, "w") as f:
+        f.write(
+            textwrap.dedent(
+                f"""\
+                FROM ubuntu:latest
+                ADD {random_file_to_disable_layer_caching} /tmp
+                ARG GIT_TOKEN
+                ENV GIT_TOKEN=$GIT_TOKEN
+                RUN echo git_token=$GIT_TOKEN
+                """
+            )
+        )
+
+    tag = str(uuid.uuid4())
+    img_uri_str = f"image:extras-e2e:{tag}"
+
+    result = cli_runner(
+        [
+            "neuro",
+            "image-build",
+            "-f",
+            str(dockerfile_path),
+            "-e",
+            f"GIT_TOKEN=secret:{sec.name}",
+            ".",
+            img_uri_str,
+        ]
+    )
+    assert result.returncode == 0, result
+    assert f"git_token={sec.value}" in result.stdout
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
+def test_image_build_volume(cli_runner: CLIRunner, temp_random_secret: Secret) -> None:
+    sec = temp_random_secret
+
+    result = cli_runner(["neuro-extras", "init-aliases"])
+    assert result.returncode == 0, result
+
+    result = cli_runner(["neuro", "secret", "add", sec.name, sec.value])
+    assert result.returncode == 0, result
+
+    dockerfile_path = Path("nested/custom.Dockerfile")
+    dockerfile_path.parent.mkdir(parents=True)
+
+    random_file_to_disable_layer_caching = gen_random_file(dockerfile_path.parent)
+    with open(dockerfile_path, "w") as f:
+        f.write(
+            textwrap.dedent(
+                f"""\
+                FROM ubuntu:latest
+                ADD {random_file_to_disable_layer_caching} /tmp
+                ADD secret.txt /
+                RUN echo git_token=$(cat secret.txt)
+                """
+            )
+        )
+
+    # WORKAROUND: Fixing 401 Not Authorized because of this problem:
+    # https://github.com/neuromation/platform-registry-api/issues/209
+    rnd = uuid.uuid4().hex[:6]
+    image = f"image:extras-e2e-image-copy-{rnd}"
+
+    tag = str(uuid.uuid4())
+    img_uri_str = f"{image}:{tag}"
+
+    result = cli_runner(
+        [
+            "neuro",
+            "image-build",
+            "-f",
+            str(dockerfile_path),
+            "-v",
+            f"secret:{sec.name}:/workspace/secret.txt",
+            ".",
+            img_uri_str,
+        ]
+    )
+    assert result.returncode == 0, result
+    assert f"git_token={sec.value}" in result.stdout
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
 def test_seldon_deploy_from_local(cli_runner: CLIRunner) -> None:
     result = cli_runner(["neuro-extras", "init-aliases"])
     assert result.returncode == 0, result
 
     pkg_path = Path("pkg")
     tag = str(uuid.uuid4())
-    img_uri_str = f"image:extras-e2e:{tag}"
+    # WORKAROUND: Fixing 401 Not Authorized because of this problem:
+    # https://github.com/neuromation/platform-registry-api/issues/209
+    rnd = uuid.uuid4().hex[:6]
+    img_name = f"image:extras-e2e-seldon-local-{rnd}"
+    img_uri_str = f"{img_name}:{tag}"
     result = cli_runner(["neuro", "seldon-init-package", str(pkg_path)])
     assert result.returncode == 0, result
     assert "Copying a Seldon package scaffolding" in result.stdout, result
@@ -253,8 +418,9 @@ def test_seldon_deploy_from_local(cli_runner: CLIRunner) -> None:
         ["neuro", "image-build", "-f", "seldon.Dockerfile", str(pkg_path), img_uri_str]
     )
     assert result.returncode == 0, result
+    sleep(10)
 
-    result = cli_runner(["neuro", "image", "tags", "image:extras-e2e"])
+    result = cli_runner(["neuro", "image", "tags", img_name])
     assert result.returncode == 0, result
     assert tag in result.stdout
 
@@ -355,7 +521,7 @@ def test_seldon_generate_deployment(cli_runner: CLIRunner) -> None:
         "initContainers": [
             {
                 "name": "neuro-download",
-                "image": "neuromation/neuro-extras:latest",
+                "image": NEURO_EXTRAS_IMAGE,
                 "imagePullPolicy": "Always",
                 "command": ["bash", "-c"],
                 "args": [
@@ -428,7 +594,7 @@ def test_seldon_generate_deployment_custom(cli_runner: CLIRunner) -> None:
         "initContainers": [
             {
                 "name": "neuro-download",
-                "image": "neuromation/neuro-extras:latest",
+                "image": NEURO_EXTRAS_IMAGE,
                 "imagePullPolicy": "Always",
                 "command": ["bash", "-c"],
                 "args": [
@@ -471,3 +637,163 @@ def test_seldon_generate_deployment_custom(cli_runner: CLIRunner) -> None:
             ]
         },
     }
+
+
+@pytest.fixture()
+def remote_project_dir(project_dir: Path) -> Path:
+    local_conf = project_dir / ".neuro.toml"
+    remote_project_dir = "e2e-test-remote-dir"
+    local_conf.write_text(
+        toml.dumps({"extra": {"remote-project-dir": remote_project_dir}})
+    )
+    return Path(remote_project_dir)
+
+
+def test_upload_download_single_file(
+    project_dir: Path, remote_project_dir: Path, cli_runner: CLIRunner
+) -> None:
+    test_file_name = "test.txt"
+    test_file_content = "Testing"
+
+    file = project_dir / test_file_name
+    file.write_text(test_file_content)
+    result = cli_runner(["neuro-extras", "upload", test_file_name])
+    assert result.returncode == 0, result
+    file.unlink()
+    # Redownload file
+    result = cli_runner(["neuro-extras", "download", test_file_name])
+    assert result.returncode == 0, result
+    file = project_dir / test_file_name
+    assert file.read_text() == test_file_content
+
+
+def test_upload_download_subdir(
+    project_dir: Path, remote_project_dir: Path, cli_runner: CLIRunner
+) -> None:
+    subdir_name = "sub"
+    test_file_name = "test.txt"
+    test_file_content = "Testing"
+
+    file_in_root = project_dir / test_file_name
+    file_in_root.write_text(test_file_content)
+    subdir = project_dir / subdir_name
+    subdir.mkdir()
+    file_in_subdir = project_dir / subdir_name / test_file_name
+
+    file_in_subdir.write_text(test_file_content)
+
+    result = cli_runner(["neuro-extras", "upload", subdir_name])
+    assert result.returncode == 0, result
+    file_in_root.unlink()
+    file_in_subdir.unlink()
+    subdir.rmdir()
+    # Redownload folder
+    result = cli_runner(["neuro-extras", "download", subdir_name])
+    assert result.returncode == 0, result
+    file_in_root = project_dir / test_file_name
+    assert not file_in_root.exists(), "File in project root should not be downloaded"
+    file_in_subdir = project_dir / subdir_name / test_file_name
+    assert file_in_subdir.read_text() == test_file_content
+
+
+@pytest.fixture
+def args_data_cp_from_cloud(cli_runner: CLIRunner) -> Callable[..., List[str]]:
+    def _f(bucket: str, src: str, dst: str, extract: bool) -> List[str]:
+        args = ["neuro-extras", "data", "cp", src, dst]
+        if src.startswith("storage:") or dst.startswith("storage:"):
+            if bucket.startswith("gs://"):
+                args.extend(
+                    [
+                        "-v",
+                        "secret:neuro-extras-gcp:/gcp-creds.txt",
+                        "-e",
+                        "GOOGLE_APPLICATION_CREDENTIALS=/gcp-creds.txt",
+                    ]
+                )
+            elif bucket.startswith("s3://"):
+                args.extend(
+                    [
+                        "-v",
+                        "secret:neuro-extras-aws:/aws-creds.txt",
+                        "-e",
+                        "AWS_CONFIG_FILE=/aws-creds.txt",
+                    ]
+                )
+            else:
+                raise NotImplementedError(bucket)
+        if extract:
+            args.append("-x")
+        return args
+
+    return _f
+
+
+@pytest.mark.parametrize("bucket", [GCP_BUCKET, AWS_BUCKET])
+@pytest.mark.parametrize("archive_extension", ["tar.gz", "tgz", "zip", "tar"])
+@pytest.mark.parametrize("extract", [True, False])
+@pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="Windows path are not supported yet + no utilities on windows",
+)
+def test_data_cp_from_cloud_to_local(
+    project_dir: Path,
+    remote_project_dir: Path,
+    cli_runner: CLIRunner,
+    args_data_cp_from_cloud: Callable[..., List[str]],
+    bucket: str,
+    archive_extension: str,
+    extract: bool,
+) -> None:
+    TEMP_UNPACK_DIR.mkdir(parents=True, exist_ok=True)
+    with TemporaryDirectory(dir=TEMP_UNPACK_DIR.expanduser()) as tmp_dir:
+        src = f"{bucket}/hello.{archive_extension}"
+        res = cli_runner(args_data_cp_from_cloud(bucket, src, tmp_dir, extract))
+        assert res.returncode == 0, res
+
+        if extract:
+            expected_file = Path(tmp_dir) / "data" / "hello.txt"
+            assert "Hello world!" in expected_file.read_text()
+        else:
+            expected_archive = Path(tmp_dir) / f"hello.{archive_extension}"
+            assert expected_archive.is_file()
+
+
+@pytest.mark.parametrize("bucket", [GCP_BUCKET, AWS_BUCKET])
+@pytest.mark.parametrize("archive_extension", ["tar.gz"])
+@pytest.mark.parametrize("extract", [True, False])
+@pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="Windows path are not supported yet + no utilities on windows",
+)
+def test_data_cp_from_cloud_to_storage(
+    project_dir: Path,
+    remote_project_dir: Path,
+    cli_runner: CLIRunner,
+    args_data_cp_from_cloud: Callable[..., List[str]],
+    bucket: str,
+    archive_extension: str,
+    extract: bool,
+) -> None:
+    storage_url = f"storage:neuro-extras-data-cp/{uuid.uuid4()}"
+    try:
+        src = f"{bucket}/hello.{archive_extension}"
+        res = cli_runner(args_data_cp_from_cloud(bucket, src, storage_url, extract))
+        assert res.returncode == 0, res
+
+        if extract:
+            check_url = storage_url + "/data"
+            expected_file = "hello.txt"
+        else:
+            check_url = storage_url
+            expected_file = f"hello.{archive_extension}"
+
+        # BUG: (yartem) cli_runner returns wrong result here putting neuro's debug info
+        # to stdout and not putting result of neuro-ls to stdout.
+        # So prob cli_runner is to be re-written with subprocess.run
+        out = check_output(["neuro", "ls", check_url]).decode()
+        assert expected_file in out, out
+
+    finally:
+        res = cli_runner(["neuro", "rm", "-r", storage_url])
+        if res.returncode != 0:
+            logger.error(f"WARNING: Finalization failed! {res}")
