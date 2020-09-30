@@ -107,7 +107,7 @@ jobs:
           TAG=${GITHUB_REF#refs/tags/}
           PYPIVERSION=${TAG#v}  # cut "v" prefix from the version
 
-          until pip install neuro-extras==$PYPIVERSION >/dev/null
+          until pip install neuro-extras==$PYPIVERSION
           do
               echo "Waiting for the pypi package ..."
               sleep 1
