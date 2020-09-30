@@ -45,7 +45,7 @@ AWS_BUCKET = "s3://cookiecutter-e2e"
 
 
 @pytest.fixture()
-def cli_runner(capfd: CaptureFixture, project_dir: Path) -> CLIRunner:
+def cli_runner(capfd: CaptureFixture[str], project_dir: Path) -> CLIRunner:
     def _run_cli(args: List[str]) -> CompletedProcess:  # type: ignore
         cmd = args.pop(0)
         if cmd not in ("neuro", "neuro-extras"):
