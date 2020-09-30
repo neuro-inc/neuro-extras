@@ -105,7 +105,7 @@ jobs:
         timeout-minutes: 5
         run: |
           export TAG=${GITHUB_REF#refs/tags/}
-          
+
           until pip install neuro-extras==$TAG >/dev/null
           do
               echo "Waiting for the pypi package ..."
