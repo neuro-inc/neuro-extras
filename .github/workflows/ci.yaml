@@ -104,11 +104,12 @@ jobs:
       - name: Wait until package becomes available on PyPI
         timeout-minutes: 5
         run: |
-          TAG=${GITHUB_REF#refs/tags/}
-          PYPIVERSION=${TAG#v}  # cut "v" prefix from the version
+          PYPIVERSION=$(python setup.py --version)
 
-          PYPIVERSION=20.9.30a4  # DEBUG!
-          until pip install neuro-extras==$PYPIVERSION
+          ping -c 3 8.8.8.8
+          ping -c 3 google.com
+
+          until pip install --pre neuro-extras==$PYPIVERSION
           do
               echo "Waiting for the pypi package ..."
               sleep 1
