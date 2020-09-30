@@ -1,3 +1,14 @@
+Neuro_Extras v20.9.30 (2020-09-30)
+==================================
+
+Features
+--------
+
+
+- Change image's entrypoint from `neuro` to `bash`. ([#81](https://github.com/neuromation/neuro-extras/issues/81))
+
+
+
 Neuro_Extras v20.9.29a2 (2020-09-29)
 ====================================
 
