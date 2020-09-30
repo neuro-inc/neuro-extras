@@ -3,7 +3,6 @@ PYTEST_FLAGS=
 .PHONY: setup
 setup:
 	pip install -r requirements/test.txt -c requirements/constraints.txt
-	curl https://rclone.org/install.sh | bash
 
 .PHONY: lint
 lint:
