@@ -25,3 +25,8 @@ Features
 [comment]: # (Clear the text on make release for canceling the release)
 
 [comment]: # (towncrier release notes start)
+
+Neuro_Extras v20.9.30.2 (2020-09-30)
+====================================
+
+No significant changes.
