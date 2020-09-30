@@ -21,7 +21,8 @@ class Secret:
 
 def generate_random_secret(name_prefix: str = "secret") -> Secret:
     return Secret(
-        name=f"{name_prefix}-{uuid.uuid4().hex[:8]}", value=str(uuid.uuid4()),
+        name=f"{name_prefix}-{uuid.uuid4().hex[:8]}",
+        value=str(uuid.uuid4()),
     )
 
 
