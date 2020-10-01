@@ -170,7 +170,7 @@ class DataCopier:
         if extract:
             args = f"-x {args}"
 
-        env_dict, secret_env_dict = self._client.parse.envs(env)
+        env_dict, secret_env_dict = self._client.parse.env(env)
         vol = self._client.parse.volumes(volume)
         volumes, secret_files = list(vol.volumes), list(vol.secret_files)
         volumes.append(neuro_api.Volume(storage_uri, "/var/storage"))
@@ -627,7 +627,7 @@ class ImageBuilder:
         if build_args:
             command += "".join([f" --build-arg {arg}" for arg in build_args])
 
-        env_dict, secret_env_dict = self._client.parse.envs(env)
+        env_dict, secret_env_dict = self._client.parse.env(env)
         vol = self._client.parse.volumes(volume)
         volumes, secret_files = list(vol.volumes), list(vol.secret_files)
 
