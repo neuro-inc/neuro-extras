@@ -20,7 +20,8 @@ from _pytest.capture import CaptureFixture
 from neuromation.cli.const import EX_OK
 from neuromation.cli.main import cli as neuro_main
 
-from neuro_extras.main import NEURO_EXTRAS_IMAGE, TEMP_UNPACK_DIR, main as extras_main
+from neuro_extras.data import TEMP_UNPACK_DIR
+from neuro_extras.main import NEURO_EXTRAS_IMAGE, main as extras_main
 
 from .conftest import CLIRunner, Secret, gen_random_file
 
