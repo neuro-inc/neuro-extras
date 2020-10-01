@@ -702,7 +702,7 @@ def test_upload_download_subdir(
 
 @pytest.fixture
 def args_data_cp_from_cloud(cli_runner: CLIRunner) -> Callable[..., List[str]]:
-    def _f(bucket: str, src: str, dst: str, extract: bool) -> List[str]:
+    def _f(bucket: str, src: str, dst: str, extract: bool, compress: bool) -> List[str]:
         args = ["neuro-extras", "data", "cp", src, dst]
         if src.startswith("storage:") or dst.startswith("storage:"):
             if bucket.startswith("gs://"):
@@ -727,6 +727,8 @@ def args_data_cp_from_cloud(cli_runner: CLIRunner) -> Callable[..., List[str]]:
                 raise NotImplementedError(bucket)
         if extract:
             args.append("-x")
+        if compress:
+            args.append("-c")
         return args
 
     return _f
@@ -751,7 +753,7 @@ def test_data_cp_from_cloud_to_local(
     TEMP_UNPACK_DIR.mkdir(parents=True, exist_ok=True)
     with TemporaryDirectory(dir=TEMP_UNPACK_DIR.expanduser()) as tmp_dir:
         src = f"{bucket}/hello.{archive_extension}"
-        res = cli_runner(args_data_cp_from_cloud(bucket, src, tmp_dir, extract))
+        res = cli_runner(args_data_cp_from_cloud(bucket, src, tmp_dir, extract, False))
         assert res.returncode == 0, res
 
         if extract:
@@ -760,6 +762,30 @@ def test_data_cp_from_cloud_to_local(
         else:
             expected_archive = Path(tmp_dir) / f"hello.{archive_extension}"
             assert expected_archive.is_file()
+
+
+@pytest.mark.parametrize("bucket", [GCP_BUCKET, AWS_BUCKET])
+@pytest.mark.parametrize("archive_extension", ["tar.gz", "tgz", "zip", "tar"])
+@pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="Windows path are not supported yet + no utilities on windows",
+)
+def test_data_cp_from_cloud_to_local_compress(
+    project_dir: Path,
+    remote_project_dir: Path,
+    cli_runner: CLIRunner,
+    args_data_cp_from_cloud: Callable[..., List[str]],
+    bucket: str,
+    archive_extension: str,
+) -> None:
+    TEMP_UNPACK_DIR.mkdir(parents=True, exist_ok=True)
+    with TemporaryDirectory(dir=TEMP_UNPACK_DIR.expanduser()) as tmp_dir:
+        src = f"{bucket}/hello.{archive_extension}"
+        res = cli_runner(args_data_cp_from_cloud(bucket, src, tmp_dir, False, True))
+        assert res.returncode == 0, res
+
+        expected_file = Path(tmp_dir) / "data" / f"hello.{archive_extension}"
+        assert "Hello world!" in expected_file.read_text()
 
 
 @pytest.mark.parametrize("bucket", [GCP_BUCKET, AWS_BUCKET])
