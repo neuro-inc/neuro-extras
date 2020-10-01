@@ -4,7 +4,7 @@ from neuromation import api as neuro_api
 from neuromation.api.url_utils import uri_from_cli
 from yarl import URL
 
-from neuro_extras.main import NEURO_EXTRAS_IMAGE
+from neuro_extras.cli import NEURO_EXTRAS_IMAGE
 
 
 async def _copy_storage(source: str, destination: str) -> None:

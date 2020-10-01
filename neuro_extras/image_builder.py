@@ -12,7 +12,7 @@ from neuromation import api as neuro_api
 from neuromation.api.url_utils import normalize_storage_path_uri
 from yarl import URL
 
-from neuro_extras.main import logger
+from neuro_extras.log import logger
 
 
 @dataclass

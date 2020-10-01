@@ -3,8 +3,10 @@ import json
 import click
 from neuromation import api as neuro_api
 from neuromation.api.url_utils import uri_from_cli
+from neuromation.cli.asyncio_utils import run as run_async
 
-from neuro_extras.image_builder import ImageBuilder
+from .cli import main
+from .image_builder import ImageBuilder
 
 
 async def _save_docker_json(path: str) -> None:
@@ -23,3 +25,14 @@ async def _save_docker_json(path: str) -> None:
                 json.dump(docker_config.to_primitive(), f)
         else:
             await builder.save_docker_config(docker_config, uri)
+
+
+@main.group()
+def config() -> None:
+    pass
+
+
+@config.command("save-docker-json")
+@click.argument("path")
+def config_save_docker_json(path: str) -> None:
+    run_async(_save_docker_json(path))

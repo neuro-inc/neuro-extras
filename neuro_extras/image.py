@@ -9,10 +9,13 @@ import click
 from neuromation import api as neuro_api
 from neuromation.api.parsing_utils import _as_repo_str
 from neuromation.api.url_utils import uri_from_cli
+from neuromation.cli.asyncio_utils import run as run_async
 from neuromation.cli.const import EX_PLATFORMERROR
 
 from neuro_extras.image_builder import ImageBuilder
-from neuro_extras.main import logger
+from neuro_extras.log import logger
+
+from .cli import main
 
 
 async def _copy_image(source: str, destination: str) -> None:
@@ -69,3 +72,45 @@ async def _build_image(
             sys.exit(exit_code)
         else:
             logger.info(f"Successfully built {image_uri}")
+
+
+@main.group()
+def image() -> None:
+    pass
+
+
+@image.command("build")
+@click.option("-f", "--file", default="Dockerfile")
+@click.option("--build-arg", multiple=True)
+@click.option(
+    "-v",
+    "--volume",
+    metavar="MOUNT",
+    multiple=True,
+    help=(
+        "Mounts directory from vault into container. "
+        "Use multiple options to mount more than one volume. "
+        "Use --volume=ALL to mount all accessible storage directories."
+    ),
+)
+@click.option(
+    "-e",
+    "--env",
+    metavar="VAR=VAL",
+    multiple=True,
+    help=(
+        "Set environment variable in container "
+        "Use multiple options to define more than one variable"
+    ),
+)
+@click.argument("path")
+@click.argument("image_uri")
+def image_build(
+    file: str,
+    build_arg: Sequence[str],
+    path: str,
+    image_uri: str,
+    volume: Sequence[str],
+    env: Sequence[str],
+) -> None:
+    run_async(_build_image(file, path, image_uri, build_arg, volume, env))

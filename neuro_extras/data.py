@@ -8,10 +8,12 @@ from typing import Sequence
 
 import click
 from neuromation import api as neuro_api
+from neuromation.cli.asyncio_utils import run as run_async
 from neuromation.cli.const import EX_PLATFORMERROR
 from yarl import URL
 
-from neuro_extras.main import NEURO_EXTRAS_IMAGE, logger
+from .cli import NEURO_EXTRAS_IMAGE, main
+from .log import logger
 
 
 TEMP_UNPACK_DIR = Path.home() / ".neuro-tmp"
@@ -284,3 +286,46 @@ async def _nonstorage_cp(
         else:
             if source_path.exists():
                 source_path.unlink()
+
+
+@main.group()
+def data() -> None:
+    pass
+
+
+@data.command("cp")
+@click.argument("source")
+@click.argument("destination")
+@click.option("-x", "--extract", default=False, is_flag=True)
+@click.option("-c", "--compress", default=False, is_flag=True)
+@click.option(
+    "-v",
+    "--volume",
+    metavar="MOUNT",
+    multiple=True,
+    help=(
+        "Mounts directory from vault into container. "
+        "Use multiple options to mount more than one volume. "
+    ),
+)
+@click.option(
+    "-e",
+    "--env",
+    metavar="VAR=VAL",
+    multiple=True,
+    help=(
+        "Set environment variable in container "
+        "Use multiple options to define more than one variable"
+    ),
+)
+def data_cp(
+    source: str,
+    destination: str,
+    extract: bool,
+    compress: bool,
+    volume: Sequence[str],
+    env: Sequence[str],
+) -> None:
+    if extract and compress:
+        raise click.ClickException("Extract and compress can't be used together")
+    run_async(_data_cp(source, destination, extract, compress, volume, env))
