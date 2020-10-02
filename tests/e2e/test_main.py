@@ -781,10 +781,14 @@ def test_data_cp_from_cloud_to_local_compress(
     TEMP_UNPACK_DIR.mkdir(parents=True, exist_ok=True)
     with TemporaryDirectory(dir=TEMP_UNPACK_DIR.expanduser()) as tmp_dir:
         src = f"{bucket}/hello.{archive_extension}"
-        res = cli_runner(args_data_cp_from_cloud(bucket, src, tmp_dir, False, True))
+        res = cli_runner(
+            args_data_cp_from_cloud(
+                bucket, src, f"{tmp_dir}/hello.{archive_extension}", False, True
+            )
+        )
         assert res.returncode == 0, res
 
-        expected_file = Path(tmp_dir) / "data" / f"hello.{archive_extension}"
+        expected_file = Path(tmp_dir) / f"hello.{archive_extension}"
         assert "Hello world!" in expected_file.read_text()
 
 

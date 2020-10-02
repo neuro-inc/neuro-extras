@@ -341,7 +341,9 @@ async def _data_cp(
                 command = "zip"
                 args = [str(tmp_dst_archive), str(source_url.path)]
             else:
-                raise ValueError(f"Don't know how to extract file {file.name}")
+                raise ValueError(
+                    f"Don't know how to compress to archive type {file.name}"
+                )
 
             click.echo(f"Running {command} {' '.join(args)}")
             subprocess = await asyncio.create_subprocess_exec(command, *args)
