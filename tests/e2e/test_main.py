@@ -789,7 +789,7 @@ def test_data_cp_from_cloud_to_local_compress(
         assert res.returncode == 0, res
 
         expected_file = Path(tmp_dir) / f"hello.{archive_extension}"
-        assert "Hello world!" in expected_file.read_text()
+        assert expected_file.exists()
 
 
 @pytest.mark.parametrize("bucket", [GCP_BUCKET, AWS_BUCKET])
