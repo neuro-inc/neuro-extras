@@ -811,7 +811,9 @@ def test_data_cp_from_cloud_to_storage(
     storage_url = f"storage:neuro-extras-data-cp/{uuid.uuid4()}"
     try:
         src = f"{bucket}/hello.{archive_extension}"
-        res = cli_runner(args_data_cp_from_cloud(bucket, src, storage_url, extract))
+        res = cli_runner(
+            args_data_cp_from_cloud(bucket, src, storage_url, extract, False)
+        )
         assert res.returncode == 0, res
 
         if extract:
