@@ -360,7 +360,7 @@ async def _data_cp(
                 args = ["cf", str(tmp_dst_archive), str(source_url.path)]
             elif suffixes[-1] == ".gz":
                 command = "gzip"
-                args = [str(tmp_dst_archive), str(source_url.path)]
+                args = ["-r", str(tmp_dst_archive), str(source_url.path)]
             elif suffixes[-1] == ".zip":
                 command = "zip"
                 args = [str(tmp_dst_archive), str(source_url.path)]

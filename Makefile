@@ -2,18 +2,18 @@ PYTEST_FLAGS=
 
 .PHONY: setup
 setup:
-	pip install -r requirements/test.txt -c requirements/constraints.txt
+	pip install -r requirements/test.txt
 
 .PHONY: lint
 lint:
-	isort -rc --check-only --diff neuro_extras tests setup.py
+	isort --check-only --diff neuro_extras tests setup.py
 	black --check neuro_extras tests setup.py
 	flake8 neuro_extras tests setup.py
 	mypy neuro_extras tests setup.py
 
 .PHONY: format
 format:
-	isort -rc neuro_extras tests setup.py
+	isort neuro_extras tests setup.py
 	black neuro_extras tests setup.py
 
 .PHONY: test_e2e
