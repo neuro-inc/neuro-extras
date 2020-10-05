@@ -349,7 +349,7 @@ async def _data_cp(
             subprocess = await asyncio.create_subprocess_exec(command, *args)
             returncode = await subprocess.wait()
             if returncode != 0:
-                raise click.ClickException(f"Extraction failed: {subprocess.stderr}")
+                raise click.ClickException(f"Compression failed: {subprocess.stderr}")
             else:
                 source_url = URL(str(tmp_dst_archive))
                 # At this moment we know destination URL is a file, but we need its
