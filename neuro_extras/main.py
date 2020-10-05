@@ -26,6 +26,18 @@ from neuromation.cli.const import EX_PLATFORMERROR
 from yarl import URL
 
 
+SUPPORTED_ARCHIVE_TYPES = (
+    ".tar.gz",
+    ".tgz",
+    ".tar.bz2",
+    ".tbz2",
+    ".tbz",
+    ".tar",
+    ".gz",
+    ".zip",
+)
+
+
 @click.group()
 def main() -> None:
     handler = ClickLogHandler()
@@ -34,6 +46,11 @@ def main() -> None:
     root_logger = logging.getLogger()
     root_logger.setLevel(logging.INFO)
     root_logger.addHandler(handler)
+
+
+@main.group()
+def data() -> None:
+    pass
 
 
 @main.command("cp")
@@ -84,6 +101,10 @@ def init_aliases() -> None:
     }
     config["alias"]["storage-cp"] = {
         "exec": "neuro-extras cp",
+        "options": [
+            "-c, --compress Compress source files",
+            "-x, --extract Extract downloaded files",
+        ],
         "args": "SOURCE DESTINATION",
     }
     with toml_path.open("w") as f:
@@ -388,9 +409,6 @@ async def _nonstorage_cp(
             str(source_url),
             str(destination_url),
         ]
-        if remove_source:
-            pass
-            # args.insert(2, "--remove-source-files")
     else:
         raise ValueError("Unknown cloud provider")
     click.echo(f"Running {command} {' '.join(args)}")
@@ -400,23 +418,41 @@ async def _nonstorage_cp(
         raise click.ClickException("Cloud copy failed")
     elif UrlType.get_type(source_url) == UrlType.LOCAL:
         source_path = Path(source_url.path)
-        if source_path.is_dir():
-            dir_util.remove_tree(str(source_path))
-        else:
-            if source_path.exists():
-                source_path.unlink()
-
-
-@main.group()
-def data() -> None:
-    pass
+        if remove_source:
+            if source_path.is_dir():
+                dir_util.remove_tree(str(source_path))
+            else:
+                if source_path.exists():
+                    source_path.unlink()
 
 
 @data.command("cp")
 @click.argument("source")
 @click.argument("destination")
-@click.option("-x", "--extract", default=False, is_flag=True)
-@click.option("-c", "--compress", default=False, is_flag=True)
+@click.option(
+    "-x",
+    "--extract",
+    default=False,
+    is_flag=True,
+    help=(
+        "Perform extraction of SOURCE into the temporal folder and move "
+        "extracted files to DESTINATION. The archive type is derived "
+        "from the file name. "
+        f"Supported types: {', '.join(SUPPORTED_ARCHIVE_TYPES)}."
+    ),
+)
+@click.option(
+    "-c",
+    "--compress",
+    default=False,
+    is_flag=True,
+    help=(
+        "Perform compression of SOURCE into the temporal folder and move "
+        "created archive to DESTINATION. The archive type is derived "
+        "from the file name. "
+        f"Supported types: {', '.join(SUPPORTED_ARCHIVE_TYPES)}."
+    ),
+)
 @click.option(
     "-v",
     "--volume",
