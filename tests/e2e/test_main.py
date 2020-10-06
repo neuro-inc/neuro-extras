@@ -10,7 +10,7 @@ from pathlib import Path
 from subprocess import CompletedProcess, check_output
 from tempfile import TemporaryDirectory
 from time import sleep
-from typing import Callable, Iterator, List
+from typing import Callable, Iterator, List, Sequence
 from unittest import mock
 
 import pytest
@@ -701,8 +701,15 @@ def test_upload_download_subdir(
 
 
 @pytest.fixture
-def args_data_cp_from_cloud(cli_runner: CLIRunner) -> Callable[..., List[str]]:
-    def _f(bucket: str, src: str, dst: str, extract: bool, compress: bool) -> List[str]:
+def args_data_cp(cli_runner: CLIRunner) -> Callable[..., List[str]]:
+    def _f(
+        bucket: str,
+        src: str,
+        dst: str,
+        extract: bool,
+        compress: bool,
+        disks: Sequence[str] = (),
+    ) -> List[str]:
         args = ["neuro-extras", "data", "cp", src, dst]
         if src.startswith("storage:") or dst.startswith("storage:"):
             if bucket.startswith("gs://"):
@@ -725,6 +732,8 @@ def args_data_cp_from_cloud(cli_runner: CLIRunner) -> Callable[..., List[str]]:
                 )
             else:
                 raise NotImplementedError(bucket)
+        for disk in disks:
+            args.extend(["-v", disk])
         if extract:
             args.append("-x")
         if compress:
@@ -745,7 +754,7 @@ def test_data_cp_from_cloud_to_local(
     project_dir: Path,
     remote_project_dir: Path,
     cli_runner: CLIRunner,
-    args_data_cp_from_cloud: Callable[..., List[str]],
+    args_data_cp: Callable[..., List[str]],
     bucket: str,
     archive_extension: str,
     extract: bool,
@@ -753,7 +762,7 @@ def test_data_cp_from_cloud_to_local(
     TEMP_UNPACK_DIR.mkdir(parents=True, exist_ok=True)
     with TemporaryDirectory(dir=TEMP_UNPACK_DIR.expanduser()) as tmp_dir:
         src = f"{bucket}/hello.{archive_extension}"
-        res = cli_runner(args_data_cp_from_cloud(bucket, src, tmp_dir, extract, False))
+        res = cli_runner(args_data_cp(bucket, src, tmp_dir, extract, False))
         assert res.returncode == 0, res
 
         if extract:
@@ -774,7 +783,7 @@ def test_data_cp_from_cloud_to_local_compress(
     project_dir: Path,
     remote_project_dir: Path,
     cli_runner: CLIRunner,
-    args_data_cp_from_cloud: Callable[..., List[str]],
+    args_data_cp: Callable[..., List[str]],
     bucket: str,
     archive_extension: str,
 ) -> None:
@@ -782,7 +791,7 @@ def test_data_cp_from_cloud_to_local_compress(
     with TemporaryDirectory(dir=TEMP_UNPACK_DIR.expanduser()) as tmp_dir:
         src = f"{bucket}/hello.{archive_extension}"
         res = cli_runner(
-            args_data_cp_from_cloud(
+            args_data_cp(
                 bucket, src, f"{tmp_dir}/hello.{archive_extension}", False, True
             )
         )
@@ -803,7 +812,7 @@ def test_data_cp_from_cloud_to_storage(
     project_dir: Path,
     remote_project_dir: Path,
     cli_runner: CLIRunner,
-    args_data_cp_from_cloud: Callable[..., List[str]],
+    args_data_cp: Callable[..., List[str]],
     bucket: str,
     archive_extension: str,
     extract: bool,
@@ -811,9 +820,7 @@ def test_data_cp_from_cloud_to_storage(
     storage_url = f"storage:neuro-extras-data-cp/{uuid.uuid4()}"
     try:
         src = f"{bucket}/hello.{archive_extension}"
-        res = cli_runner(
-            args_data_cp_from_cloud(bucket, src, storage_url, extract, False)
-        )
+        res = cli_runner(args_data_cp(bucket, src, storage_url, extract, False))
         assert res.returncode == 0, res
 
         if extract:
@@ -833,3 +840,52 @@ def test_data_cp_from_cloud_to_storage(
         res = cli_runner(["neuro", "rm", "-r", storage_url])
         if res.returncode != 0:
             logger.error(f"WARNING: Finalization failed! {res}")
+
+
+@pytest.fixture
+def disk(cli_runner: CLIRunner) -> Iterator[str]:
+    # Create disk
+    res = cli_runner(["neuro", "disk", "create", "1G"])
+    assert res.returncode == 0, res
+    assert res.stderr == ""
+    disk_id, *_ = res.stdout.splitlines()[1].split()
+
+    yield disk_id
+
+    # Delete disk
+    res = cli_runner(["neuro", "disk", "rm", disk_id])
+    assert res.returncode == 0, res
+    assert res.stderr == ""
+
+
+@pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="Windows path are not supported yet + no utilities on windows",
+)
+def test_data_cp_from_cloud_to_disk(
+    project_dir: Path,
+    remote_project_dir: Path,
+    args_data_cp: Callable[..., List[str]],
+    cli_runner: CLIRunner,
+    disk: str,
+) -> None:
+    src = f"{GCP_BUCKET}/hello.tar.gz"
+    local_folder = "/mnt/disk"
+    disk_info = f"disk:{disk}:{local_folder}:rw"
+    res = cli_runner(
+        args_data_cp(GCP_BUCKET, src, local_folder, False, False, [disk_info])
+    )
+    assert res.returncode == 0, res
+
+    res = cli_runner(
+        [
+            "neuro",
+            "run",
+            "-v",
+            disk_info,
+            "ubuntu",
+            "bash -c 'ls -l /mnt/disk/hello.tar.gz'",
+        ]
+    )
+    assert res.returncode == 0, res
+    # out = check_output(["neuro", "ls", loca]).decode()
