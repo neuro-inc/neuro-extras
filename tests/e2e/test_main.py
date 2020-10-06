@@ -855,7 +855,7 @@ def disk(cli_runner: CLIRunner) -> Iterator[str]:
         elements = line.split()
         if len(elements) >= 3:
             disk_id, storage, uri, *_ = elements
-            if disk_id.startwith("disk") and uri.startwith("disk:"):
+            if disk_id.startswith("disk") and uri.startswith("disk:"):
                 break
 
     if disk_id is None:
