@@ -851,6 +851,9 @@ def disk(cli_runner: CLIRunner) -> Iterator[str]:
     assert res.returncode == 0, res
     assert res.stderr == ""
     disk_id, *_ = res.stdout.splitlines()[1].split()
+    print("FINDME1")
+    print(res.stdout)
+    print("FINDME2")
 
     yield disk_id
 
