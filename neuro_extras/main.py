@@ -26,14 +26,561 @@ from neuromation.cli.const import EX_PLATFORMERROR
 from yarl import URL
 
 
-logger = logging.getLogger(__name__)
+SUPPORTED_ARCHIVE_TYPES = (
+    ".tar.gz",
+    ".tgz",
+    ".tar.bz2",
+    ".tbz2",
+    ".tbz",
+    ".tar",
+    ".gz",
+    ".zip",
+)
 
-ASSETS_PATH = Path(__file__).resolve().parent / "assets"
-SELDON_CUSTOM_PATH = ASSETS_PATH / "seldon.package"
-TEMP_UNPACK_DIR = Path.home() / ".neuro-extras" / "tmp"
+
+@click.group()
+def main() -> None:
+    handler = ClickLogHandler()
+    handler.setFormatter(logging.Formatter("%(levelname)s: %(message)s"))
+
+    root_logger = logging.getLogger()
+    root_logger.setLevel(logging.INFO)
+    root_logger.addHandler(handler)
+
+
+@main.group()
+def data() -> None:
+    pass
+
+
+@main.command("cp")
+@click.argument("source")
+@click.argument("destination")
+def cluster_copy(source: str, destination: str) -> None:
+    run_async(_copy_storage(source, destination))
+
+
+@main.group()
+def image() -> None:
+    pass
+
+
+@image.command("copy")
+@click.argument("source")
+@click.argument("destination")
+def image_copy(source: str, destination: str) -> None:
+    run_async(_copy_image(source, destination))
+
+
+@main.command("init-aliases")
+def init_aliases() -> None:
+    # TODO: support patching the global ~/.neuro/user.toml
+    toml_path = Path.cwd() / ".neuro.toml"
+    config: MutableMapping[str, Any] = {}
+    if toml_path.exists():
+        with toml_path.open("r") as f:
+            config = toml.load(f)
+    config.setdefault("alias", {})
+    config["alias"]["image-build"] = {
+        "exec": "neuro-extras image build",
+        "options": [
+            "-f, --file path to the Dockerfile within CONTEXT",
+            "--build-arg build arguments for Docker",
+            "-e, --env environment variables for container",
+            "-v, --volume list of volumes for container",
+        ],
+        "args": "CONTEXT IMAGE_URI",
+    }
+    config["alias"]["seldon-init-package"] = {
+        "exec": "neuro-extras seldon init-package",
+        "args": "URI_OR_PATH",
+    }
+    config["alias"]["image-copy"] = {
+        "exec": "neuro-extras image copy",
+        "args": "SOURCE DESTINATION",
+    }
+    config["alias"]["storage-cp"] = {
+        "exec": "neuro-extras cp",
+        "options": [
+            "-c, --compress Compress source files",
+            "-x, --extract Extract downloaded files",
+        ],
+        "args": "SOURCE DESTINATION",
+    }
+    with toml_path.open("w") as f:
+        toml.dump(config, f)
+    logger.info(f"Added aliases to {toml_path}")
+
 
 NEURO_EXTRAS_IMAGE_TAG = "v20.9.30a7"
 NEURO_EXTRAS_IMAGE = f"neuromation/neuro-extras:{NEURO_EXTRAS_IMAGE_TAG}"
+
+
+class ClickLogHandler(logging.Handler):
+    def emit(self, record: logging.LogRecord) -> None:
+        try:
+            msg = self.format(record)
+            click.echo(msg)
+        except Exception:
+            self.handleError(record)
+
+
+async def _save_docker_json(path: str) -> None:
+    async with neuro_api.get() as client:
+        uri = uri_from_cli(
+            path,
+            client.username,
+            client.cluster_name,
+            allowed_schemes=("file", "storage"),
+        )
+        builder = ImageBuilder(client)
+        docker_config = await builder.create_docker_config()
+        click.echo(f"Saving Docker config.json as {uri}")
+        if uri.scheme == "file":
+            with open(path, "w") as f:
+                json.dump(docker_config.to_primitive(), f)
+        else:
+            await builder.save_docker_config(docker_config, uri)
+
+
+@main.group()
+def config() -> None:
+    pass
+
+
+@config.command("save-docker-json")
+@click.argument("path")
+def config_save_docker_json(path: str) -> None:
+    run_async(_save_docker_json(path))
+
+
+TEMP_UNPACK_DIR = Path.home() / ".neuro-tmp"
+
+
+class DataCopier:
+    def __init__(self, client: neuro_api.Client):
+        self._client = client
+
+    async def launch(
+        self,
+        storage_uri: URL,
+        extract: bool,
+        src_uri: URL,
+        dst_uri: URL,
+        volume: Sequence[str],
+        env: Sequence[str],
+    ) -> neuro_api.JobDescription:
+        logger.info("Submitting a copy job")
+        copier_container = await self._create_copier_container(
+            storage_uri, extract, src_uri, dst_uri, volume, env
+        )
+        job = await self._client.jobs.run(copier_container, life_span=60 * 60)
+        logger.info(f"The copy job ID: {job.id}")
+        return job
+
+    async def _create_copier_container(
+        self,
+        storage_uri: URL,
+        extract: bool,
+        src_uri: URL,
+        dst_uri: URL,
+        volume: Sequence[str],
+        env: Sequence[str],
+    ) -> neuro_api.Container:
+        args = f"{str(src_uri)} {str(dst_uri)}"
+        if extract:
+            args = f"-x {args}"
+
+        env_dict, secret_env_dict = self._client.parse.env(env)
+        vol = self._client.parse.volumes(volume)
+        volumes, secret_files = list(vol.volumes), list(vol.secret_files)
+        volumes.append(neuro_api.Volume(storage_uri, "/var/storage"))
+
+        gcp_env = "GOOGLE_APPLICATION_CREDENTIALS"
+        cmd = (
+            f'( [ "${gcp_env}" ] && '
+            f"gcloud auth activate-service-account --key-file ${gcp_env} ) ; "
+            f"neuro-extras data cp {args}"
+        )
+        return neuro_api.Container(
+            image=neuro_api.RemoteImage.new_external_image(NEURO_EXTRAS_IMAGE),
+            resources=neuro_api.Resources(cpu=2.0, memory_mb=4096),
+            volumes=volumes,
+            command=f"bash -c '{cmd} '",
+            env=env_dict,
+            secret_env=secret_env_dict,
+            secret_files=secret_files,
+        )
+
+
+class UrlType(Enum):
+    UNSUPPORTED = 0
+    LOCAL = 1
+    CLOUD = 2
+    STORAGE = 3
+
+    @staticmethod
+    def get_type(url: URL) -> "UrlType":
+        if url.scheme == "storage":
+            return UrlType.STORAGE
+        if url.scheme == "":
+            return UrlType.LOCAL
+        if url.scheme in ("s3", "gs"):
+            return UrlType.CLOUD
+        return UrlType.UNSUPPORTED
+
+
+async def _data_cp(
+    source: str,
+    destination: str,
+    extract: bool,
+    compress: bool,
+    volume: Sequence[str],
+    env: Sequence[str],
+) -> None:
+    source_url = URL(source)
+    destination_url = URL(destination)
+    source_url_type = UrlType.get_type(source_url)
+    if source_url_type == UrlType.UNSUPPORTED:
+        raise ValueError(f"Unsupported source URL scheme: {source_url.scheme}")
+    destination_url_type = UrlType.get_type(destination_url)
+    if destination_url_type == UrlType.UNSUPPORTED:
+        raise ValueError(
+            f"Unsupported destination URL scheme: {destination_url.scheme}"
+        )
+
+    if source_url_type == UrlType.CLOUD and destination_url_type == UrlType.CLOUD:
+        raise ValueError(
+            "This command can't be used to copy data between cloud providers"
+        )
+    if source_url_type == UrlType.STORAGE and destination_url_type == UrlType.STORAGE:
+        raise ValueError(
+            "This command can't be used to copy data between two storage locations"
+        )
+
+    if UrlType.STORAGE in (source_url_type, destination_url_type):
+        async with neuro_api.get() as client:
+            data_copier = DataCopier(client)
+            if source_url_type == UrlType.STORAGE:
+                job = await data_copier.launch(
+                    storage_uri=source_url,
+                    src_uri=URL("/var/storage"),
+                    dst_uri=destination_url,
+                    extract=extract,
+                    volume=volume,
+                    env=env,
+                )
+            else:
+                job = await data_copier.launch(
+                    storage_uri=destination_url,
+                    src_uri=source_url,
+                    dst_uri=URL("/var/storage"),
+                    extract=extract,
+                    volume=volume,
+                    env=env,
+                )
+            while job.status == neuro_api.JobStatus.PENDING:
+                job = await client.jobs.status(job.id)
+                await asyncio.sleep(1.0)
+            async for chunk in client.jobs.monitor(job.id):
+                if not chunk:
+                    break
+                click.echo(chunk.decode(errors="ignore"), nl=False)
+            job = await client.jobs.status(job.id)
+            if job.status == neuro_api.JobStatus.FAILED:
+                logger.error("The copy job has failed due to:")
+                logger.error(f"  Reason: {job.history.reason}")
+                logger.error(f"  Description: {job.history.description}")
+                exit_code = job.history.exit_code
+                if exit_code is None:
+                    exit_code = EX_PLATFORMERROR
+                sys.exit(exit_code)
+            else:
+                logger.info("Successfully copied data")
+    else:
+        TEMP_UNPACK_DIR.mkdir(parents=True, exist_ok=True)
+        tmp_dir_name = tempfile.mkdtemp(dir=str(TEMP_UNPACK_DIR))
+        tmp_dst_url = URL.build(path=(tmp_dir_name + "/"))
+
+        await _nonstorage_cp(source_url, tmp_dst_url)
+        source_url = tmp_dst_url
+        # for clarity
+        source_url_type = UrlType.LOCAL
+
+        # at this point source is always local
+        if extract:
+            # extract to tmp dir
+            file = Path(source_url.path)
+            if file.is_dir():
+                file = list(file.glob("*"))[0]
+            suffixes = file.suffixes
+            if suffixes[-2:] == [".tar", ".gz"] or suffixes[-1] == ".tgz":
+                command = "tar"
+                args = ["zxvf", str(file), "-C", str(tmp_dst_url)]
+            elif suffixes[-2:] == [".tar", ".bz2"] or suffixes[-1] in (".tbz2", ".tbz"):
+                command = "tar"
+                args = ["jxvf", str(file), "-C", str(tmp_dst_url)]
+            elif suffixes[-1] == ".tar":
+                command = "tar"
+                args = ["xvf", str(file), "-C", str(tmp_dst_url)]
+            elif suffixes[-1] == ".gz":
+                command = "gunzip"
+                args = [str(file), str(tmp_dst_url) + file.name[:-3]]
+            elif suffixes[-1] == ".zip":
+                command = "unzip"
+                args = [str(file), "-d", str(tmp_dst_url)]
+            else:
+                raise ValueError(
+                    f"Don't know how to extract file {file.name}"
+                    f"Supported archive types: {', '.join(SUPPORTED_ARCHIVE_TYPES)}"
+                )
+
+            click.echo(f"Running {command} {' '.join(args)}")
+            subprocess = await asyncio.create_subprocess_exec(command, *args)
+            returncode = await subprocess.wait()
+            if returncode != 0:
+                raise click.ClickException(f"Extraction failed: {subprocess.stderr}")
+            else:
+                if file.exists():
+                    # gunzip removes src after extraction, while tar - not
+                    file.unlink()
+
+        if compress:
+            file = Path(destination_url.path.split("/")[-1])
+            tmp_dst_archive = Path(TEMP_UNPACK_DIR / file)
+            suffixes = file.suffixes
+            if suffixes[-2:] == [".tar", ".gz"] or suffixes[-1] == ".tgz":
+                command = "tar"
+                args = ["zcf", str(tmp_dst_archive), "-C", str(source_url.path), "."]
+            elif suffixes[-2:] == [".tar", ".bz2"] or suffixes[-1] in (".tbz2", ".tbz"):
+                command = "tar"
+                args = ["jcf", str(tmp_dst_archive), str(source_url.path)]
+            elif suffixes[-1] == ".tar":
+                command = "tar"
+                args = ["cf", str(tmp_dst_archive), str(source_url.path)]
+            elif suffixes[-1] == ".gz":
+                command = "gzip"
+                args = ["-r", str(tmp_dst_archive), str(source_url.path)]
+            elif suffixes[-1] == ".zip":
+                command = "zip"
+                args = [str(tmp_dst_archive), str(source_url.path)]
+            else:
+                raise ValueError(
+                    f"Don't know how to compress to archive type {file.name}. "
+                    f"Supported archive types: {', '.join(SUPPORTED_ARCHIVE_TYPES)}"
+                )
+
+            click.echo(f"Running {command} {' '.join(args)}")
+            subprocess = await asyncio.create_subprocess_exec(command, *args)
+            returncode = await subprocess.wait()
+            if returncode != 0:
+                raise click.ClickException(f"Compression failed: {subprocess.stderr}")
+            else:
+                source_url = URL(str(tmp_dst_archive))
+                # At this moment we know destination URL is a file, but we need its
+                # parent directory
+                destination_file = Path(destination_url.path)
+                destination_dir = destination_file.parent
+                destination_url = URL.build(
+                    scheme=destination_url.scheme, path=str(destination_dir)
+                )
+
+        # handle upload/rclone
+        await _nonstorage_cp(source_url, destination_url, remove_source=True)
+        if compress:
+            if tmp_dst_archive.exists():
+                tmp_dst_archive.unlink()
+
+
+async def _nonstorage_cp(
+    source_url: URL, destination_url: URL, remove_source: bool = False
+) -> None:
+    if "s3" in (source_url.scheme, destination_url.scheme):
+        command = "aws"
+        args = ["s3", "cp", str(source_url), str(destination_url)]
+        if source_url.path.endswith("/"):
+            args.insert(2, "--recursive")
+    elif "gs" in (source_url.scheme, destination_url.scheme):
+        command = "gsutil"
+        args = ["-m", "cp", "-r", str(source_url), str(destination_url)]
+    elif source_url.scheme == "" and destination_url.scheme == "":
+        command = "rclone"
+        args = [
+            "copy",  # TODO: investigate usage of 'sync' for potential speedup.
+            "--checkers=16",  # https://rclone.org/docs/#checkers-n , default is 8
+            "--transfers=8",  # https://rclone.org/docs/#transfers-n , default is 4.
+            "--verbose=1",  # default is 0, set 2 for debug
+            str(source_url),
+            str(destination_url),
+        ]
+    else:
+        raise ValueError("Unknown cloud provider")
+    click.echo(f"Running {command} {' '.join(args)}")
+    subprocess = await asyncio.create_subprocess_exec(command, *args)
+    returncode = await subprocess.wait()
+    if returncode != 0:
+        raise click.ClickException("Cloud copy failed")
+    elif UrlType.get_type(source_url) == UrlType.LOCAL:
+        source_path = Path(source_url.path)
+        if remove_source:
+            if source_path.is_dir():
+                dir_util.remove_tree(str(source_path))
+            else:
+                if source_path.exists():
+                    source_path.unlink()
+
+
+@data.command("cp")
+@click.argument("source")
+@click.argument("destination")
+@click.option(
+    "-x",
+    "--extract",
+    default=False,
+    is_flag=True,
+    help=(
+        "Perform extraction of SOURCE into the temporal folder and move "
+        "extracted files to DESTINATION. The archive type is derived "
+        "from the file name. "
+        f"Supported types: {', '.join(SUPPORTED_ARCHIVE_TYPES)}."
+    ),
+)
+@click.option(
+    "-c",
+    "--compress",
+    default=False,
+    is_flag=True,
+    help=(
+        "Perform compression of SOURCE into the temporal folder and move "
+        "created archive to DESTINATION. The archive type is derived "
+        "from the file name. "
+        f"Supported types: {', '.join(SUPPORTED_ARCHIVE_TYPES)}."
+    ),
+)
+@click.option(
+    "-v",
+    "--volume",
+    metavar="MOUNT",
+    multiple=True,
+    help=(
+        "Mounts directory from vault into container. "
+        "Use multiple options to mount more than one volume. "
+    ),
+)
+@click.option(
+    "-e",
+    "--env",
+    metavar="VAR=VAL",
+    multiple=True,
+    help=(
+        "Set environment variable in container "
+        "Use multiple options to define more than one variable"
+    ),
+)
+def data_cp(
+    source: str,
+    destination: str,
+    extract: bool,
+    compress: bool,
+    volume: Sequence[str],
+    env: Sequence[str],
+) -> None:
+    if extract and compress:
+        raise click.ClickException("Extract and compress can't be used together")
+    run_async(_data_cp(source, destination, extract, compress, volume, env))
+
+
+async def _copy_image(source: str, destination: str) -> None:
+    with tempfile.TemporaryDirectory() as tmpdir:
+        async with neuro_api.get() as client:
+            remote_image = client.parse.remote_image(image=source)
+        dockerfile_path = Path(f"{tmpdir}/Dockerfile")
+        with open(str(dockerfile_path), "w") as f:
+            f.write(
+                textwrap.dedent(
+                    f"""\
+                    FROM {_as_repo_str(remote_image)}
+                    LABEL neu.ro/source-image-uri={source}
+                    """
+                )
+            )
+        await _build_image("Dockerfile", tmpdir, destination, [], [], [])
+
+
+async def _build_image(
+    dockerfile_path: str,
+    context: str,
+    image_uri: str,
+    build_args: Sequence[str],
+    volume: Sequence[str],
+    env: Sequence[str],
+) -> None:
+    async with neuro_api.get() as client:
+        context_uri = uri_from_cli(
+            context,
+            client.username,
+            client.cluster_name,
+            allowed_schemes=("file", "storage"),
+        )
+        builder = ImageBuilder(client)
+        job = await builder.launch(
+            dockerfile_path, context_uri, image_uri, build_args, volume, env
+        )
+        while job.status == neuro_api.JobStatus.PENDING:
+            job = await client.jobs.status(job.id)
+            await asyncio.sleep(1.0)
+        async for chunk in client.jobs.monitor(job.id):
+            if not chunk:
+                break
+            click.echo(chunk.decode(errors="ignore"), nl=False)
+        job = await client.jobs.status(job.id)
+        if job.status == neuro_api.JobStatus.FAILED:
+            logger.error("The builder job has failed due to:")
+            logger.error(f"  Reason: {job.history.reason}")
+            logger.error(f"  Description: {job.history.description}")
+            exit_code = job.history.exit_code
+            if exit_code is None:
+                exit_code = EX_PLATFORMERROR
+            sys.exit(exit_code)
+        else:
+            logger.info(f"Successfully built {image_uri}")
+
+
+@image.command("build")
+@click.option("-f", "--file", default="Dockerfile")
+@click.option("--build-arg", multiple=True)
+@click.option(
+    "-v",
+    "--volume",
+    metavar="MOUNT",
+    multiple=True,
+    help=(
+        "Mounts directory from vault into container. "
+        "Use multiple options to mount more than one volume. "
+        "Use --volume=ALL to mount all accessible storage directories."
+    ),
+)
+@click.option(
+    "-e",
+    "--env",
+    metavar="VAR=VAL",
+    multiple=True,
+    help=(
+        "Set environment variable in container "
+        "Use multiple options to define more than one variable"
+    ),
+)
+@click.argument("path")
+@click.argument("image_uri")
+def image_build(
+    file: str,
+    build_arg: Sequence[str],
+    path: str,
+    image_uri: str,
+    volume: Sequence[str],
+    env: Sequence[str],
+) -> None:
+    run_async(_build_image(file, path, image_uri, build_arg, volume, env))
 
 
 @dataclass
@@ -204,644 +751,21 @@ class ImageBuilder:
         return job
 
 
-class DataCopier:
-    def __init__(self, client: neuro_api.Client):
-        self._client = client
-
-    async def launch(
-        self,
-        storage_uri: URL,
-        extract: bool,
-        src_uri: URL,
-        dst_uri: URL,
-        volume: Sequence[str],
-        env: Sequence[str],
-    ) -> neuro_api.JobDescription:
-        logger.info("Submitting a copy job")
-        copier_container = await self._create_copier_container(
-            storage_uri, extract, src_uri, dst_uri, volume, env
-        )
-        job = await self._client.jobs.run(copier_container, life_span=60 * 60)
-        logger.info(f"The copy job ID: {job.id}")
-        return job
-
-    async def _create_copier_container(
-        self,
-        storage_uri: URL,
-        extract: bool,
-        src_uri: URL,
-        dst_uri: URL,
-        volume: Sequence[str],
-        env: Sequence[str],
-    ) -> neuro_api.Container:
-        args = f"{str(src_uri)} {str(dst_uri)}"
-        if extract:
-            args = f"-x {args}"
-
-        env_dict, secret_env_dict = self._client.parse.env(env)
-        vol = self._client.parse.volumes(volume)
-        volumes, secret_files = list(vol.volumes), list(vol.secret_files)
-        volumes.append(neuro_api.Volume(storage_uri, "/var/storage"))
-
-        gcp_env = "GOOGLE_APPLICATION_CREDENTIALS"
-        cmd = (
-            f'( [ "${gcp_env}" ] && '
-            f"gcloud auth activate-service-account --key-file ${gcp_env} ) ; "
-            f"neuro-extras data cp {args}"
-        )
-        return neuro_api.Container(
-            image=neuro_api.RemoteImage.new_external_image(NEURO_EXTRAS_IMAGE),
-            resources=neuro_api.Resources(cpu=2.0, memory_mb=4096),
-            volumes=volumes,
-            command=f"bash -c '{cmd} '",
-            env=env_dict,
-            secret_env=secret_env_dict,
-            secret_files=secret_files,
-        )
-
-
-class ClickLogHandler(logging.Handler):
-    def emit(self, record: logging.LogRecord) -> None:
-        try:
-            msg = self.format(record)
-            click.echo(msg)
-        except Exception:
-            self.handleError(record)
-
-
-@click.group()
-def main() -> None:
-    handler = ClickLogHandler()
-    handler.setFormatter(logging.Formatter("%(levelname)s: %(message)s"))
-
-    root_logger = logging.getLogger()
-    root_logger.setLevel(logging.INFO)
-    root_logger.addHandler(handler)
-
-
-@main.group()
-def image() -> None:
-    pass
-
-
-@main.group()
-def data() -> None:
-    pass
-
-
-class UrlType(Enum):
-    UNSUPPORTED = 0
-    LOCAL = 1
-    CLOUD = 2
-    STORAGE = 3
-
-    @staticmethod
-    def get_type(url: URL) -> "UrlType":
-        if url.scheme == "storage":
-            return UrlType.STORAGE
-        if url.scheme == "":
-            return UrlType.LOCAL
-        if url.scheme in ("s3", "gs"):
-            return UrlType.CLOUD
-        return UrlType.UNSUPPORTED
-
-
-async def _data_cp(
-    source: str,
-    destination: str,
-    extract: bool,
-    volume: Sequence[str],
-    env: Sequence[str],
-) -> None:
-    source_url = URL(source)
-    destination_url = URL(destination)
-    source_url_type = UrlType.get_type(source_url)
-    if source_url_type == UrlType.UNSUPPORTED:
-        raise ValueError(f"Unsupported source URL scheme: {source_url.scheme}")
-    destination_url_type = UrlType.get_type(destination_url)
-    if destination_url_type == UrlType.UNSUPPORTED:
-        raise ValueError(
-            f"Unsupported destination URL scheme: {destination_url.scheme}"
-        )
-
-    if source_url_type == UrlType.CLOUD and destination_url_type == UrlType.CLOUD:
-        raise ValueError(
-            "This command can't be used to copy data between cloud providers"
-        )
-    if source_url_type == UrlType.STORAGE and destination_url_type == UrlType.STORAGE:
-        raise ValueError(
-            "This command can't be used to copy data between two storage locations"
-        )
-
-    if UrlType.STORAGE in (source_url_type, destination_url_type):
-        async with neuro_api.get() as client:
-            data_copier = DataCopier(client)
-            if source_url_type == UrlType.STORAGE:
-                job = await data_copier.launch(
-                    storage_uri=source_url,
-                    src_uri=URL("/var/storage"),
-                    dst_uri=destination_url,
-                    extract=extract,
-                    volume=volume,
-                    env=env,
-                )
-            else:
-                job = await data_copier.launch(
-                    storage_uri=destination_url,
-                    src_uri=source_url,
-                    dst_uri=URL("/var/storage"),
-                    extract=extract,
-                    volume=volume,
-                    env=env,
-                )
-            while job.status == neuro_api.JobStatus.PENDING:
-                job = await client.jobs.status(job.id)
-                await asyncio.sleep(1.0)
-            async for chunk in client.jobs.monitor(job.id):
-                if not chunk:
-                    break
-                click.echo(chunk.decode(errors="ignore"), nl=False)
-            job = await client.jobs.status(job.id)
-            if job.status == neuro_api.JobStatus.FAILED:
-                logger.error("The copy job has failed due to:")
-                logger.error(f"  Reason: {job.history.reason}")
-                logger.error(f"  Description: {job.history.description}")
-                exit_code = job.history.exit_code
-                if exit_code is None:
-                    exit_code = EX_PLATFORMERROR
-                sys.exit(exit_code)
-            else:
-                logger.info("Successfully copied data")
-    else:
-        TEMP_UNPACK_DIR.mkdir(parents=True, exist_ok=True)
-        tmp_dir_name = tempfile.mkdtemp(dir=str(TEMP_UNPACK_DIR))
-        tmp_dst_url = URL.build(path=(tmp_dir_name + "/"))
-
-        await _nonstorage_cp(source_url, tmp_dst_url)
-        source_url = tmp_dst_url
-        # for clarity
-        source_url_type = UrlType.LOCAL
-
-        # at this point source is always local
-        if extract:
-            # extract to tmp dir
-            file = Path(source_url.path)
-            if file.is_dir():
-                file = list(file.glob("*"))[0]
-            suffixes = file.suffixes
-            if suffixes[-2:] == [".tar", ".gz"] or suffixes[-1] == ".tgz":
-                command = "tar"
-                args = ["zxvf", str(file), "-C", str(tmp_dst_url)]
-            elif suffixes[-2:] == [".tar", ".bz2"] or suffixes[-1] in (".tbz2", ".tbz"):
-                command = "tar"
-                args = ["jxvf", str(file), "-C", str(tmp_dst_url)]
-            elif suffixes[-1] == ".tar":
-                command = "tar"
-                args = ["xvf", str(file), "-C", str(tmp_dst_url)]
-            elif suffixes[-1] == ".gz":
-                command = "gunzip"
-                args = [str(file), str(tmp_dst_url) + file.name[:-3]]
-            elif suffixes[-1] == ".zip":
-                command = "unzip"
-                args = [str(file), "-d", str(tmp_dst_url)]
-            else:
-                raise ValueError(f"Don't know how to extract file {file.name}")
-
-            click.echo(f"Running {command} {' '.join(args)}")
-            subprocess = await asyncio.create_subprocess_exec(command, *args)
-            returncode = await subprocess.wait()
-            if returncode != 0:
-                raise click.ClickException(f"Extraction failed: {subprocess.stderr}")
-            else:
-                if file.exists():
-                    # gunzip removes src after extraction, while tar - not
-                    file.unlink()
-
-        # handle upload/rclone
-        await _nonstorage_cp(source_url, destination_url)
-
-
-async def _nonstorage_cp(source_url: URL, destination_url: URL) -> None:
-    if "s3" in (source_url.scheme, destination_url.scheme):
-        command = "aws"
-        args = ["s3", "cp", str(source_url), str(destination_url)]
-        if source_url.path.endswith("/"):
-            args.insert(2, "--recursive")
-    elif "gs" in (source_url.scheme, destination_url.scheme):
-        command = "gsutil"
-        args = ["-m", "cp", "-r", str(source_url), str(destination_url)]
-    elif source_url.scheme == "" and destination_url.scheme == "":
-        command = "rclone"
-        args = [
-            "copy",  # TODO: investigate usage of 'sync' for potential speedup.
-            "--checkers=16",  # https://rclone.org/docs/#checkers-n , default is 8
-            "--transfers=8",  # https://rclone.org/docs/#transfers-n , default is 4.
-            "--verbose=1",  # default is 0, set 2 for debug
-            str(source_url),
-            str(destination_url),
-        ]
-    else:
-        raise ValueError("Unknown cloud provider")
-    click.echo(f"Running {command} {' '.join(args)}")
-    subprocess = await asyncio.create_subprocess_exec(command, *args)
-    returncode = await subprocess.wait()
-    if returncode != 0:
-        raise click.ClickException("Cloud copy failed")
-    elif UrlType.get_type(source_url) == UrlType.LOCAL:
-        source_path = Path(source_url.path)
-        if source_path.is_dir():
-            dir_util.remove_tree(str(source_path))
-        else:
-            source_path.unlink()
-
-
-@data.command("cp")
-@click.argument("source")
-@click.argument("destination")
-@click.option("-x", "--extract", default=False, is_flag=True)
-@click.option(
-    "-v",
-    "--volume",
-    metavar="MOUNT",
-    multiple=True,
-    help=(
-        "Mounts directory from vault into container. "
-        "Use multiple options to mount more than one volume. "
-        "Use --volume=ALL to mount all accessible storage directories."
-    ),
-)
-@click.option(
-    "-e",
-    "--env",
-    metavar="VAR=VAL",
-    multiple=True,
-    help=(
-        "Set environment variable in container "
-        "Use multiple options to define more than one variable"
-    ),
-)
-def data_cp(
-    source: str,
-    destination: str,
-    extract: bool,
-    volume: Sequence[str],
-    env: Sequence[str],
-) -> None:
-    """
-    Sample test commands:
-    neuro-extras data cp -x s3://my-bucket/data.zip /tmp/
-    neuro-extras data cp s3://sra-pub-sars-cov2/sra-src/SRR9967744/ /tmp/
-    neuro-extras data cp gs://gcp-public-data--broad-references/refdisk_manifest.json \
-            /tmp/refdisk_manifest.json
-    neuro-extras data cp s3://sra-pub-sars-cov2/sra-src/SRR9967744/ storage:
-    """
-    run_async(_data_cp(source, destination, extract, volume, env))
-
-
-@image.command("build")
-@click.option("-f", "--file", default="Dockerfile")
-@click.option("--build-arg", multiple=True)
-@click.option(
-    "-v",
-    "--volume",
-    metavar="MOUNT",
-    multiple=True,
-    help=(
-        "Mounts directory from vault into container. "
-        "Use multiple options to mount more than one volume. "
-        "Use --volume=ALL to mount all accessible storage directories."
-    ),
-)
-@click.option(
-    "-e",
-    "--env",
-    metavar="VAR=VAL",
-    multiple=True,
-    help=(
-        "Set environment variable in container "
-        "Use multiple options to define more than one variable"
-    ),
-)
-@click.argument("path")
-@click.argument("image_uri")
-def image_build(
-    file: str,
-    build_arg: Sequence[str],
-    path: str,
-    image_uri: str,
-    volume: Sequence[str],
-    env: Sequence[str],
-) -> None:
-    run_async(_build_image(file, path, image_uri, build_arg, volume, env))
-
-
-@image.command("copy")
-@click.argument("source")
-@click.argument("destination")
-def image_copy(source: str, destination: str) -> None:
-    run_async(_copy_image(source, destination))
-
-
-@main.command("cp")
-@click.argument("source")
-@click.argument("destination")
-def cluster_copy(source: str, destination: str) -> None:
-    run_async(_copy_storage(source, destination))
-
-
-async def _copy_storage(source: str, destination: str) -> None:
-    src_uri = uri_from_cli(source, "", "")
-    src_cluster = src_uri.host
-    src_path = src_uri.parts[2:]
-
-    dst_uri = uri_from_cli(destination, "", "")
-    dst_cluster = dst_uri.host
-    dst_path = dst_uri.parts[2:]
-
-    assert src_cluster
-    assert dst_cluster
+async def _create_k8s_secret(name: str) -> Dict[str, Any]:
     async with neuro_api.get() as client:
-        await client.config.switch_cluster(dst_cluster)
-        await client.storage.mkdir(URL("storage:"), parents=True, exist_ok=True)
-    await _run_copy_container(src_cluster, "/".join(src_path), "/".join(dst_path))
-
-
-async def _run_copy_container(src_cluster: str, src_path: str, dst_path: str) -> None:
-    args = [
-        "neuro",
-        "run",
-        "-s",
-        "cpu-small",
-        "--pass-config",
-        "-v",
-        "storage:://storage",
-        "-e",
-        f"NEURO_CLUSTER={src_cluster}",
-        NEURO_EXTRAS_IMAGE,
-        f"neuro cp --progress -r -u -T storage:{src_path} /storage/{dst_path}",
-    ]
-    cmd = " ".join(args)
-    print(f"Executing '{cmd}'")
-    subprocess = await asyncio.create_subprocess_shell(cmd)
-    returncode = await subprocess.wait()
-    if returncode != 0:
-        raise Exception("Unable to copy storage")
-
-
-async def _copy_image(source: str, destination: str) -> None:
-    with tempfile.TemporaryDirectory() as tmpdir:
-        async with neuro_api.get() as client:
-            remote_image = client.parse.remote_image(image=source)
-        dockerfile_path = Path(f"{tmpdir}/Dockerfile")
-        with open(str(dockerfile_path), "w") as f:
-            f.write(
-                textwrap.dedent(
-                    f"""\
-                    FROM {_as_repo_str(remote_image)}
-                    LABEL neu.ro/source-image-uri={source}
-                    """
-                )
-            )
-        await _build_image("Dockerfile", tmpdir, destination, [], [], [])
-
-
-async def _build_image(
-    dockerfile_path: str,
-    context: str,
-    image_uri: str,
-    build_args: Sequence[str],
-    volume: Sequence[str],
-    env: Sequence[str],
-) -> None:
-    async with neuro_api.get() as client:
-        context_uri = uri_from_cli(
-            context,
-            client.username,
-            client.cluster_name,
-            allowed_schemes=("file", "storage"),
-        )
-        builder = ImageBuilder(client)
-        job = await builder.launch(
-            dockerfile_path, context_uri, image_uri, build_args, volume, env
-        )
-        while job.status == neuro_api.JobStatus.PENDING:
-            job = await client.jobs.status(job.id)
-            await asyncio.sleep(1.0)
-        async for chunk in client.jobs.monitor(job.id):
-            if not chunk:
-                break
-            click.echo(chunk.decode(errors="ignore"), nl=False)
-        job = await client.jobs.status(job.id)
-        if job.status == neuro_api.JobStatus.FAILED:
-            logger.error("The builder job has failed due to:")
-            logger.error(f"  Reason: {job.history.reason}")
-            logger.error(f"  Description: {job.history.description}")
-            exit_code = job.history.exit_code
-            if exit_code is None:
-                exit_code = EX_PLATFORMERROR
-            sys.exit(exit_code)
-        else:
-            logger.info(f"Successfully built {image_uri}")
-
-
-@main.group()
-def seldon() -> None:
-    pass
-
-
-@seldon.command("init-package")
-@click.argument("path", default=".")
-def seldon_init_package(path: str) -> None:
-    run_async(_init_seldon_package(path))
-
-
-async def _init_seldon_package(path: str) -> None:
-    async with neuro_api.get() as client:
-        uri = uri_from_cli(
-            path,
-            client.username,
-            client.cluster_name,
-            allowed_schemes=("file", "storage"),
-        )
-        click.echo(f"Copying a Seldon package scaffolding into {uri}")
-        if uri.scheme == "file":
-            dir_util.copy_tree(str(SELDON_CUSTOM_PATH), path)
-        else:
-            await client.storage.mkdir(uri, parents=True)
-            await client.storage.upload_dir(URL(SELDON_CUSTOM_PATH.as_uri()), uri)
-
-
-@main.command("upload")
-@click.argument("path")
-def upload(path: str) -> None:
-    """
-    Upload neuro project files to storage
-
-    Uploads file (or files under) project-root/PATH to
-    storage://remote-project-dir/PATH. You can use "." for PATH to upload
-    whole project. The "remote-project-dir" is set using .neuro.toml config,
-    as in example:
-
-    \b
-    [extra]
-    remote-project-dir = "project-dir-name"
-    """
-    return_code = run_async(_upload(path))
-    exit(return_code)
-
-
-@main.command("download")
-@click.argument("path")
-def download(path: str) -> None:
-    """
-    Download neuro project files from storage
-
-    Downloads file (or files under) from storage://remote-project-dir/PATH
-    to project-root/PATH. You can use "." for PATH to download whole project.
-    The "remote-project-dir" is set using .neuro.toml config, as in example:
-
-    \b
-    [extra]
-    remote-project-dir = "project-dir-name"
-    """
-    return_code = run_async(_download(path))
-    exit(return_code)
-
-
-def _get_project_root() -> Path:
-    try:
-        return find_project_root()
-    except ConfigError:
-        raise click.ClickException(
-            "Not a Neu.ro project directory (or any of the parent directories)."
-        )
-
-
-async def _get_remote_project_root() -> Path:
-    config = await load_user_config(Path("~/.neuro"))
-    try:
-        return Path(config["extra"]["remote-project-dir"])
-    except KeyError:
-        raise click.ClickException(
-            '"remote-project-dir" configuration variable is not set. Please add'
-            ' it to "extra" section of project config file.'
-        )
-
-
-async def _ensure_folder_exists(path: Path, remote: bool = False) -> None:
-    if remote:
-        subprocess = await asyncio.create_subprocess_exec(
-            "neuro", "mkdir", "-p", f"storage:{path}"
-        )
-        returncode = await subprocess.wait()
-        if returncode != 0:
-            raise click.ClickException("Was unable to create containing directory")
-    else:
-        path.mkdir(parents=True, exist_ok=True)
-
-
-async def _upload(path: str) -> int:
-    target = _get_project_root() / path
-    if not target.exists():
-        raise click.ClickException(f"Folder or file does not exist: {target}")
-    remote_project_root = await _get_remote_project_root()
-    await _ensure_folder_exists((remote_project_root / path).parent, True)
-    if target.is_dir():
-        subprocess = await asyncio.create_subprocess_exec(
-            "neuro",
-            "cp",
-            "--recursive",
-            "-u",
-            str(target),
-            "-T",
-            f"storage:{remote_project_root / path}",
-        )
-    else:
-        subprocess = await asyncio.create_subprocess_exec(
-            "neuro", "cp", str(target), f"storage:{remote_project_root / path}"
-        )
-    return await subprocess.wait()
-
-
-async def _download(path: str) -> int:
-    project_root = _get_project_root()
-    remote_project_root = await _get_remote_project_root()
-    await _ensure_folder_exists((project_root / path).parent, False)
-    subprocess = await asyncio.create_subprocess_exec(
-        "neuro",
-        "cp",
-        "--recursive",
-        "-u",
-        f"storage:{remote_project_root / path}",
-        "-T",
-        str(project_root / path),
-    )
-    return await subprocess.wait()
-
-
-@main.command("init-aliases")
-def init_aliases() -> None:
-    # TODO: support patching the global ~/.neuro/user.toml
-    toml_path = Path.cwd() / ".neuro.toml"
-    config: MutableMapping[str, Any] = {}
-    if toml_path.exists():
-        with toml_path.open("r") as f:
-            config = toml.load(f)
-    config.setdefault("alias", {})
-    config["alias"]["image-build"] = {
-        "exec": "neuro-extras image build",
-        "options": [
-            "-f, --file path to the Dockerfile within CONTEXT",
-            "--build-arg build arguments for Docker",
-            "-e, --env environment variables for container",
-            "-v, --volume list of volumes for container",
-        ],
-        "args": "CONTEXT IMAGE_URI",
-    }
-    config["alias"]["seldon-init-package"] = {
-        "exec": "neuro-extras seldon init-package",
-        "args": "URI_OR_PATH",
-    }
-    config["alias"]["image-copy"] = {
-        "exec": "neuro-extras image copy",
-        "args": "SOURCE DESTINATION",
-    }
-    config["alias"]["storage-cp"] = {
-        "exec": "neuro-extras cp",
-        "args": "SOURCE DESTINATION",
-    }
-    with toml_path.open("w") as f:
-        toml.dump(config, f)
-    logger.info(f"Added aliases to {toml_path}")
-
-
-@main.group()
-def config() -> None:
-    pass
-
-
-@config.command("save-docker-json")
-@click.argument("path")
-def config_save_docker_json(path: str) -> None:
-    run_async(_save_docker_json(path))
-
-
-async def _save_docker_json(path: str) -> None:
-    async with neuro_api.get() as client:
-        uri = uri_from_cli(
-            path,
-            client.username,
-            client.cluster_name,
-            allowed_schemes=("file", "storage"),
-        )
-        builder = ImageBuilder(client)
-        docker_config = await builder.create_docker_config()
-        click.echo(f"Saving Docker config.json as {uri}")
-        if uri.scheme == "file":
-            with open(path, "w") as f:
-                json.dump(docker_config.to_primitive(), f)
-        else:
-            await builder.save_docker_config(docker_config, uri)
+        payload: Dict[str, Any] = {
+            "apiVersion": "v1",
+            "kind": "Secret",
+            "metadata": {"name": name},
+            "type": "Opaque",
+            "data": {},
+        }
+        config_path = Path(client.config._path)
+        for path in config_path.iterdir():
+            if path.is_dir() or path.name in ("db-shm", "db-wal"):
+                continue
+            payload["data"][path.name] = base64.b64encode(path.read_bytes()).decode()
+        return payload
 
 
 async def _create_k8s_registry_secret(name: str) -> Dict[str, Any]:
@@ -861,21 +785,42 @@ async def _create_k8s_registry_secret(name: str) -> Dict[str, Any]:
         }
 
 
-async def _create_k8s_secret(name: str) -> Dict[str, Any]:
+@main.group()
+def k8s() -> None:
+    pass
+
+
+@k8s.command("generate-secret")
+@click.option("--name", default="neuro")
+def generate_k8s_secret(name: str) -> None:
+    payload = run_async(_create_k8s_secret(name))
+    click.echo(yaml.dump(payload), nl=False)
+
+
+@k8s.command("generate-registry-secret")
+@click.option("--name", default="neuro-registry")
+def generate_k8s_registry_secret(name: str) -> None:
+    payload = run_async(_create_k8s_registry_secret(name))
+    click.echo(yaml.dump(payload), nl=False)
+
+
+logger = logging.getLogger(__name__)
+
+
+async def _init_seldon_package(path: str) -> None:
     async with neuro_api.get() as client:
-        payload: Dict[str, Any] = {
-            "apiVersion": "v1",
-            "kind": "Secret",
-            "metadata": {"name": name},
-            "type": "Opaque",
-            "data": {},
-        }
-        config_path = Path(client.config._path)
-        for path in config_path.iterdir():
-            if path.is_dir() or path.name in ("db-shm", "db-wal"):
-                continue
-            payload["data"][path.name] = base64.b64encode(path.read_bytes()).decode()
-        return payload
+        uri = uri_from_cli(
+            path,
+            client.username,
+            client.cluster_name,
+            allowed_schemes=("file", "storage"),
+        )
+        click.echo(f"Copying a Seldon package scaffolding into {uri}")
+        if uri.scheme == "file":
+            dir_util.copy_tree(str(SELDON_CUSTOM_PATH), path)
+        else:
+            await client.storage.mkdir(uri, parents=True)
+            await client.storage.upload_dir(URL(SELDON_CUSTOM_PATH.as_uri()), uri)
 
 
 async def _create_seldon_deployment(
@@ -944,23 +889,19 @@ async def _create_seldon_deployment(
     }
 
 
+ASSETS_PATH = Path(__file__).resolve().parent / "assets"
+SELDON_CUSTOM_PATH = ASSETS_PATH / "seldon.package"
+
+
 @main.group()
-def k8s() -> None:
+def seldon() -> None:
     pass
 
 
-@k8s.command("generate-secret")
-@click.option("--name", default="neuro")
-def generate_k8s_secret(name: str) -> None:
-    payload = run_async(_create_k8s_secret(name))
-    click.echo(yaml.dump(payload), nl=False)
-
-
-@k8s.command("generate-registry-secret")
-@click.option("--name", default="neuro-registry")
-def generate_k8s_registry_secret(name: str) -> None:
-    payload = run_async(_create_k8s_registry_secret(name))
-    click.echo(yaml.dump(payload), nl=False)
+@seldon.command("init-package")
+@click.argument("path", default=".")
+def seldon_init_package(path: str) -> None:
+    run_async(_init_seldon_package(path))
 
 
 @seldon.command("generate-deployment")
@@ -986,3 +927,150 @@ def generate_seldon_deployment(
         )
     )
     click.echo(yaml.dump(payload), nl=False)
+
+
+async def _copy_storage(source: str, destination: str) -> None:
+    src_uri = uri_from_cli(source, "", "")
+    src_cluster = src_uri.host
+    src_path = src_uri.parts[2:]
+
+    dst_uri = uri_from_cli(destination, "", "")
+    dst_cluster = dst_uri.host
+    dst_path = dst_uri.parts[2:]
+
+    assert src_cluster
+    assert dst_cluster
+    async with neuro_api.get() as client:
+        await client.config.switch_cluster(dst_cluster)
+        await client.storage.mkdir(URL("storage:"), parents=True, exist_ok=True)
+    await _run_copy_container(src_cluster, "/".join(src_path), "/".join(dst_path))
+
+
+async def _run_copy_container(src_cluster: str, src_path: str, dst_path: str) -> None:
+    args = [
+        "neuro",
+        "run",
+        "-s",
+        "cpu-small",
+        "--pass-config",
+        "-v",
+        "storage:://storage",
+        "-e",
+        f"NEURO_CLUSTER={src_cluster}",
+        NEURO_EXTRAS_IMAGE,
+        f'"neuro cp --progress -r -u -T storage:{src_path} /storage/{dst_path}"',
+    ]
+    cmd = " ".join(args)
+    print(f"Executing '{cmd}'")
+    subprocess = await asyncio.create_subprocess_shell(cmd)
+    returncode = await subprocess.wait()
+    if returncode != 0:
+        raise Exception("Unable to copy storage")
+
+
+async def _upload(path: str) -> int:
+    target = _get_project_root() / path
+    if not target.exists():
+        raise click.ClickException(f"Folder or file does not exist: {target}")
+    remote_project_root = await _get_remote_project_root()
+    await _ensure_folder_exists((remote_project_root / path).parent, True)
+    if target.is_dir():
+        subprocess = await asyncio.create_subprocess_exec(
+            "neuro",
+            "cp",
+            "--recursive",
+            "-u",
+            str(target),
+            "-T",
+            f"storage:{remote_project_root / path}",
+        )
+    else:
+        subprocess = await asyncio.create_subprocess_exec(
+            "neuro", "cp", str(target), f"storage:{remote_project_root / path}"
+        )
+    return await subprocess.wait()
+
+
+async def _download(path: str) -> int:
+    project_root = _get_project_root()
+    remote_project_root = await _get_remote_project_root()
+    await _ensure_folder_exists((project_root / path).parent, False)
+    subprocess = await asyncio.create_subprocess_exec(
+        "neuro",
+        "cp",
+        "--recursive",
+        "-u",
+        f"storage:{remote_project_root / path}",
+        "-T",
+        str(project_root / path),
+    )
+    return await subprocess.wait()
+
+
+def _get_project_root() -> Path:
+    try:
+        return find_project_root()
+    except ConfigError:
+        raise click.ClickException(
+            "Not a Neu.ro project directory (or any of the parent directories)."
+        )
+
+
+async def _get_remote_project_root() -> Path:
+    config = await load_user_config(Path("~/.neuro"))
+    try:
+        return Path(config["extra"]["remote-project-dir"])
+    except KeyError:
+        raise click.ClickException(
+            '"remote-project-dir" configuration variable is not set. Please add'
+            ' it to "extra" section of project config file.'
+        )
+
+
+async def _ensure_folder_exists(path: Path, remote: bool = False) -> None:
+    if remote:
+        subprocess = await asyncio.create_subprocess_exec(
+            "neuro", "mkdir", "-p", f"storage:{path}"
+        )
+        returncode = await subprocess.wait()
+        if returncode != 0:
+            raise click.ClickException("Was unable to create containing directory")
+    else:
+        path.mkdir(parents=True, exist_ok=True)
+
+
+@main.command("upload")
+@click.argument("path")
+def upload(path: str) -> None:
+    """
+    Upload neuro project files to storage
+
+    Uploads file (or files under) project-root/PATH to
+    storage://remote-project-dir/PATH. You can use "." for PATH to upload
+    whole project. The "remote-project-dir" is set using .neuro.toml config,
+    as in example:
+
+    \b
+    [extra]
+    remote-project-dir = "project-dir-name"
+    """
+    return_code = run_async(_upload(path))
+    exit(return_code)
+
+
+@main.command("download")
+@click.argument("path")
+def download(path: str) -> None:
+    """
+    Download neuro project files from storage
+
+    Downloads file (or files under) from storage://remote-project-dir/PATH
+    to project-root/PATH. You can use "." for PATH to download whole project.
+    The "remote-project-dir" is set using .neuro.toml config, as in example:
+
+    \b
+    [extra]
+    remote-project-dir = "project-dir-name"
+    """
+    return_code = run_async(_download(path))
+    exit(return_code)
