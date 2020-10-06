@@ -10,7 +10,7 @@ from pathlib import Path
 from subprocess import CompletedProcess, check_output
 from tempfile import TemporaryDirectory
 from time import sleep
-from typing import Callable, Iterator, List, Sequence
+from typing import Callable, Iterator, List
 from unittest import mock
 
 import pytest
@@ -708,10 +708,14 @@ def args_data_cp(cli_runner: CLIRunner) -> Callable[..., List[str]]:
         dst: str,
         extract: bool,
         compress: bool,
-        disks: Sequence[str] = (),
     ) -> List[str]:
         args = ["neuro-extras", "data", "cp", src, dst]
-        if src.startswith("storage:") or dst.startswith("storage:"):
+        if (
+            src.startswith("storage:")
+            or dst.startswith("storage:")
+            or src.startswith("disk:")
+            or dst.startswith("disk:")
+        ):
             if bucket.startswith("gs://"):
                 args.extend(
                     [
@@ -732,8 +736,6 @@ def args_data_cp(cli_runner: CLIRunner) -> Callable[..., List[str]]:
                 )
             else:
                 raise NotImplementedError(bucket)
-        for disk in disks:
-            args.extend(["-v", disk])
         if extract:
             args.append("-x")
         if compress:
@@ -869,12 +871,12 @@ def test_data_cp_from_cloud_to_disk(
     cli_runner: CLIRunner,
     disk: str,
 ) -> None:
-    src = f"{GCP_BUCKET}/hello.tar.gz"
+    filename = "hello.tar.gz"
     local_folder = "/mnt/disk"
-    disk_info = f"disk:{disk}:{local_folder}:rw"
-    res = cli_runner(
-        args_data_cp(GCP_BUCKET, src, local_folder, False, False, [disk_info])
-    )
+
+    src = f"{GCP_BUCKET}/{filename}"
+    dst = f"disk:{disk}:/"
+    res = cli_runner(args_data_cp(GCP_BUCKET, src, dst, False, False))
     assert res.returncode == 0, res
 
     res = cli_runner(
@@ -882,9 +884,9 @@ def test_data_cp_from_cloud_to_disk(
             "neuro",
             "run",
             "-v",
-            disk_info,
+            f"{dst}:{local_folder}:rw",
             "ubuntu",
-            "bash -c 'ls -l /mnt/disk/hello.tar.gz'",
+            f"bash -c 'ls -l {local_folder}/{filename}'",
         ]
     )
     assert res.returncode == 0, res
