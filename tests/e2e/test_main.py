@@ -850,11 +850,16 @@ def disk(cli_runner: CLIRunner) -> Iterator[str]:
     res = cli_runner(["neuro", "disk", "create", "1G"])
     assert res.returncode == 0, res
     assert res.stderr == ""
-    disk_id, *_ = res.stdout.splitlines()[1].split()
-    print("FINDME1")
-    print(res.stdout)
-    print("FINDME2")
+    disk_id = None
+    for line in res.stdout.splitlines():
+        elements = line.split()
+        if len(elements) >= 3:
+            disk_id, storage, uri, *_ = elements
+            if disk_id.startwith("disk") and uri.startwith("disk:"):
+                break
 
+    if disk_id is None:
+        raise Exception("Unable to locate disk id in neuro output")
     yield disk_id
 
     # Delete disk
