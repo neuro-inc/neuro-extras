@@ -514,7 +514,7 @@ def data_cp(
 ) -> None:
     if extract and compress:
         raise click.ClickException("Extract and compress can't be used together")
-    run_async(_data_cp(source, destination, extract, compress, volume, env))
+    run_async(_data_cp(source, destination, extract, compress, list(volume), list(env)))
 
 
 async def _copy_image(source: str, destination: str) -> None:
