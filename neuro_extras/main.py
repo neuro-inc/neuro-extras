@@ -276,10 +276,8 @@ async def _data_cp(
             volume.append(f"{str(source_url)}:/var/storage")
             container_src_uri = URL("/var/storage")
         elif source_url_type == UrlType.DISK:
-            volume.append(f"{str(source_url)}:rw")
-            # source url is in form of "disk:UUID:/some/folder"
-            # we only need the "/some/folder" part of it
-            container_src_uri = URL(source_url.path.split(":")[1])
+            volume.append(f"{str(source_url)}:/mnt/disk:rw")
+            container_src_uri = URL("/mnt/disk/")
         else:
             container_src_uri = source_url
 
@@ -287,10 +285,8 @@ async def _data_cp(
             volume.append(f"{str(destination_url)}:/var/storage")
             container_dst_uri = URL("/var/storage")
         elif destination_url_type == UrlType.DISK:
-            volume.append(f"{str(destination_url)}:rw")
-            # destination url is in form of "disk:UUID:/some/folder"
-            # we only need the "/some/folder" part of it
-            container_dst_uri = URL(destination_url.path.split(":")[1])
+            volume.append(f"{str(destination_url)}:/mnt/disk:rw")
+            container_dst_uri = URL("/mnt/disk/")
         else:
             container_dst_uri = destination_url
 
