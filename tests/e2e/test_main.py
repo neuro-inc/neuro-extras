@@ -883,7 +883,7 @@ def test_data_cp_from_cloud_to_disk(
     # local_folder = "/mnt/disk"
 
     src = f"{GCP_BUCKET}/{filename}"
-    dst = f"disk:{disk}:/"
+    dst = f"disk:{disk}"
     res = cli_runner(args_data_cp(GCP_BUCKET, src, dst, False, False))
     assert res.returncode == 0, res
 
