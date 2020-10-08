@@ -702,9 +702,20 @@ def test_upload_download_subdir(
 
 @pytest.fixture
 def args_data_cp_from_cloud(cli_runner: CLIRunner) -> Callable[..., List[str]]:
-    def _f(bucket: str, src: str, dst: str, extract: bool, compress: bool) -> List[str]:
+    def _f(
+        bucket: str,
+        src: str,
+        dst: str,
+        extract: bool,
+        compress: bool,
+    ) -> List[str]:
         args = ["neuro-extras", "data", "cp", src, dst]
-        if src.startswith("storage:") or dst.startswith("storage:"):
+        if (
+            src.startswith("storage:")
+            or dst.startswith("storage:")
+            or src.startswith("disk:")
+            or dst.startswith("disk:")
+        ):
             if bucket.startswith("gs://"):
                 args.extend(
                     [
@@ -833,3 +844,60 @@ def test_data_cp_from_cloud_to_storage(
         res = cli_runner(["neuro", "rm", "-r", storage_url])
         if res.returncode != 0:
             logger.error(f"WARNING: Finalization failed! {res}")
+
+
+@pytest.fixture
+def disk(cli_runner: CLIRunner) -> Iterator[str]:
+    # Create disk
+    res = cli_runner(["neuro", "disk", "create", "1G"])
+    assert res.returncode == 0, res
+    assert res.stderr == ""
+    disk_id = None
+    try:
+        for line in res.stdout.splitlines():
+            elements = line.split()
+            if len(elements) >= 3:
+                disk_id, storage, uri, *_ = elements
+                if disk_id.startswith("disk") and uri.startswith("disk:"):
+                    break
+
+        if disk_id is None:
+            raise Exception("Unable to locate disk id in neuro output: \n" + res.stdout)
+        yield f"disk:{disk_id}"
+    finally:
+        # Delete disk
+        if disk_id is not None:
+            res = cli_runner(["neuro", "disk", "rm", disk_id])
+            assert res.returncode == 0, res
+            assert res.stderr == ""
+
+
+@pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="Windows path are not supported yet + no utilities on windows",
+)
+def test_data_cp_from_cloud_to_disk(
+    project_dir: Path,
+    remote_project_dir: Path,
+    args_data_cp_from_cloud: Callable[..., List[str]],
+    cli_runner: CLIRunner,
+    disk: str,
+) -> None:
+    filename = "hello.tar.gz"
+    local_folder = "/var/disk"
+
+    src = f"{GCP_BUCKET}/{filename}"
+    res = cli_runner(args_data_cp_from_cloud(GCP_BUCKET, src, disk, False, False))
+    assert res.returncode == 0, res
+
+    res = cli_runner(
+        [
+            "neuro",
+            "run",
+            "-v",
+            f"{disk}:{local_folder}:rw",
+            "ubuntu",
+            f"bash -c 'ls -l {local_folder}/{filename}'",
+        ]
+    )
+    assert res.returncode == 0, res

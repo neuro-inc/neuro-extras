@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 from distutils import dir_util
 from enum import Enum
 from pathlib import Path
-from typing import Any, AsyncIterator, Dict, MutableMapping, Sequence
+from typing import Any, AsyncIterator, Dict, List, MutableMapping, Sequence
 
 import click
 import toml
@@ -163,7 +163,6 @@ class DataCopier:
 
     async def launch(
         self,
-        storage_uri: URL,
         extract: bool,
         src_uri: URL,
         dst_uri: URL,
@@ -172,7 +171,7 @@ class DataCopier:
     ) -> neuro_api.JobDescription:
         logger.info("Submitting a copy job")
         copier_container = await self._create_copier_container(
-            storage_uri, extract, src_uri, dst_uri, volume, env
+            extract, src_uri, dst_uri, volume, env
         )
         job = await self._client.jobs.run(copier_container, life_span=60 * 60)
         logger.info(f"The copy job ID: {job.id}")
@@ -180,7 +179,6 @@ class DataCopier:
 
     async def _create_copier_container(
         self,
-        storage_uri: URL,
         extract: bool,
         src_uri: URL,
         dst_uri: URL,
@@ -191,10 +189,13 @@ class DataCopier:
         if extract:
             args = f"-x {args}"
 
-        env_dict, secret_env_dict = self._client.parse.env(env)
+        env_parse_result = self._client.parse.envs(env)
         vol = self._client.parse.volumes(volume)
-        volumes, secret_files = list(vol.volumes), list(vol.secret_files)
-        volumes.append(neuro_api.Volume(storage_uri, "/var/storage"))
+        volumes, secret_files, disk_volumes = (
+            list(vol.volumes),
+            list(vol.secret_files),
+            list(vol.disk_volumes),
+        )
 
         gcp_env = "GOOGLE_APPLICATION_CREDENTIALS"
         cmd = (
@@ -206,9 +207,10 @@ class DataCopier:
             image=neuro_api.RemoteImage.new_external_image(NEURO_EXTRAS_IMAGE),
             resources=neuro_api.Resources(cpu=2.0, memory_mb=4096),
             volumes=volumes,
+            disk_volumes=disk_volumes,
             command=f"bash -c '{cmd} '",
-            env=env_dict,
-            secret_env=secret_env_dict,
+            env=env_parse_result.env,
+            secret_env=env_parse_result.secret_env,
             secret_files=secret_files,
         )
 
@@ -218,6 +220,7 @@ class UrlType(Enum):
     LOCAL = 1
     CLOUD = 2
     STORAGE = 3
+    DISK = 4
 
     @staticmethod
     def get_type(url: URL) -> "UrlType":
@@ -227,6 +230,8 @@ class UrlType(Enum):
             return UrlType.LOCAL
         if url.scheme in ("s3", "gs"):
             return UrlType.CLOUD
+        if url.scheme == "disk":
+            return UrlType.DISK
         return UrlType.UNSUPPORTED
 
 
@@ -235,8 +240,8 @@ async def _data_cp(
     destination: str,
     extract: bool,
     compress: bool,
-    volume: Sequence[str],
-    env: Sequence[str],
+    volume: List[str],
+    env: List[str],
 ) -> None:
     source_url = URL(source)
     destination_url = URL(destination)
@@ -257,28 +262,44 @@ async def _data_cp(
         raise ValueError(
             "This command can't be used to copy data between two storage locations"
         )
+    if source_url_type == UrlType.DISK and destination_url_type == UrlType.DISK:
+        raise ValueError(
+            "This command can't be used to copy data between two persistent disks"
+        )
 
-    if UrlType.STORAGE in (source_url_type, destination_url_type):
+    # Persistent disk and storage locations must be mounted as folders to a job
+    if UrlType.STORAGE in (source_url_type, destination_url_type) or UrlType.DISK in (
+        source_url_type,
+        destination_url_type,
+    ):
+        if source_url_type == UrlType.STORAGE:
+            volume.append(f"{str(source_url)}:/var/storage")
+            container_src_uri = URL("/var/storage")
+        elif source_url_type == UrlType.DISK:
+            volume.append(f"{str(source_url)}:/var/disk:rw")
+            container_src_uri = URL("/var/disk/")
+        else:
+            container_src_uri = source_url
+
+        if destination_url_type == UrlType.STORAGE:
+            volume.append(f"{str(destination_url)}:/var/storage")
+            container_dst_uri = URL("/var/storage")
+        elif destination_url_type == UrlType.DISK:
+            volume.append(f"{str(destination_url)}:/var/disk:rw")
+            container_dst_uri = URL("/var/disk/")
+        else:
+            container_dst_uri = destination_url
+
         async with neuro_api.get() as client:
             data_copier = DataCopier(client)
-            if source_url_type == UrlType.STORAGE:
-                job = await data_copier.launch(
-                    storage_uri=source_url,
-                    src_uri=URL("/var/storage"),
-                    dst_uri=destination_url,
-                    extract=extract,
-                    volume=volume,
-                    env=env,
-                )
-            else:
-                job = await data_copier.launch(
-                    storage_uri=destination_url,
-                    src_uri=source_url,
-                    dst_uri=URL("/var/storage"),
-                    extract=extract,
-                    volume=volume,
-                    env=env,
-                )
+            job = await data_copier.launch(
+                src_uri=container_src_uri,
+                dst_uri=container_dst_uri,
+                extract=extract,
+                volume=volume,
+                env=env,
+            )
+
             while job.status == neuro_api.JobStatus.PENDING:
                 job = await client.jobs.status(job.id)
                 await asyncio.sleep(1.0)
@@ -298,6 +319,8 @@ async def _data_cp(
             else:
                 logger.info("Successfully copied data")
     else:
+        # otherwise we deal with cloud/local src and destination
+
         TEMP_UNPACK_DIR.mkdir(parents=True, exist_ok=True)
         tmp_dir_name = tempfile.mkdtemp(dir=str(TEMP_UNPACK_DIR))
         tmp_dst_url = URL.build(path=(tmp_dir_name + "/"))
@@ -487,7 +510,7 @@ def data_cp(
 ) -> None:
     if extract and compress:
         raise click.ClickException("Extract and compress can't be used together")
-    run_async(_data_cp(source, destination, extract, compress, volume, env))
+    run_async(_data_cp(source, destination, extract, compress, list(volume), list(env)))
 
 
 async def _copy_image(source: str, destination: str) -> None:
@@ -669,12 +692,20 @@ class ImageBuilder:
         if build_args:
             command += "".join([f" --build-arg {arg}" for arg in build_args])
 
-        env_dict, secret_env_dict = self._client.parse.env(env)
+        env_parse_result = self._client.parse.envs(env)
         vol = self._client.parse.volumes(volume)
-        volumes, secret_files = list(vol.volumes), list(vol.secret_files)
+        volumes, secret_files, disk_volumes = (
+            list(vol.volumes),
+            list(vol.secret_files),
+            list(vol.disk_volumes),
+        )
 
-        command += "".join([f" --build-arg {arg}" for arg in env_dict.keys()])
-        command += "".join([f" --build-arg {arg}" for arg in secret_env_dict.keys()])
+        command += "".join(
+            [f" --build-arg {arg}" for arg in env_parse_result.env.keys()]
+        )
+        command += "".join(
+            [f" --build-arg {arg}" for arg in env_parse_result.secret_env.keys()]
+        )
 
         default_volumes = [
             neuro_api.Volume(
@@ -694,9 +725,10 @@ class ImageBuilder:
             resources=neuro_api.Resources(cpu=1.0, memory_mb=4096),
             command=command,
             volumes=volumes,
+            disk_volumes=disk_volumes,
             secret_files=secret_files,
-            env=env_dict,
-            secret_env=secret_env_dict,
+            env=env_parse_result.env,
+            secret_env=env_parse_result.secret_env,
         )
 
     def parse_image_ref(self, image_uri_str: str) -> str:
