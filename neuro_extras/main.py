@@ -276,8 +276,8 @@ async def _data_cp(
             volume.append(f"{str(source_url)}:/var/storage")
             container_src_uri = URL("/var/storage")
         elif source_url_type == UrlType.DISK:
-            volume.append(f"{str(source_url)}:/mnt/disk:rw")
-            container_src_uri = URL("/mnt/disk/")
+            volume.append(f"{str(source_url)}:/var/disk:rw")
+            container_src_uri = URL("/var/disk/")
         else:
             container_src_uri = source_url
 
@@ -285,8 +285,8 @@ async def _data_cp(
             volume.append(f"{str(destination_url)}:/var/storage")
             container_dst_uri = URL("/var/storage")
         elif destination_url_type == UrlType.DISK:
-            volume.append(f"{str(destination_url)}:/mnt/disk:rw")
-            container_dst_uri = URL("/mnt/disk/")
+            volume.append(f"{str(destination_url)}:/var/disk:rw")
+            container_dst_uri = URL("/var/disk/")
         else:
             container_dst_uri = destination_url
 
@@ -505,8 +505,8 @@ def data_cp(
     destination: str,
     extract: bool,
     compress: bool,
-    volume: List[str],
-    env: List[str],
+    volume: Sequence[str],
+    env: Sequence[str],
 ) -> None:
     if extract and compress:
         raise click.ClickException("Extract and compress can't be used together")

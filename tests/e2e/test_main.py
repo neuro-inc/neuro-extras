@@ -701,7 +701,7 @@ def test_upload_download_subdir(
 
 
 @pytest.fixture
-def args_data_cp(cli_runner: CLIRunner) -> Callable[..., List[str]]:
+def args_data_cp_from_cloud(cli_runner: CLIRunner) -> Callable[..., List[str]]:
     def _f(
         bucket: str,
         src: str,
@@ -756,7 +756,7 @@ def test_data_cp_from_cloud_to_local(
     project_dir: Path,
     remote_project_dir: Path,
     cli_runner: CLIRunner,
-    args_data_cp: Callable[..., List[str]],
+    args_data_cp_from_cloud: Callable[..., List[str]],
     bucket: str,
     archive_extension: str,
     extract: bool,
@@ -764,7 +764,7 @@ def test_data_cp_from_cloud_to_local(
     TEMP_UNPACK_DIR.mkdir(parents=True, exist_ok=True)
     with TemporaryDirectory(dir=TEMP_UNPACK_DIR.expanduser()) as tmp_dir:
         src = f"{bucket}/hello.{archive_extension}"
-        res = cli_runner(args_data_cp(bucket, src, tmp_dir, extract, False))
+        res = cli_runner(args_data_cp_from_cloud(bucket, src, tmp_dir, extract, False))
         assert res.returncode == 0, res
 
         if extract:
@@ -785,7 +785,7 @@ def test_data_cp_from_cloud_to_local_compress(
     project_dir: Path,
     remote_project_dir: Path,
     cli_runner: CLIRunner,
-    args_data_cp: Callable[..., List[str]],
+    args_data_cp_from_cloud: Callable[..., List[str]],
     bucket: str,
     archive_extension: str,
 ) -> None:
@@ -793,7 +793,7 @@ def test_data_cp_from_cloud_to_local_compress(
     with TemporaryDirectory(dir=TEMP_UNPACK_DIR.expanduser()) as tmp_dir:
         src = f"{bucket}/hello.{archive_extension}"
         res = cli_runner(
-            args_data_cp(
+            args_data_cp_from_cloud(
                 bucket, src, f"{tmp_dir}/hello.{archive_extension}", False, True
             )
         )
@@ -814,7 +814,7 @@ def test_data_cp_from_cloud_to_storage(
     project_dir: Path,
     remote_project_dir: Path,
     cli_runner: CLIRunner,
-    args_data_cp: Callable[..., List[str]],
+    args_data_cp_from_cloud: Callable[..., List[str]],
     bucket: str,
     archive_extension: str,
     extract: bool,
@@ -822,7 +822,9 @@ def test_data_cp_from_cloud_to_storage(
     storage_url = f"storage:neuro-extras-data-cp/{uuid.uuid4()}"
     try:
         src = f"{bucket}/hello.{archive_extension}"
-        res = cli_runner(args_data_cp(bucket, src, storage_url, extract, False))
+        res = cli_runner(
+            args_data_cp_from_cloud(bucket, src, storage_url, extract, False)
+        )
         assert res.returncode == 0, res
 
         if extract:
@@ -851,21 +853,23 @@ def disk(cli_runner: CLIRunner) -> Iterator[str]:
     assert res.returncode == 0, res
     assert res.stderr == ""
     disk_id = None
-    for line in res.stdout.splitlines():
-        elements = line.split()
-        if len(elements) >= 3:
-            disk_id, storage, uri, *_ = elements
-            if disk_id.startswith("disk") and uri.startswith("disk:"):
-                break
+    try:
+        for line in res.stdout.splitlines():
+            elements = line.split()
+            if len(elements) >= 3:
+                disk_id, storage, uri, *_ = elements
+                if disk_id.startswith("disk") and uri.startswith("disk:"):
+                    break
 
-    if disk_id is None:
-        raise Exception("Unable to locate disk id in neuro output")
-    yield disk_id
-
-    # Delete disk
-    res = cli_runner(["neuro", "disk", "rm", disk_id])
-    assert res.returncode == 0, res
-    assert res.stderr == ""
+        if disk_id is None:
+            raise Exception("Unable to locate disk id in neuro output: \n" + res.stdout)
+        yield f"disk:{disk_id}"
+    finally:
+        # Delete disk
+        if disk_id is not None:
+            res = cli_runner(["neuro", "disk", "rm", disk_id])
+            assert res.returncode == 0, res
+            assert res.stderr == ""
 
 
 @pytest.mark.skipif(
@@ -875,16 +879,15 @@ def disk(cli_runner: CLIRunner) -> Iterator[str]:
 def test_data_cp_from_cloud_to_disk(
     project_dir: Path,
     remote_project_dir: Path,
-    args_data_cp: Callable[..., List[str]],
+    args_data_cp_from_cloud: Callable[..., List[str]],
     cli_runner: CLIRunner,
     disk: str,
 ) -> None:
     filename = "hello.tar.gz"
-    local_folder = "/mnt/disk"
+    local_folder = "/var/disk"
 
     src = f"{GCP_BUCKET}/{filename}"
-    dst = f"disk:{disk}"
-    res = cli_runner(args_data_cp(GCP_BUCKET, src, dst, False, False))
+    res = cli_runner(args_data_cp_from_cloud(GCP_BUCKET, src, disk, False, False))
     assert res.returncode == 0, res
 
     res = cli_runner(
@@ -892,7 +895,7 @@ def test_data_cp_from_cloud_to_disk(
             "neuro",
             "run",
             "-v",
-            f"{dst}:{local_folder}:rw",
+            f"{disk}:{local_folder}:rw",
             "ubuntu",
             f"bash -c 'ls -l {local_folder}/{filename}'",
         ]
