@@ -65,11 +65,11 @@ def image() -> None:
     pass
 
 
-@image.command("copy")
+@image.command("transfer")
 @click.argument("source")
 @click.argument("destination")
-def image_copy(source: str, destination: str) -> None:
-    run_async(_copy_image(source, destination))
+def image_transfer(source: str, destination: str) -> None:
+    run_async(_transfer_image(source, destination))
 
 
 @main.command("init-aliases")
@@ -95,15 +95,21 @@ def init_aliases() -> None:
         "exec": "neuro-extras seldon init-package",
         "args": "URI_OR_PATH",
     }
-    config["alias"]["image-copy"] = {
-        "exec": "neuro-extras image copy",
+    config["alias"]["image-transfer"] = {
+        "exec": "neuro-extras image transfer",
         "args": "SOURCE DESTINATION",
     }
     config["alias"]["storage-cp"] = {
         "exec": "neuro-extras cp",
+        "args": "SOURCE DESTINATION",
+    }
+    config["alias"]["data-transfer"] = {
+        "exec": "neuro-extras data transfer",
         "options": [
-            "-c, --compress Compress source files",
-            "-x, --extract Extract downloaded files",
+            "-c, --compress compress source files",
+            "-x, --extract extract downloaded files",
+            "-e, --env environment variables for container",
+            "-v, --volume list of volumes for container",
         ],
         "args": "SOURCE DESTINATION",
     }
@@ -235,7 +241,7 @@ class UrlType(Enum):
         return UrlType.UNSUPPORTED
 
 
-async def _data_cp(
+async def _data_transfer(
     source: str,
     destination: str,
     extract: bool,
@@ -256,15 +262,15 @@ async def _data_cp(
 
     if source_url_type == UrlType.CLOUD and destination_url_type == UrlType.CLOUD:
         raise ValueError(
-            "This command can't be used to copy data between cloud providers"
+            "This command can't be used to transfer data between cloud providers"
         )
     if source_url_type == UrlType.STORAGE and destination_url_type == UrlType.STORAGE:
         raise ValueError(
-            "This command can't be used to copy data between two storage locations"
+            "This command can't be used to transfer data between two storage locations"
         )
     if source_url_type == UrlType.DISK and destination_url_type == UrlType.DISK:
         raise ValueError(
-            "This command can't be used to copy data between two persistent disks"
+            "This command can't be used to transfer data between two persistent disks"
         )
 
     # Persistent disk and storage locations must be mounted as folders to a job
@@ -309,7 +315,7 @@ async def _data_cp(
                 click.echo(chunk.decode(errors="ignore"), nl=False)
             job = await client.jobs.status(job.id)
             if job.status == neuro_api.JobStatus.FAILED:
-                logger.error("The copy job has failed due to:")
+                logger.error("The transfer job has failed due to:")
                 logger.error(f"  Reason: {job.history.reason}")
                 logger.error(f"  Description: {job.history.description}")
                 exit_code = job.history.exit_code
@@ -317,7 +323,7 @@ async def _data_cp(
                     exit_code = EX_PLATFORMERROR
                 sys.exit(exit_code)
             else:
-                logger.info("Successfully copied data")
+                logger.info("Successfully transfered data")
     else:
         # otherwise we deal with cloud/local src and destination
 
@@ -453,7 +459,7 @@ async def _nonstorage_cp(
                     source_path.unlink()
 
 
-@data.command("cp")
+@data.command("transfer")
 @click.argument("source")
 @click.argument("destination")
 @click.option(
@@ -500,7 +506,7 @@ async def _nonstorage_cp(
         "Use multiple options to define more than one variable"
     ),
 )
-def data_cp(
+def data_transfer(
     source: str,
     destination: str,
     extract: bool,
@@ -510,10 +516,12 @@ def data_cp(
 ) -> None:
     if extract and compress:
         raise click.ClickException("Extract and compress can't be used together")
-    run_async(_data_cp(source, destination, extract, compress, list(volume), list(env)))
+    run_async(
+        _data_transfer(source, destination, extract, compress, list(volume), list(env))
+    )
 
 
-async def _copy_image(source: str, destination: str) -> None:
+async def _transfer_image(source: str, destination: str) -> None:
     with tempfile.TemporaryDirectory() as tmpdir:
         async with neuro_api.get() as client:
             remote_image = client.parse.remote_image(image=source)
