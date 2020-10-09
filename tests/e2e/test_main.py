@@ -215,7 +215,7 @@ def test_storage_copy(cli_runner: CLIRunner) -> None:
 
 
 @pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
-def test_image_transfer(cli_runner: CLIRunner) -> None:
+def test_image_copy(cli_runner: CLIRunner) -> None:
     result = cli_runner(["neuro-extras", "init-aliases"])
     assert result.returncode == 0, result
 
@@ -252,7 +252,7 @@ def test_image_transfer(cli_runner: CLIRunner) -> None:
     assert result.returncode == 0, result
     assert tag in result.stdout
 
-    result = cli_runner(["neuro", "image-transfer", img_uri_str, image])
+    result = cli_runner(["neuro", "image-copy", img_uri_str, image])
     assert result.returncode == 0, result
     sleep(10)
     result = cli_runner(["neuro", "image", "tags", image])
@@ -701,7 +701,7 @@ def test_upload_download_subdir(
 
 
 @pytest.fixture
-def args_data_transfer_from_cloud(cli_runner: CLIRunner) -> Callable[..., List[str]]:
+def args_data_cp_from_cloud(cli_runner: CLIRunner) -> Callable[..., List[str]]:
     def _f(
         bucket: str,
         src: str,
@@ -709,7 +709,7 @@ def args_data_transfer_from_cloud(cli_runner: CLIRunner) -> Callable[..., List[s
         extract: bool,
         compress: bool,
     ) -> List[str]:
-        args = ["neuro-extras", "data", "transfer", src, dst]
+        args = ["neuro-extras", "data", "cp", src, dst]
         if (
             src.startswith("storage:")
             or dst.startswith("storage:")
@@ -752,11 +752,11 @@ def args_data_transfer_from_cloud(cli_runner: CLIRunner) -> Callable[..., List[s
     sys.platform == "win32",
     reason="Windows path are not supported yet + no utilities on windows",
 )
-def test_data_transfer_from_cloud_to_local(
+def test_data_cp_from_cloud_to_local(
     project_dir: Path,
     remote_project_dir: Path,
     cli_runner: CLIRunner,
-    args_data_transfer_from_cloud: Callable[..., List[str]],
+    args_data_cp_from_cloud: Callable[..., List[str]],
     bucket: str,
     archive_extension: str,
     extract: bool,
@@ -764,9 +764,7 @@ def test_data_transfer_from_cloud_to_local(
     TEMP_UNPACK_DIR.mkdir(parents=True, exist_ok=True)
     with TemporaryDirectory(dir=TEMP_UNPACK_DIR.expanduser()) as tmp_dir:
         src = f"{bucket}/hello.{archive_extension}"
-        res = cli_runner(
-            args_data_transfer_from_cloud(bucket, src, tmp_dir, extract, False)
-        )
+        res = cli_runner(args_data_cp_from_cloud(bucket, src, tmp_dir, extract, False))
         assert res.returncode == 0, res
 
         if extract:
@@ -783,11 +781,11 @@ def test_data_transfer_from_cloud_to_local(
     sys.platform == "win32",
     reason="Windows path are not supported yet + no utilities on windows",
 )
-def test_data_transfer_from_cloud_to_local_compress(
+def test_data_cp_from_cloud_to_local_compress(
     project_dir: Path,
     remote_project_dir: Path,
     cli_runner: CLIRunner,
-    args_data_transfer_from_cloud: Callable[..., List[str]],
+    args_data_cp_from_cloud: Callable[..., List[str]],
     bucket: str,
     archive_extension: str,
 ) -> None:
@@ -795,7 +793,7 @@ def test_data_transfer_from_cloud_to_local_compress(
     with TemporaryDirectory(dir=TEMP_UNPACK_DIR.expanduser()) as tmp_dir:
         src = f"{bucket}/hello.{archive_extension}"
         res = cli_runner(
-            args_data_transfer_from_cloud(
+            args_data_cp_from_cloud(
                 bucket, src, f"{tmp_dir}/hello.{archive_extension}", False, True
             )
         )
@@ -812,11 +810,11 @@ def test_data_transfer_from_cloud_to_local_compress(
     sys.platform == "win32",
     reason="Windows path are not supported yet + no utilities on windows",
 )
-def test_data_transfer_from_cloud_to_storage(
+def test_data_cp_from_cloud_to_storage(
     project_dir: Path,
     remote_project_dir: Path,
     cli_runner: CLIRunner,
-    args_data_transfer_from_cloud: Callable[..., List[str]],
+    args_data_cp_from_cloud: Callable[..., List[str]],
     bucket: str,
     archive_extension: str,
     extract: bool,
@@ -825,7 +823,7 @@ def test_data_transfer_from_cloud_to_storage(
     try:
         src = f"{bucket}/hello.{archive_extension}"
         res = cli_runner(
-            args_data_transfer_from_cloud(bucket, src, storage_url, extract, False)
+            args_data_cp_from_cloud(bucket, src, storage_url, extract, False)
         )
         assert res.returncode == 0, res
 
@@ -878,10 +876,10 @@ def disk(cli_runner: CLIRunner) -> Iterator[str]:
     sys.platform == "win32",
     reason="Windows path are not supported yet + no utilities on windows",
 )
-def test_data_transfer_from_cloud_to_disk(
+def test_data_cp_from_cloud_to_disk(
     project_dir: Path,
     remote_project_dir: Path,
-    args_data_transfer_from_cloud: Callable[..., List[str]],
+    args_data_cp_from_cloud: Callable[..., List[str]],
     cli_runner: CLIRunner,
     disk: str,
 ) -> None:
@@ -889,7 +887,7 @@ def test_data_transfer_from_cloud_to_disk(
     local_folder = "/var/disk"
 
     src = f"{GCP_BUCKET}/{filename}"
-    res = cli_runner(args_data_transfer_from_cloud(GCP_BUCKET, src, disk, False, False))
+    res = cli_runner(args_data_cp_from_cloud(GCP_BUCKET, src, disk, False, False))
     assert res.returncode == 0, res
 
     res = cli_runner(
