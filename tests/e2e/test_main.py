@@ -182,7 +182,7 @@ def test_ignored_files_are_not_copied(
     assert ignored_file_content not in result.stdout
 
 
-def test_storage_copy(cli_runner: CLIRunner) -> None:
+def test_data_transfer(cli_runner: CLIRunner) -> None:
     result = cli_runner(["neuro-extras", "init-aliases"])
     assert result.returncode == 0, result
 
@@ -206,7 +206,7 @@ def test_storage_copy(cli_runner: CLIRunner) -> None:
     result = cli_runner(
         [
             "neuro",
-            "storage-cp",
+            "data-transfer",
             f"storage://{current_cluster}/{username}/{src_path}",
             f"storage://{current_cluster}/{username}/{dst_path}",
         ]
@@ -215,7 +215,7 @@ def test_storage_copy(cli_runner: CLIRunner) -> None:
 
 
 @pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
-def test_image_copy(cli_runner: CLIRunner) -> None:
+def test_image_transfer(cli_runner: CLIRunner) -> None:
     result = cli_runner(["neuro-extras", "init-aliases"])
     assert result.returncode == 0, result
 
@@ -252,7 +252,7 @@ def test_image_copy(cli_runner: CLIRunner) -> None:
     assert result.returncode == 0, result
     assert tag in result.stdout
 
-    result = cli_runner(["neuro", "image-copy", img_uri_str, image])
+    result = cli_runner(["neuro", "image-transfer", img_uri_str, image])
     assert result.returncode == 0, result
     sleep(10)
     result = cli_runner(["neuro", "image", "tags", image])

@@ -53,11 +53,11 @@ def data() -> None:
     pass
 
 
-@main.command("cp")
+@data.command("transfer")
 @click.argument("source")
 @click.argument("destination")
-def cluster_copy(source: str, destination: str) -> None:
-    run_async(_copy_storage(source, destination))
+def data_transfer(source: str, destination: str) -> None:
+    run_async(_transfer_data(source, destination))
 
 
 @main.group()
@@ -65,11 +65,11 @@ def image() -> None:
     pass
 
 
-@image.command("copy")
+@image.command("transfer")
 @click.argument("source")
 @click.argument("destination")
-def image_copy(source: str, destination: str) -> None:
-    run_async(_copy_image(source, destination))
+def image_transfer(source: str, destination: str) -> None:
+    run_async(_transfer_image(source, destination))
 
 
 @main.command("init-aliases")
@@ -95,15 +95,21 @@ def init_aliases() -> None:
         "exec": "neuro-extras seldon init-package",
         "args": "URI_OR_PATH",
     }
-    config["alias"]["image-copy"] = {
-        "exec": "neuro-extras image copy",
+    config["alias"]["image-transfer"] = {
+        "exec": "neuro-extras image transfer",
         "args": "SOURCE DESTINATION",
     }
-    config["alias"]["storage-cp"] = {
-        "exec": "neuro-extras cp",
+    config["alias"]["data-transfer"] = {
+        "exec": "neuro-extras data transfer",
+        "args": "SOURCE DESTINATION",
+    }
+    config["alias"]["data-cp"] = {
+        "exec": "neuro-extras data cp",
         "options": [
             "-c, --compress Compress source files",
             "-x, --extract Extract downloaded files",
+            "-e, --env environment variables for container",
+            "-v, --volume list of volumes for container",
         ],
         "args": "SOURCE DESTINATION",
     }
@@ -513,7 +519,7 @@ def data_cp(
     run_async(_data_cp(source, destination, extract, compress, list(volume), list(env)))
 
 
-async def _copy_image(source: str, destination: str) -> None:
+async def _transfer_image(source: str, destination: str) -> None:
     with tempfile.TemporaryDirectory() as tmpdir:
         async with neuro_api.get() as client:
             remote_image = client.parse.remote_image(image=source)
@@ -961,7 +967,7 @@ def generate_seldon_deployment(
     click.echo(yaml.dump(payload), nl=False)
 
 
-async def _copy_storage(source: str, destination: str) -> None:
+async def _transfer_data(source: str, destination: str) -> None:
     src_uri = uri_from_cli(source, "", "")
     src_cluster = src_uri.host
     src_path = src_uri.parts[2:]
