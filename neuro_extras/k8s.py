@@ -3,9 +3,32 @@ import json
 from pathlib import Path
 from typing import Any, Dict
 
+import click
+import yaml
 from neuromation import api as neuro_api
+from neuromation.cli.asyncio_utils import run as run_async
 
-from neuro_extras.image_builder import ImageBuilder
+from .cli import main
+from .image_builder import ImageBuilder
+
+
+@main.group()
+def k8s() -> None:
+    pass
+
+
+@k8s.command("generate-secret")
+@click.option("--name", default="neuro")
+def generate_k8s_secret(name: str) -> None:
+    payload = run_async(_create_k8s_secret(name))
+    click.echo(yaml.dump(payload), nl=False)
+
+
+@k8s.command("generate-registry-secret")
+@click.option("--name", default="neuro-registry")
+def generate_k8s_registry_secret(name: str) -> None:
+    payload = run_async(_create_k8s_registry_secret(name))
+    click.echo(yaml.dump(payload), nl=False)
 
 
 async def _create_k8s_secret(name: str) -> Dict[str, Any]:

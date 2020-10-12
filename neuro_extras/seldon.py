@@ -3,16 +3,55 @@ from pathlib import Path
 from typing import Any, Dict
 
 import click
+import yaml
 from neuromation import api as neuro_api
 from neuromation.api.url_utils import uri_from_cli
+from neuromation.cli.asyncio_utils import run as run_async
 from yarl import URL
 
-from neuro_extras.data_copier import NEURO_EXTRAS_IMAGE
-from neuro_extras.image_builder import ImageBuilder
+from .cli import main
+from .data_copier import NEURO_EXTRAS_IMAGE
+from .image_builder import ImageBuilder
 
 
 ASSETS_PATH = Path(__file__).resolve().parent / "assets"
 SELDON_CUSTOM_PATH = ASSETS_PATH / "seldon.package"
+
+
+@main.group()
+def seldon() -> None:
+    pass
+
+
+@seldon.command("init-package")
+@click.argument("path", default=".")
+def seldon_init_package(path: str) -> None:
+    run_async(_init_seldon_package(path))
+
+
+@seldon.command("generate-deployment")
+@click.option("--name", default="neuro-model")
+@click.option("--neuro-secret", default="neuro")
+@click.option("--registry-secret", default="neuro-registry")
+@click.argument("model-image-uri")
+@click.argument("model-storage-uri")
+def generate_seldon_deployment(
+    name: str,
+    neuro_secret: str,
+    registry_secret: str,
+    model_image_uri: str,
+    model_storage_uri: str,
+) -> None:
+    payload = run_async(
+        _create_seldon_deployment(
+            name=name,
+            neuro_secret_name=neuro_secret,
+            registry_secret_name=registry_secret,
+            model_image_uri=model_image_uri,
+            model_storage_uri=model_storage_uri,
+        )
+    )
+    click.echo(yaml.dump(payload), nl=False)
 
 
 async def _init_seldon_package(path: str) -> None:

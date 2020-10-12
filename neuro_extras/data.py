@@ -5,15 +5,17 @@ import tempfile
 from distutils import dir_util
 from enum import Enum
 from pathlib import Path
-from typing import List
+from typing import List, Sequence
 
 import click
 from neuromation import api as neuro_api
 from neuromation.api.url_utils import uri_from_cli
+from neuromation.cli.asyncio_utils import run as run_async
 from neuromation.cli.const import EX_PLATFORMERROR
 from yarl import URL
 
-from neuro_extras.data_copier import NEURO_EXTRAS_IMAGE, DataCopier
+from .cli import main
+from .data_copier import NEURO_EXTRAS_IMAGE, DataCopier
 
 
 logger = logging.getLogger(__name__)
@@ -49,6 +51,78 @@ class UrlType(Enum):
         if url.scheme == "disk":
             return UrlType.DISK
         return UrlType.UNSUPPORTED
+
+
+@main.group()
+def data() -> None:
+    pass
+
+
+@data.command("transfer")
+@click.argument("source")
+@click.argument("destination")
+def data_transfer(source: str, destination: str) -> None:
+    run_async(_transfer_data(source, destination))
+
+
+@data.command("cp")
+@click.argument("source")
+@click.argument("destination")
+@click.option(
+    "-x",
+    "--extract",
+    default=False,
+    is_flag=True,
+    help=(
+        "Perform extraction of SOURCE into the temporal folder and move "
+        "extracted files to DESTINATION. The archive type is derived "
+        "from the file name. "
+        f"Supported types: {', '.join(SUPPORTED_ARCHIVE_TYPES)}."
+    ),
+)
+@click.option(
+    "-c",
+    "--compress",
+    default=False,
+    is_flag=True,
+    help=(
+        "Perform compression of SOURCE into the temporal folder and move "
+        "created archive to DESTINATION. The archive type is derived "
+        "from the file name. "
+        f"Supported types: {', '.join(SUPPORTED_ARCHIVE_TYPES)}."
+    ),
+)
+@click.option(
+    "-v",
+    "--volume",
+    metavar="MOUNT",
+    multiple=True,
+    help=(
+        "Mounts directory from vault into container. "
+        "Use multiple options to mount more than one volume. "
+    ),
+)
+@click.option(
+    "-e",
+    "--env",
+    metavar="VAR=VAL",
+    multiple=True,
+    help=(
+        "Set environment variable in container "
+        "Use multiple options to define more than one variable"
+    ),
+)
+def data_cp(
+    source: str,
+    destination: str,
+    extract: bool,
+    compress: bool,
+    volume: Sequence[str],
+    env: Sequence[str],
+) -> None:
+    if extract and compress:
+        raise click.ClickException("Extract and compress can't be used together")
+    run_async(_data_cp(source, destination, extract, compress, list(volume), list(env)))
 
 
 async def _data_cp(

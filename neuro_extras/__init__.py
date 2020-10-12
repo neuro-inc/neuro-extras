@@ -1,6 +1,6 @@
 from neuromation.api import PluginManager
 
-from .main import main  # noqa
+from .main import *  # noqa
 
 
 # NOTE: When updating the version, don't forget to update main.NEURO_EXTRAS_IMAGE_TAG

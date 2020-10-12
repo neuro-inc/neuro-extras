@@ -4,6 +4,46 @@ from pathlib import Path
 import click
 from neuromation.api import ConfigError, find_project_root
 from neuromation.api.config import load_user_config
+from neuromation.cli.asyncio_utils import run as run_async
+
+from .cli import main
+
+
+@main.command("upload")
+@click.argument("path")
+def upload(path: str) -> None:
+    """
+    Upload neuro project files to storage
+
+    Uploads file (or files under) project-root/PATH to
+    storage://remote-project-dir/PATH. You can use "." for PATH to upload
+    whole project. The "remote-project-dir" is set using .neuro.toml config,
+    as in example:
+
+    \b
+    [extra]
+    remote-project-dir = "project-dir-name"
+    """
+    return_code = run_async(_upload(path))
+    exit(return_code)
+
+
+@main.command("download")
+@click.argument("path")
+def download(path: str) -> None:
+    """
+    Download neuro project files from storage
+
+    Downloads file (or files under) from storage://remote-project-dir/PATH
+    to project-root/PATH. You can use "." for PATH to download whole project.
+    The "remote-project-dir" is set using .neuro.toml config, as in example:
+
+    \b
+    [extra]
+    remote-project-dir = "project-dir-name"
+    """
+    return_code = run_async(_download(path))
+    exit(return_code)
 
 
 async def _upload(path: str) -> int:
