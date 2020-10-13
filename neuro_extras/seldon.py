@@ -10,7 +10,7 @@ from neuromation.cli.asyncio_utils import run as run_async
 from yarl import URL
 
 from .cli import main
-from .data_copier import NEURO_EXTRAS_IMAGE
+from .common import NEURO_EXTRAS_IMAGE
 from .image_builder import ImageBuilder
 
 

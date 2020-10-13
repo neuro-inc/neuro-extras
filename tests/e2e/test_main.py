@@ -21,8 +21,8 @@ from neuromation.cli.const import EX_OK
 from neuromation.cli.main import cli as neuro_main
 
 from neuro_extras import main as extras_main
+from neuro_extras.common import NEURO_EXTRAS_IMAGE
 from neuro_extras.data import TEMP_UNPACK_DIR
-from neuro_extras.data_copier import NEURO_EXTRAS_IMAGE
 
 from .conftest import CLIRunner, Secret, gen_random_file
 
