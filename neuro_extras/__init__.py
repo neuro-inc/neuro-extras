@@ -4,7 +4,7 @@ from .main import main  # noqa
 
 
 # NOTE: When updating the version, don't forget to update main.NEURO_EXTRAS_IMAGE_TAG
-__version__ = "v20.9.30.2"
+__version__ = "v20.10.14a1"
 
 
 def setup_plugin(manager: PluginManager) -> None:
