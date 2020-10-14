@@ -1,16 +1,15 @@
 # Versioning
 
-The project uses release versioning a format YY.MM.DD. For instance, when releasing a version on Sep 15, 2021, it would be versionsed as 21.9.15. Note there's no leading zeroes in day and month number.
+The project uses release versioning a format `YY.MM.DD`. For instance, when releasing a version on Sep 15, 2021, it would be versionsed as `21.9.15` (no zero before `9`). Note: you'll be setting version in format `vYY.MM.DD`, prefix `v` will be cut automatically.
+
 
 # Release process
-The release process is logically split onto two steps: firstly we release docker image with an updated code,
-  afterwards we release an updated `neuro-extras` Python package to PyPi.
 
-*Note*: Start with step 1 if the docker image should be updated. Otherwise - start with step 5.
+*Note*: Start with part 1 if the docker image should be updated. Otherwise - go directly to part 2.
 
 Suppose, today is October 14, 2020, and we want to update both neuro-extras pip package and docker image.
 
-- Make sure all tests are green in `master` branch.
+0. Make sure all tests are green in `master` branch.
 
 ## Part 1: alpha-release
 
