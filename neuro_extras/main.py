@@ -1000,10 +1000,18 @@ async def _run_copy_container(src_cluster: str, src_path: str, dst_path: str) ->
     ]
     cmd = " ".join(args)
     print(f"Executing '{cmd}'")
-    subprocess = await asyncio.create_subprocess_shell(cmd)
+    subprocess = await asyncio.create_subprocess_shell(
+        cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
+    )
+    stdout, stderr = await subprocess.communicate()
     returncode = await subprocess.wait()
     if returncode != 0:
-        raise Exception("Unable to copy storage")
+        raise Exception(
+            "Unable to copy storage\n"
+            + stdout.decode("utf-8")
+            + "\n"
+            + stderr.decode("utf-8")
+        )
 
 
 async def _upload(path: str) -> int:

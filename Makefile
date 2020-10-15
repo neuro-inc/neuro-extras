@@ -2,7 +2,7 @@ PYTEST_FLAGS=
 
 .PHONY: setup
 setup:
-	pip install -r requirements/test.txt -c requirements/constraints.txt
+	pip install -r requirements/test.txt
 
 .PHONY: lint
 lint:

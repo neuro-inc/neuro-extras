@@ -13,10 +13,11 @@ with open("neuro_extras/__init__.py") as f:
 
 install_requires = [
     "neuromation>=20.9.24",
-    "yarl",
     "click",
     "toml",
     "pyyaml",
+    "yarl==1.5.1",
+    "multidict==4.7.6",
     'dataclasses>=0.5; python_version<"3.7"',
 ]
 
