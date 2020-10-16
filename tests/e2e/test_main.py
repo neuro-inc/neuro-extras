@@ -27,6 +27,10 @@ from .conftest import CLIRunner, Secret, gen_random_file
 
 logger = logging.getLogger(__name__)
 
+TERM_WIDTH = 80
+SEP_BEGIN = "=" * TERM_WIDTH
+SEP_END = "-" * TERM_WIDTH
+
 
 @pytest.fixture
 def project_dir() -> Iterator[Path]:
@@ -71,6 +75,8 @@ def cli_runner(capfd: CaptureFixture[str], project_dir: Path) -> CLIRunner:
         except SystemExit as e:
             code = e.code
         out, err = capfd.readouterr()
+        logger.debug(f"Stdout:\n{SEP_BEGIN}\n{out.strip()}\n{SEP_END}\nStdout finished")
+        logger.debug(f"Stderr:\n{SEP_BEGIN}\n{err.strip()}\n{SEP_END}\nStderr finished")
         return CompletedProcess(
             args=[cmd] + args, returncode=code, stdout=out.strip(), stderr=err.strip()
         )
