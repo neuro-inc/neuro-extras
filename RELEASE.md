@@ -7,7 +7,7 @@ The project uses release versioning a format `YY.MM.DD`. For instance, when rele
 
 *Note*: Start with part 1 if the docker image should be updated. Otherwise - go directly to part 2.
 
-Suppose, today is October 14, 2020, and we want to update both neuro-extras pip package and docker image.
+Suppose, today is October 15, 2020, and we want to update both neuro-extras pip package and docker image.
 
 0. Make sure all tests are green in `master` branch.
 
