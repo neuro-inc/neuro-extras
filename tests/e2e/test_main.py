@@ -13,10 +13,10 @@ from time import sleep
 from typing import Callable, Iterator, List
 from unittest import mock
 
-import iocapture
 import pytest
 import toml
 import yaml
+from _pytest.capture import CaptureFixture
 from neuromation.cli.const import EX_OK
 from neuromation.cli.main import cli as neuro_main
 
@@ -45,7 +45,7 @@ AWS_BUCKET = "s3://cookiecutter-e2e"
 
 
 @pytest.fixture()
-def cli_runner(project_dir: Path) -> CLIRunner:
+def cli_runner(capfd: CaptureFixture[str], project_dir: Path) -> CLIRunner:
     def _run_cli(args: List[str]) -> CompletedProcess:  # type: ignore
         cmd = args.pop(0)
         if cmd not in ("neuro", "neuro-extras"):
@@ -54,6 +54,7 @@ def cli_runner(project_dir: Path) -> CLIRunner:
         logger.info(
             f"Run '{cmd} {' '.join(args)}'",
         )
+        capfd.readouterr()
 
         main = extras_main
         if cmd == "neuro":
@@ -65,15 +66,11 @@ def cli_runner(project_dir: Path) -> CLIRunner:
             main = neuro_main
 
         code = EX_OK
-        with iocapture.capture() as captured:
-            try:
-                main(args)
-            except SystemExit as e:
-                code = e.code
-            finally:
-                out = captured.stdout
-                err = captured.stderr
-
+        try:
+            main(args)
+        except SystemExit as e:
+            code = e.code
+        out, err = capfd.readouterr()
         return CompletedProcess(
             args=[cmd] + args, returncode=code, stdout=out.strip(), stderr=err.strip()
         )
