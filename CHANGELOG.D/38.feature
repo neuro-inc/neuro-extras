@@ -1,1 +1,0 @@
-Add `-c` / `--compress` option to `data cp` to support data packing before sending to destination

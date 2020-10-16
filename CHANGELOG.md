@@ -26,6 +26,16 @@ Features
 
 [comment]: # (towncrier release notes start)
 
+Neuro_Extras v20.10.16 (2020-10-16)
+===================================
+
+Features
+--------
+
+
+- Add `-c` / `--compress` option to `data cp` to support data packing before sending to destination ([#38](https://github.com/neuromation/neuro-extras/issues/38))
+
+
 Neuro_Extras v20.9.30.2 (2020-09-30)
 ====================================
 
