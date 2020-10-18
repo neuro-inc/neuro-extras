@@ -45,6 +45,9 @@ SUPPORTED_OBJECT_STORAGE_SCHEMES = {
 
 @click.group()
 def main() -> None:
+    """
+    Auxiliary scripts and recipes for automating routine tasks.
+    """
     handler = ClickLogHandler()
     handler.setFormatter(logging.Formatter("%(levelname)s: %(message)s"))
 
@@ -91,6 +94,9 @@ def image_transfer(source: str, destination: str) -> None:
 
 @main.command("init-aliases")
 def init_aliases() -> None:
+    """
+    Create neuro CLI aliases for neuro-extras functionality.
+    """
     # TODO: support patching the global ~/.neuro/user.toml
     toml_path = Path.cwd() / ".neuro.toml"
     config: MutableMapping[str, Any] = {}
@@ -176,9 +182,7 @@ def config() -> None:
 
 @config.command(
     "save-docker-json",
-    help=(
-        "Generate JSON configuration file for accessing cluster registry."
-    ),
+    help="Generate JSON configuration file for accessing cluster registry.",
 )
 @click.argument("path")
 def config_save_docker_json(path: str) -> None:
@@ -228,9 +232,7 @@ class DataCopier:
             list(vol.disk_volumes),
         )
 
-        cmd = (
-            f"neuro-extras data cp {args}"
-        )
+        cmd = f"neuro-extras data cp {args}"
         return neuro_api.Container(
             image=neuro_api.RemoteImage.new_external_image(NEURO_EXTRAS_IMAGE),
             resources=neuro_api.Resources(cpu=2.0, memory_mb=4096),
@@ -486,7 +488,8 @@ async def _nonstorage_cp(
     "cp",
     help=(
         "Copy data between external object storage and cluster. "
-        f"Supported external object storage systems: {set(SUPPORTED_OBJECT_STORAGE_SCHEMES.keys())}"
+        "Supported external object storage systems: "
+        f"{set(SUPPORTED_OBJECT_STORAGE_SCHEMES.keys())}"
     ),
 )
 @click.argument("source")
@@ -605,10 +608,7 @@ async def _build_image(
 
 
 @image.command(
-    "build",
-    help=(
-        "Build Job container image remotely on cluster using Kaniko."
-    )
+    "build", help="Build Job container image remotely on cluster using Kaniko."
 )
 @click.option("-f", "--file", default="Dockerfile")
 @click.option("--build-arg", multiple=True)
@@ -859,6 +859,9 @@ async def _create_k8s_registry_secret(name: str) -> Dict[str, Any]:
 
 @main.group()
 def k8s() -> None:
+    """
+    Cluster Kubernetes operations.
+    """
     pass
 
 
@@ -967,6 +970,9 @@ SELDON_CUSTOM_PATH = ASSETS_PATH / "seldon.package"
 
 @main.group()
 def seldon() -> None:
+    """
+    Seldon deployment operations.
+    """
     pass
 
 
@@ -1115,7 +1121,7 @@ async def _ensure_folder_exists(path: Path, remote: bool = False) -> None:
 @click.argument("path")
 def upload(path: str) -> None:
     """
-    Upload neuro project files to storage
+    Upload neuro project files to storage.
 
     Uploads file (or files under) project-root/PATH to
     storage://remote-project-dir/PATH. You can use "." for PATH to upload
@@ -1134,7 +1140,7 @@ def upload(path: str) -> None:
 @click.argument("path")
 def download(path: str) -> None:
     """
-    Download neuro project files from storage
+    Download neuro project files from storage.
 
     Downloads file (or files under) from storage://remote-project-dir/PATH
     to project-root/PATH. You can use "." for PATH to download whole project.
