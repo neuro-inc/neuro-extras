@@ -203,10 +203,7 @@ class DataCopier:
             list(vol.disk_volumes),
         )
 
-        gcp_env = "GOOGLE_APPLICATION_CREDENTIALS"
         cmd = (
-            f'( [ "${gcp_env}" ] && '
-            f"gcloud auth activate-service-account --key-file ${gcp_env} ) ; "
             f"neuro-extras data cp {args}"
         )
         return neuro_api.Container(
@@ -431,6 +428,7 @@ async def _nonstorage_cp(
             args.insert(2, "--recursive")
     elif "gs" in (source_url.scheme, destination_url.scheme):
         command = "gsutil"
+        # gsutil service credentials are activated in entrypoint.sh
         args = ["-m", "cp", "-r", str(source_url), str(destination_url)]
     elif source_url.scheme == "" and destination_url.scheme == "":
         command = "rclone"
