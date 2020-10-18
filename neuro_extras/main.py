@@ -37,6 +37,11 @@ SUPPORTED_ARCHIVE_TYPES = (
     ".zip",
 )
 
+SUPPORTED_OBJECT_STORAGE_SCHEMES = {
+    "AWS": "s3://",
+    "GCS": "gs://",
+}
+
 
 @click.group()
 def main() -> None:
@@ -50,6 +55,9 @@ def main() -> None:
 
 @main.group()
 def data() -> None:
+    """
+    Data transfer operations.
+    """
     pass
 
 
@@ -57,11 +65,17 @@ def data() -> None:
 @click.argument("source")
 @click.argument("destination")
 def data_transfer(source: str, destination: str) -> None:
+    """
+    Copy data between storages on different clusters.
+    """
     run_async(_transfer_data(source, destination))
 
 
 @main.group()
 def image() -> None:
+    """
+    Job container image operations.
+    """
     pass
 
 
@@ -69,6 +83,9 @@ def image() -> None:
 @click.argument("source")
 @click.argument("destination")
 def image_transfer(source: str, destination: str) -> None:
+    """
+    Copy images between clusters.
+    """
     run_async(_transfer_image(source, destination))
 
 
@@ -151,10 +168,18 @@ async def _save_docker_json(path: str) -> None:
 
 @main.group()
 def config() -> None:
+    """
+    Configuration operations.
+    """
     pass
 
 
-@config.command("save-docker-json")
+@config.command(
+    "save-docker-json",
+    help=(
+        "Generate JSON configuration file for accessing cluster registry."
+    ),
+)
 @click.argument("path")
 def config_save_docker_json(path: str) -> None:
     run_async(_save_docker_json(path))
@@ -457,7 +482,13 @@ async def _nonstorage_cp(
                     source_path.unlink()
 
 
-@data.command("cp")
+@data.command(
+    "cp",
+    help=(
+        "Copy data between external object storage and cluster. "
+        f"Supported external object storage systems: {set(SUPPORTED_OBJECT_STORAGE_SCHEMES.keys())}"
+    ),
+)
 @click.argument("source")
 @click.argument("destination")
 @click.option(
@@ -573,7 +604,12 @@ async def _build_image(
             logger.info(f"Successfully built {image_uri}")
 
 
-@image.command("build")
+@image.command(
+    "build",
+    help=(
+        "Build Job container image remotely on cluster using Kaniko."
+    )
+)
 @click.option("-f", "--file", default="Dockerfile")
 @click.option("--build-arg", multiple=True)
 @click.option(
