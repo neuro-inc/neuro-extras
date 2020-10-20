@@ -9,6 +9,19 @@ on:
     types: [ published ]
 
 jobs:
+  debug:
+    name: DEBUG
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout 
+        uses: actions/checkout@v2
+      - name: debug
+        run: |
+          echo head_ref=${{ github.head_ref }}
+          echo base_ref=${{ github.base_ref }}
+          echo ref=${{ github.ref }}
+          echo sha=${{ github.sha }}
+
 
   lint:
     name: Linter
@@ -19,6 +32,12 @@ jobs:
     steps:
       - name: Checkout commit
         uses: actions/checkout@v2
+        with:
+          # Check out pull request's HEAD commit instead of the merge commit to
+          # work-around an issue where wrong a commit is being checked out.
+          # For more details, see:
+          # https://github.com/actions/checkout/issues/299.
+          ref: ${{ github.event.pull_request.head.sha }}
       - name: Setup Python 3.7
         uses: actions/setup-python@v2
         with:
@@ -57,9 +76,15 @@ jobs:
     steps:
       - name: Checkout commit
         uses: actions/checkout@v2
+        with:
+          # Check out pull request's HEAD commit instead of the merge commit to
+          # work-around an issue where wrong a commit is being checked out.
+          # For more details, see:
+          # https://github.com/actions/checkout/issues/299.
+          ref: ${{ github.event.pull_request.head.sha }}
       - name: Build test image
         run: |
-            export TAG=$(git log -1 --format='%H' origin/${{github.head_ref}})
+            export TAG=${GITHUB_SHA::8}
 
             export REPO_URL=https://github.com/neuro-inc/neuro-extras.git
             export PACKAGE="git+$REPO_URL@$TAG"
@@ -68,7 +93,7 @@ jobs:
 
       - name: Push test image
         run: |
-          export TAG=$(git log -1 --format='%H' origin/${{github.head_ref}})
+          export TAG=${GITHUB_SHA::8}
 
           docker login $DOCKER_SERVER --username $DOCKER_USERNAME --password $DOCKER_PASSWORD
           docker tag neuromation/neuro-extras:latest neuromation/neuro-extras:$TAG
@@ -92,6 +117,12 @@ jobs:
     steps:
       - name: Checkout commit
         uses: actions/checkout@v2
+        with:
+          # Check out pull request's HEAD commit instead of the merge commit to
+          # work-around an issue where wrong a commit is being checked out.
+          # For more details, see:
+          # https://github.com/actions/checkout/issues/299.
+          ref: ${{ github.event.pull_request.head.sha }}
       - name: Install python ${{ matrix.python-version }}
         uses: actions/setup-python@v2
         with:
@@ -139,7 +170,7 @@ jobs:
 
       - name: Build test image
         run: |
-            export TAG=$(git log -1 --format='%H' origin/${{github.head_ref}})
+            export TAG=${GITHUB_SHA::8}
 
             export REPO_URL=https://github.com/neuro-inc/neuro-extras.git
             export PACKAGE="git+$REPO_URL@$TAG"
@@ -148,7 +179,7 @@ jobs:
 
       - name: Push test image
         run: |
-          export TAG=$(git log -1 --format='%H' origin/${{github.head_ref}})
+          export TAG=${GITHUB_SHA::8}
 
           docker login $DOCKER_SERVER --username $DOCKER_USERNAME --password $DOCKER_PASSWORD
           docker tag neuromation/neuro-extras:latest neuromation/neuro-extras:$TAG
@@ -156,7 +187,7 @@ jobs:
 
       - name: Run e2e tests
         run: |
-            export NEURO_EXTRAS_IMAGE_TAG=${GITHUB_SHA}
+            export NEURO_EXTRAS_IMAGE_TAG=${GITHUB_SHA::8}
             make test_e2e
 
 
@@ -178,6 +209,12 @@ jobs:
           fi
       - name: Checkout commit
         uses: actions/checkout@v2
+        with:
+          # Check out pull request's HEAD commit instead of the merge commit to
+          # work-around an issue where wrong a commit is being checked out.
+          # For more details, see:
+          # https://github.com/actions/checkout/issues/299.
+          ref: ${{ github.event.pull_request.head.sha }}
       - name: Install python
         uses: actions/setup-python@v2
         with:
@@ -208,6 +245,12 @@ jobs:
     steps:
       - name: Checkout commit
         uses: actions/checkout@v2
+        with:
+          # Check out pull request's HEAD commit instead of the merge commit to
+          # work-around an issue where wrong a commit is being checked out.
+          # For more details, see:
+          # https://github.com/actions/checkout/issues/299.
+          ref: ${{ github.event.pull_request.head.sha }}
       - name: Install python
         uses: actions/setup-python@v2
         with:
