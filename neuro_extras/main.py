@@ -357,7 +357,7 @@ async def _data_cp(
     else:
         # otherwise we deal with cloud/local src and destination
         origin_src_url = source_url
-        dst_dir = origin_dst_dir = Path(destination_url.path).parent
+        dst_dir = Path(destination_url.path).parent
         dst_name = origin_dst_name = Path(destination_url.path).name
 
         if use_tmp_dir:
@@ -371,8 +371,10 @@ async def _data_cp(
         if compress:
             # preserve origin destination name for compressor
             if origin_dst_name == origin_src_url.name:
-                logging.warning(f"Source file already has required archive extension. "
-                                f"Skipping compression step.")
+                logging.warning(
+                    "Source file already has required archive extension. "
+                    "Skipping compression step."
+                )
                 compress = False
             else:
                 dst_name = origin_src_url.name
@@ -383,11 +385,11 @@ async def _data_cp(
 
         if extract:
             dir_util.mkpath(str(dst_dir))
-            extraction_dst_url = URL.build(path=str(dst_dir/origin_dst_name))
+            extraction_dst_url = URL.build(path=str(dst_dir / origin_dst_name))
             await _extract(source_url, extraction_dst_url, rm_src=True)
             source_url = extraction_dst_url
         if compress:
-            compression_dst_url = URL.build(path=str(dst_dir/origin_dst_name))
+            compression_dst_url = URL.build(path=str(dst_dir / origin_dst_name))
             await _compress(source_url, compression_dst_url, rm_src=True)
             source_url = compression_dst_url
 
@@ -395,9 +397,7 @@ async def _data_cp(
             # Move downloaded and maybe extracted / compressed files to
             # original destination.
             # Otherwise (if tmp was not used) - they are already there.
-            await _nonstorage_cp(
-                source_url, destination_url, remove_source=True
-            )
+            await _nonstorage_cp(source_url, destination_url, remove_source=True)
 
 
 async def _nonstorage_cp(
@@ -473,7 +473,13 @@ async def _compress(source_url: URL, destination_url: URL, rm_src: bool) -> None
     suffixes = file.suffixes
     if suffixes[-2:] == [".tar", ".gz"] or suffixes[-1] == ".tgz":
         command = "tar"
-        args = ["zcf", str(destination_url.path), "-C", str(Path(source_url.path).parent), "."]
+        args = [
+            "zcf",
+            str(destination_url.path),
+            "-C",
+            str(Path(source_url.path).parent),
+            ".",
+        ]
     elif suffixes[-2:] == [".tar", ".bz2"] or suffixes[-1] in (".tbz2", ".tbz"):
         command = "tar"
         args = ["jcf", str(destination_url.path), str(source_url.path)]

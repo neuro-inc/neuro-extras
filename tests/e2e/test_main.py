@@ -2,11 +2,11 @@ import base64
 import json
 import logging
 import os
+import random
 import re
 import sys
 import textwrap
 import uuid
-import random
 from pathlib import Path
 from subprocess import CompletedProcess, check_output
 from tempfile import TemporaryDirectory
@@ -23,7 +23,7 @@ from neuromation.cli.main import cli as neuro_main
 
 from neuro_extras.main import NEURO_EXTRAS_IMAGE, TEMP_UNPACK_DIR, main as extras_main
 
-from .conftest import CLIRunner, Secret, gen_random_file, TESTED_ARCHIVE_TYPES
+from .conftest import TESTED_ARCHIVE_TYPES, CLIRunner, Secret, gen_random_file
 
 
 logger = logging.getLogger(__name__)
@@ -780,7 +780,9 @@ def test_data_cp_from_cloud_to_local(
         if not extract:
             dst = f"{tmp_dir}/hello.{archive_extension}"
 
-        res = cli_runner(args_data_cp_from_cloud(bucket, src, dst, extract, False, use_tmp_dir))
+        res = cli_runner(
+            args_data_cp_from_cloud(bucket, src, dst, extract, False, use_tmp_dir)
+        )
         assert res.returncode == 0, res
 
         if extract:
@@ -813,7 +815,9 @@ def test_data_cp_from_cloud_to_local_compress(
         src = f"{bucket}/hello.{random.choice(TESTED_ARCHIVE_TYPES)}"
         dst = f"{tmp_dir}/hello.{archive_extension}"
 
-        res = cli_runner(args_data_cp_from_cloud(bucket, src, dst, False, True, use_tmp_dir))
+        res = cli_runner(
+            args_data_cp_from_cloud(bucket, src, dst, False, True, use_tmp_dir)
+        )
         assert res.returncode == 0, res
 
         expected_file = Path(tmp_dir) / f"hello.{archive_extension}"
@@ -842,7 +846,9 @@ def test_data_cp_from_cloud_to_storage(
         if not extract:
             dst = f"{dst}/hello.{archive_extension}"
 
-        res = cli_runner(args_data_cp_from_cloud(bucket, src, dst, extract, False, True))
+        res = cli_runner(
+            args_data_cp_from_cloud(bucket, src, dst, extract, False, True)
+        )
         assert res.returncode == 0, res
 
         if extract:
@@ -905,7 +911,9 @@ def test_data_cp_from_cloud_to_disk(
     local_folder = "/var/disk"
 
     src = f"{GCP_BUCKET}/{filename}"
-    res = cli_runner(args_data_cp_from_cloud(GCP_BUCKET, src, disk, False, False, False))
+    res = cli_runner(
+        args_data_cp_from_cloud(GCP_BUCKET, src, disk, False, False, False)
+    )
     assert res.returncode == 0, res
 
     res = cli_runner(
