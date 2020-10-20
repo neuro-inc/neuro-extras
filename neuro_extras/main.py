@@ -43,9 +43,17 @@ SUPPORTED_ARCHIVE_TYPES = (
     ".zip",
 )
 
+SUPPORTED_OBJECT_STORAGE_SCHEMES = {
+    "AWS": "s3://",
+    "GCS": "gs://",
+}
+
 
 @click.group()
 def main() -> None:
+    """
+    Auxiliary scripts and recipes for automating routine tasks.
+    """
     handler = ClickLogHandler()
     handler.setFormatter(logging.Formatter("%(levelname)s: %(message)s"))
 
@@ -56,6 +64,9 @@ def main() -> None:
 
 @main.group()
 def data() -> None:
+    """
+    Data transfer operations.
+    """
     pass
 
 
@@ -63,11 +74,17 @@ def data() -> None:
 @click.argument("source")
 @click.argument("destination")
 def data_transfer(source: str, destination: str) -> None:
+    """
+    Copy data between storages on different clusters.
+    """
     run_async(_transfer_data(source, destination))
 
 
 @main.group()
 def image() -> None:
+    """
+    Job container image operations.
+    """
     pass
 
 
@@ -75,11 +92,17 @@ def image() -> None:
 @click.argument("source")
 @click.argument("destination")
 def image_transfer(source: str, destination: str) -> None:
+    """
+    Copy images between clusters.
+    """
     run_async(_transfer_image(source, destination))
 
 
 @main.command("init-aliases")
 def init_aliases() -> None:
+    """
+    Create neuro CLI aliases for neuro-extras functionality.
+    """
     # TODO: support patching the global ~/.neuro/user.toml
     toml_path = Path.cwd() / ".neuro.toml"
     config: MutableMapping[str, Any] = {}
@@ -153,10 +176,16 @@ async def _save_docker_json(path: str) -> None:
 
 @main.group()
 def config() -> None:
+    """
+    Configuration operations.
+    """
     pass
 
 
-@config.command("save-docker-json")
+@config.command(
+    "save-docker-json",
+    help="Generate JSON configuration file for accessing cluster registry.",
+)
 @click.argument("path")
 def config_save_docker_json(path: str) -> None:
     run_async(_save_docker_json(path))
@@ -205,12 +234,7 @@ class DataCopier:
             list(vol.disk_volumes),
         )
 
-        gcp_env = "GOOGLE_APPLICATION_CREDENTIALS"
-        cmd = (
-            f'( [ "${gcp_env}" ] && '
-            f"gcloud auth activate-service-account --key-file ${gcp_env} ) ; "
-            f"neuro-extras data cp {args}"
-        )
+        cmd = f"neuro-extras data cp {args}"
         return neuro_api.Container(
             image=neuro_api.RemoteImage.new_external_image(NEURO_EXTRAS_IMAGE),
             resources=neuro_api.Resources(cpu=2.0, memory_mb=4096),
@@ -433,6 +457,7 @@ async def _nonstorage_cp(
             args.insert(2, "--recursive")
     elif "gs" in (source_url.scheme, destination_url.scheme):
         command = "gsutil"
+        # gsutil service credentials are activated in entrypoint.sh
         args = ["-m", "cp", "-r", str(source_url), str(destination_url)]
     elif source_url.scheme == "" and destination_url.scheme == "":
         command = "rclone"
@@ -461,7 +486,14 @@ async def _nonstorage_cp(
                     source_path.unlink()
 
 
-@data.command("cp")
+@data.command(
+    "cp",
+    help=(
+        "Copy data between external object storage and cluster. "
+        "Supported external object storage systems: "
+        f"{set(SUPPORTED_OBJECT_STORAGE_SCHEMES.keys())}"
+    ),
+)
 @click.argument("source")
 @click.argument("destination")
 @click.option(
@@ -577,7 +609,9 @@ async def _build_image(
             logger.info(f"Successfully built {image_uri}")
 
 
-@image.command("build")
+@image.command(
+    "build", help="Build Job container image remotely on cluster using Kaniko."
+)
 @click.option("-f", "--file", default="Dockerfile")
 @click.option("--build-arg", multiple=True)
 @click.option(
@@ -827,6 +861,9 @@ async def _create_k8s_registry_secret(name: str) -> Dict[str, Any]:
 
 @main.group()
 def k8s() -> None:
+    """
+    Cluster Kubernetes operations.
+    """
     pass
 
 
@@ -935,6 +972,9 @@ SELDON_CUSTOM_PATH = ASSETS_PATH / "seldon.package"
 
 @main.group()
 def seldon() -> None:
+    """
+    Seldon deployment operations.
+    """
     pass
 
 
@@ -1083,7 +1123,7 @@ async def _ensure_folder_exists(path: Path, remote: bool = False) -> None:
 @click.argument("path")
 def upload(path: str) -> None:
     """
-    Upload neuro project files to storage
+    Upload neuro project files to storage.
 
     Uploads file (or files under) project-root/PATH to
     storage://remote-project-dir/PATH. You can use "." for PATH to upload
@@ -1102,7 +1142,7 @@ def upload(path: str) -> None:
 @click.argument("path")
 def download(path: str) -> None:
     """
-    Download neuro project files from storage
+    Download neuro project files from storage.
 
     Downloads file (or files under) from storage://remote-project-dir/PATH
     to project-root/PATH. You can use "." for PATH to download whole project.
