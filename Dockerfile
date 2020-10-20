@@ -1,9 +1,6 @@
 FROM python:3.7-stretch as requirements
 
-ARG NEURO_EXTRAS_VERSION
-
 RUN pip install --user \
-    neuro-extras==$NEURO_EXTRAS_VERSION \
     awscli google-cloud-storage crcmod
 
 FROM python:3.7-stretch as service
@@ -27,6 +24,12 @@ RUN chmod u+x /var/lib/neuro/entrypoint.sh
 WORKDIR /root
 ENV PATH=/root/.local/bin:$PATH
 
+
+ARG NEURO_EXTRAS_VERSION
+ARG NEURO_EXTRAS_PACKAGE="neuro-extras==$NEURO_EXTRAS_VERSION"
+RUN pip install --user $NEURO_EXTRAS_PACKAGE
+
 RUN neuro-extras init-aliases
+
 
 ENTRYPOINT ["/var/lib/neuro/entrypoint.sh"]

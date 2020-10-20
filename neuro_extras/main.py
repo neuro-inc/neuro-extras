@@ -2,6 +2,7 @@ import asyncio
 import base64
 import json
 import logging
+import os
 import re
 import sys
 import tempfile
@@ -25,6 +26,11 @@ from neuromation.cli.asyncio_utils import run as run_async
 from neuromation.cli.const import EX_PLATFORMERROR
 from yarl import URL
 
+from .version import __version__
+
+
+NEURO_EXTRAS_IMAGE_TAG = os.environ.get("NEURO_EXTRAS_IMAGE_TAG", __version__)
+NEURO_EXTRAS_IMAGE = f"neuromation/neuro-extras:{NEURO_EXTRAS_IMAGE_TAG}"
 
 SUPPORTED_ARCHIVE_TYPES = (
     ".tar.gz",
@@ -116,10 +122,6 @@ def init_aliases() -> None:
     with toml_path.open("w") as f:
         toml.dump(config, f)
     logger.info(f"Added aliases to {toml_path}")
-
-
-NEURO_EXTRAS_IMAGE_TAG = "v20.10.16a1"
-NEURO_EXTRAS_IMAGE = f"neuromation/neuro-extras:{NEURO_EXTRAS_IMAGE_TAG}"
 
 
 class ClickLogHandler(logging.Handler):
