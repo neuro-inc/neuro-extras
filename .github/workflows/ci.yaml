@@ -57,10 +57,6 @@ jobs:
     steps:
       - name: Checkout commit
         uses: actions/checkout@v2
-      - name: Configure neuro
-        run: |
-          neuro config login-with-token ${{ secrets.NEURO_TOKEN }} ${{ secrets.NEURO_STAGING_URL }}
-          neuro config show
       - name: Build test image
         run: |
             export TAG=${GITHUB_SHA}
