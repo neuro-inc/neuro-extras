@@ -45,9 +45,41 @@ jobs:
         run: |
             echo ${{ steps.version.outputs.version }}
 
-  e2e:
-    name: Test e2e
+  pretest:
+    name: Prepare for e2e tests
     needs: [lint]
+    if: github.event_name != 'release'
+    runs-on: ubuntu-latest
+    env:
+      NEURO_STAGING_URL: ${{ secrets.NEURO_STAGING_URL }}
+      NEURO_TOKEN: ${{ secrets.NEURO_TOKEN }}
+      TEST_GITHUB_TOKEN: ${{ secrets.TEST_GITHUB_TOKEN }}
+    steps:
+      - name: Checkout commit
+        uses: actions/checkout@v2
+      - name: Configure neuro
+        run: |
+          neuro config login-with-token ${{ secrets.NEURO_TOKEN }} ${{ secrets.NEURO_STAGING_URL }}
+          neuro config show
+      - name: Build test image
+        run: |
+            export TAG=${GITHUB_SHA::8}
+            export REPO_URL=https://github.com/neuro-inc/neuro-extras.git
+            export PACKAGE="git+$REPO_URL@$TAG"
+            docker build -t neuromation/neuro-extras:latest \
+              --build-arg NEURO_EXTRAS_PACKAGE="$PACKAGE" .
+
+      - name: Push test image
+        run: |
+          export TAG=${GITHUB_SHA::8}
+          docker login $DOCKER_SERVER --username $DOCKER_USERNAME --password $DOCKER_PASSWORD
+          docker tag neuromation/neuro-extras:latest neuromation/neuro-extras:$TAG
+          docker push neuromation/neuro-extras:$TAG
+
+  test:
+    name: Run e2e tests
+    needs: [pretest]
+    if: github.event_name != 'release'
     strategy:
       matrix:
         python-version: [3.6, 3.7]
@@ -90,7 +122,7 @@ jobs:
       - name: Install python dependencies
         run: |
           make setup
-      - name: Configure environment
+      - name: Configure neuro
         run: |
           neuro config login-with-token ${{ secrets.NEURO_TOKEN }} ${{ secrets.NEURO_STAGING_URL }}
           neuro config show
@@ -108,7 +140,6 @@ jobs:
           aws-region: us-east-1
 
       - name: Build test image
-        if: github.event_name != 'release'
         run: |
             export TAG=${GITHUB_SHA::8}
             export REPO_URL=https://github.com/neuro-inc/neuro-extras.git
@@ -117,7 +148,6 @@ jobs:
               --build-arg NEURO_EXTRAS_PACKAGE="$PACKAGE" .
 
       - name: Push test image
-        if: github.event_name != 'release'
         run: |
           export TAG=${GITHUB_SHA::8}
           docker login $DOCKER_SERVER --username $DOCKER_USERNAME --password $DOCKER_PASSWORD
@@ -125,7 +155,6 @@ jobs:
           docker push neuromation/neuro-extras:$TAG
 
       - name: Run e2e tests
-        if: github.event_name != 'release'
         run: |
             export NEURO_EXTRAS_IMAGE_TAG=${GITHUB_SHA::8}
             make test_e2e
