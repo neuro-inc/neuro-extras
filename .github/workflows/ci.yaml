@@ -45,7 +45,7 @@ jobs:
         run: |
             echo ${{ steps.version.outputs.version }}
 
-e2e:
+  e2e:
     name: Test e2e
     needs: [lint]
     strategy:
