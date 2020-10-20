@@ -271,7 +271,7 @@ class UrlType(Enum):
 
 async def _data_cp(
     source: str,
-    destination_dir: str,
+    destination: str,
     extract: bool,
     compress: bool,
     volume: List[str],
@@ -279,7 +279,7 @@ async def _data_cp(
     use_tmp_dir: bool,
 ) -> None:
     source_url = URL(source)
-    destination_url = URL(destination_dir)
+    destination_url = URL(destination)
     source_url_type = UrlType.get_type(source_url)
     if source_url_type == UrlType.UNSUPPORTED:
         raise ValueError(f"Unsupported source URL scheme: {source_url.scheme}")
@@ -519,7 +519,7 @@ def _rm_by_url(src_url: URL) -> None:
     ),
 )
 @click.argument("source")
-@click.argument("destination_dir")
+@click.argument("destination")
 @click.option(
     "-x",
     "--extract",
@@ -537,7 +537,7 @@ def _rm_by_url(src_url: URL) -> None:
     default=False,
     is_flag=True,
     help=(
-        "Perform compression of SOURCE into the DESTINATION. "
+        "Perform compression of SOURCE into the DESTINATION file. "
         "The archive type is derived from the file name. "
         f"Supported types: {', '.join(SUPPORTED_ARCHIVE_TYPES)}."
     ),
@@ -570,14 +570,14 @@ def _rm_by_url(src_url: URL) -> None:
     help=(
         "Download and extract / compress data (if needed) "
         " inside the temporal directory. "
-        "Afterwards move resulted file(s) into the DESTINATION_DIR. "
+        "Afterwards move resulted file(s) into the DESTINATION. "
         "NOTE: use it if 'storage:' is involved and "
         "extraction or compression is performed to speedup the process."
     ),
 )
 def data_cp(
     source: str,
-    destination_dir: str,
+    destination: str,
     extract: bool,
     compress: bool,
     volume: Sequence[str],
@@ -589,7 +589,7 @@ def data_cp(
     run_async(
         _data_cp(
             source,
-            destination_dir,
+            destination,
             extract,
             compress,
             list(volume),
