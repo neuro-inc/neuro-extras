@@ -27,7 +27,8 @@ jobs:
           echo base_ref=${{ github.base_ref }}
           echo ref=${{ github.ref }}
           echo sha=${{ github.sha }}
-          echo sha=${GITHUB_SHA}
+          echo SHA=${GITHUB_SHA}
+          echo =${{ github.event.pull_request.head.sha }}
           false
 
 
