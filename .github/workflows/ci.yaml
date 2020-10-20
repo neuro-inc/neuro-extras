@@ -132,7 +132,7 @@ jobs:
 
 
   devpi_deploy:
-    name: Release client on PyPI if needed
+    name: Release package if needed
     runs-on: ubuntu-latest
     # needs: test  # we don't run tests before manual deploy
     if: github.event_name == 'release'
@@ -168,7 +168,7 @@ jobs:
           twine upload dist/*
 
   dockerhub_deploy:
-    name: Release client on DockerHub if needed
+    name: Release image if needed
     runs-on: ubuntu-latest
     needs: devpi_deploy
     if: github.event_name == 'release'
