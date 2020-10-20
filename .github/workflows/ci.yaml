@@ -91,7 +91,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
       - name: Build test image
         run: |
-            export TAG=${GITHUB_SHA::8}
+            export TAG=${{ github.sha }}
 
             export REPO_URL=https://github.com/neuro-inc/neuro-extras.git
             export PACKAGE="git+$REPO_URL@$TAG"
@@ -100,7 +100,7 @@ jobs:
 
       - name: Push test image
         run: |
-          export TAG=${GITHUB_SHA::8}
+          export TAG=${{ github.sha }}
 
           docker login $DOCKER_SERVER --username $DOCKER_USERNAME --password $DOCKER_PASSWORD
           docker tag neuromation/neuro-extras:latest neuromation/neuro-extras:$TAG
@@ -177,7 +177,7 @@ jobs:
 
       - name: Build test image
         run: |
-            export TAG=${GITHUB_SHA::8}
+            export TAG=${{ github.sha }}
 
             export REPO_URL=https://github.com/neuro-inc/neuro-extras.git
             export PACKAGE="git+$REPO_URL@$TAG"
@@ -186,7 +186,7 @@ jobs:
 
       - name: Push test image
         run: |
-          export TAG=${GITHUB_SHA::8}
+          export TAG=${{ github.sha }}
 
           docker login $DOCKER_SERVER --username $DOCKER_USERNAME --password $DOCKER_PASSWORD
           docker tag neuromation/neuro-extras:latest neuromation/neuro-extras:$TAG
@@ -194,7 +194,7 @@ jobs:
 
       - name: Run e2e tests
         run: |
-            export NEURO_EXTRAS_IMAGE_TAG=${GITHUB_SHA::8}
+            export NEURO_EXTRAS_IMAGE_TAG=${{ github.sha }}
             make test_e2e
 
 
