@@ -1,5 +1,3 @@
-NEURO_EXTRAS_VERSION=$(shell python setup.py --version)
-NEURO_EXTRAS_PACKAGE=
 PYTEST_FLAGS=
 
 .PHONY: setup
@@ -24,13 +22,6 @@ test_e2e:
 
 .PHONY: test
 test: lint test_e2e
-
-.PHONY: build
-build:
-	docker build -t neuromation/neuro-extras:latest \
-	    --build-arg NEURO_EXTRAS_VERSION="$(NEURO_EXTRAS_VERSION)" \
-	    --build-arg NEURO_EXTRAS_PACKAGE="$(NEURO_EXTRAS_PACKAGE)" \
-	    .
 
 .PHONY: changelog-draft
 changelog-draft:
