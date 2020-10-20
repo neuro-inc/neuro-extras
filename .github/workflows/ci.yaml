@@ -10,6 +10,17 @@ on:
 
 jobs:
 
+  debug:
+    name: DEBUG
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout 
+        uses: actions/checkout@v2
+      - name: debug
+        run: |
+          echo head_ref=${{ github.head_ref }}
+          echo base_ref=${{ github.base_ref }}
+
   lint:
     name: Linter
     runs-on: ubuntu-latest
