@@ -55,7 +55,6 @@ jobs:
       DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
       DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
       SHA: ${{ github.event.pull_request.head.sha }}
-
     steps:
       - name: Checkout commit
         uses: actions/checkout@v2
@@ -65,7 +64,6 @@ jobs:
             export PACKAGE="git+$REPO_URL@$SHA"
             docker build -t neuromation/neuro-extras:latest \
               --build-arg NEURO_EXTRAS_PACKAGE="$PACKAGE" .
-
       - name: Push test image
         run: |
           docker login $DOCKER_SERVER --username $DOCKER_USERNAME --password $DOCKER_PASSWORD
@@ -137,25 +135,10 @@ jobs:
           aws-access-key-id: ${{ secrets.E2E_COOKIECUTTER_AWS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.E2E_COOKIECUTTER_AWS_ACCESS_KEY }}
           aws-region: us-east-1
-
-      - name: Build test image
-        run: |
-            export REPO_URL=https://github.com/neuro-inc/neuro-extras.git
-            export PACKAGE="git+$REPO_URL@$SHA"
-            docker build -t neuromation/neuro-extras:latest \
-              --build-arg NEURO_EXTRAS_PACKAGE="$PACKAGE" .
-
-      - name: Push test image
-        run: |
-          docker login $DOCKER_SERVER --username $DOCKER_USERNAME --password $DOCKER_PASSWORD
-          docker tag neuromation/neuro-extras:latest neuromation/neuro-extras:$SHA
-          docker push neuromation/neuro-extras:$SHA
-
       - name: Run e2e tests
         run: |
             export NEURO_EXTRAS_IMAGE_TAG="$SHA"
             make test_e2e
-
 
   devpi_deploy:
     name: Release package if needed
