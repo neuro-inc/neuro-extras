@@ -54,12 +54,12 @@ jobs:
       NEURO_STAGING_URL: ${{ secrets.NEURO_STAGING_URL }}
       NEURO_TOKEN: ${{ secrets.NEURO_TOKEN }}
       TEST_GITHUB_TOKEN: ${{ secrets.TEST_GITHUB_TOKEN }}
+      TAG: ${GITHUB_SHA}
     steps:
       - name: Checkout commit
         uses: actions/checkout@v2
       - name: Build test image
         run: |
-            export TAG=${GITHUB_SHA}
             export REPO_URL=https://github.com/neuro-inc/neuro-extras.git
             export PACKAGE="git+$REPO_URL@$TAG"
             docker build -t neuromation/neuro-extras:latest \
@@ -67,7 +67,6 @@ jobs:
 
       - name: Push test image
         run: |
-          export TAG=${GITHUB_SHA}
           docker login $DOCKER_SERVER --username $DOCKER_USERNAME --password $DOCKER_PASSWORD
           docker tag neuromation/neuro-extras:latest neuromation/neuro-extras:$TAG
           docker push neuromation/neuro-extras:$TAG
@@ -87,6 +86,7 @@ jobs:
       NEURO_STAGING_URL: ${{ secrets.NEURO_STAGING_URL }}
       NEURO_TOKEN: ${{ secrets.NEURO_TOKEN }}
       TEST_GITHUB_TOKEN: ${{ secrets.TEST_GITHUB_TOKEN }}
+      TAG: ${GITHUB_SHA}
     steps:
       - name: Checkout commit
         uses: actions/checkout@v2
@@ -137,7 +137,6 @@ jobs:
 
       - name: Build test image
         run: |
-            export TAG=${GITHUB_SHA}
             export REPO_URL=https://github.com/neuro-inc/neuro-extras.git
             export PACKAGE="git+$REPO_URL@$TAG"
             docker build -t neuromation/neuro-extras:latest \
@@ -145,7 +144,6 @@ jobs:
 
       - name: Push test image
         run: |
-          export TAG=${GITHUB_SHA}
           docker login $DOCKER_SERVER --username $DOCKER_USERNAME --password $DOCKER_PASSWORD
           docker tag neuromation/neuro-extras:latest neuromation/neuro-extras:$TAG
           docker push neuromation/neuro-extras:$TAG
@@ -201,6 +199,7 @@ jobs:
       DOCKER_SERVER: docker.io
       DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
       DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+      TAG: v${{ needs.lint.outputs.version }}
     steps:
       - name: Checkout commit
         uses: actions/checkout@v2
@@ -228,8 +227,6 @@ jobs:
             --build-arg NEURO_EXTRAS_VERSION="${{ needs.lint.outputs.version }}" .
       - name: Push release release image
         run: |
-          export TAG=v${{ needs.lint.outputs.version }}
-
           docker login $DOCKER_SERVER --username $DOCKER_USERNAME --password $DOCKER_PASSWORD
           docker tag neuromation/neuro-extras:latest neuromation/neuro-extras:$TAG
           docker push neuromation/neuro-extras:$TAG
