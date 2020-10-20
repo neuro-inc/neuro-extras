@@ -33,7 +33,6 @@ jobs:
 
 
   lint:
-    if: false
     name: Linter
     runs-on: ubuntu-latest
     timeout-minutes: 5
