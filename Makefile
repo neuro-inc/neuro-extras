@@ -18,7 +18,7 @@ format:
 
 .PHONY: test_e2e
 test_e2e:
-	pytest -vv -n 5 ${PYTEST_FLAGS} tests/e2e
+	pytest -vv -n 10 ${PYTEST_FLAGS} tests/e2e
 
 .PHONY: test
 test: lint test_e2e

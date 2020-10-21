@@ -85,6 +85,7 @@ jobs:
     env:
       NEURO_STAGING_URL: ${{ secrets.NEURO_STAGING_URL }}
       NEURO_TOKEN: ${{ secrets.NEURO_TOKEN }}
+      NEURO_CLUSTER: neuro-compute
       DOCKER_SERVER: docker.io
       DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
       DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
@@ -124,6 +125,7 @@ jobs:
       - name: Configure neuro
         run: |
           neuro config login-with-token ${{ secrets.NEURO_TOKEN }} ${{ secrets.NEURO_STAGING_URL }}
+          neuro config switch-cluster ${{ secrets.NEURO_CLUSTER }}
           neuro config show
       - name: Configure GCP access
         uses: GoogleCloudPlatform/github-actions/setup-gcloud@master
