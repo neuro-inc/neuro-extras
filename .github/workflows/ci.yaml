@@ -160,6 +160,7 @@ jobs:
       - name: Delete test image
         run: |
           # TODO (yartem) For now, DockerHub user `neuromationservice`, which we use, doesn't have perms to delete tags.
+          # Note: `docker` doesn't have API for tag deletion so we should utilize REST, see https://stackoverflow.com/a/62471863
           # ORG=neuromation
           # REPO=neuro-extras
           # TAG=$SHA
