@@ -831,6 +831,29 @@ def test_data_cp_from_cloud_to_local_compress(
     bucket: str,
     archive_extension: str,
 ) -> None:
+    # TODO: retry because of: https://github.com/neuro-inc/neuro-extras/issues/124
+    N = 3
+    for attempt in range(1, N + 1):
+        try:
+            _run_test_data_cp_from_cloud_to_local_compress(
+                cli_runner,
+                args_data_cp_from_cloud,
+                bucket,
+                archive_extension,
+            )
+        except AssertionError as e:
+            if "directory not found" in str(e):
+                logger.info(f"Attempt {attempt}/{N} failed")
+            else:
+                raise
+
+
+def _run_test_data_cp_from_cloud_to_local_compress(
+    cli_runner: CLIRunner,
+    args_data_cp_from_cloud: Callable[..., List[str]],
+    bucket: str,
+    archive_extension: str,
+) -> None:
     TEMP_UNPACK_DIR.mkdir(parents=True, exist_ok=True)
     with TemporaryDirectory(dir=TEMP_UNPACK_DIR.expanduser()) as tmp_dir:
         src = f"{bucket}/hello.{archive_extension}"
