@@ -100,9 +100,12 @@ def repeat_until_success(
                     f"Command {args} couldn't succeed in {attempts} attempts"
                 )
             attempts += 1
-            result = cli_runner(args)
-            if result.returncode == 0:
-                return result
+            try:
+                result = cli_runner(args)
+                if result.returncode == 0:
+                    return result
+            except BaseException as e:
+                logger.info(f"Command {args}, exception caught: {e}")
             time.sleep(time_sleep)
             time_sleep *= 1.1
 
