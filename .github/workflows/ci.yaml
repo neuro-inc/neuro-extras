@@ -124,8 +124,8 @@ jobs:
           make setup
       - name: Configure neuro
         run: |
-          neuro config login-with-token ${{ secrets.NEURO_TOKEN }} ${{ secrets.NEURO_STAGING_URL }}
-          neuro config switch-cluster ${{ secrets.NEURO_CLUSTER }}
+          neuro config login-with-token $NEURO_TOKEN $NEURO_STAGING_URL
+          neuro config switch-cluster $NEURO_CLUSTER
           neuro config show
       - name: Configure GCP access
         uses: GoogleCloudPlatform/github-actions/setup-gcloud@master
