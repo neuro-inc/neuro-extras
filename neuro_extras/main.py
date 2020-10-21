@@ -141,7 +141,7 @@ def init_aliases() -> None:
     logger.info(f"Added aliases to {toml_path}")
 
 
-NEURO_EXTRAS_IMAGE_TAG = "v20.10.16a1"
+NEURO_EXTRAS_IMAGE_TAG = "a3acb3c3dfeabbb01292c3a441f4bf03efd041e5"  # "v20.10.16a1"
 NEURO_EXTRAS_IMAGE = f"neuromation/neuro-extras:{NEURO_EXTRAS_IMAGE_TAG}"
 
 
