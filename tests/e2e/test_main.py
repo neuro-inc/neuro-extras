@@ -76,10 +76,13 @@ def cli_runner(capfd: CaptureFixture[str], project_dir: Path) -> CLIRunner:
         except SystemExit as e:
             code = e.code
         out, err = capfd.readouterr()
-        logger.debug(f"Stdout:\n{SEP_BEGIN}\n{out.strip()}\n{SEP_END}\nStdout finished")
-        logger.debug(f"Stderr:\n{SEP_BEGIN}\n{err.strip()}\n{SEP_END}\nStderr finished")
+        out, err = out.strip(), err.strip()
+        if out:
+            logger.debug(f"Stdout:\n{SEP_BEGIN}\n{out}\n{SEP_END}\nStdout finished")
+        if err:
+            logger.debug(f"Stderr:\n{SEP_BEGIN}\n{err}\n{SEP_END}\nStderr finished")
         return CompletedProcess(
-            args=[cmd] + args, returncode=code, stdout=out.strip(), stderr=err.strip()
+            args=[cmd] + args, returncode=code, stdout=out, stderr=err
         )
 
     return _run_cli
@@ -107,7 +110,7 @@ def repeat_until_success(
             except BaseException as e:
                 logger.info(f"Command {args}, exception caught: {e}")
             time.sleep(time_sleep)
-            time_sleep *= 1.1
+            time_sleep *= 1.5
 
     return _f
 
@@ -885,9 +888,8 @@ def test_data_cp_from_cloud_to_storage(
 @pytest.fixture
 def disk(cli_runner: CLIRunner) -> Iterator[str]:
     # Create disk
-    res = cli_runner(["neuro", "disk", "create", "1G"])
+    res = cli_runner(["neuro", "disk", "create", "100M"])
     assert res.returncode == 0, res
-    assert res.stderr == ""
     disk_id = None
     try:
         for line in res.stdout.splitlines():
@@ -899,13 +901,29 @@ def disk(cli_runner: CLIRunner) -> Iterator[str]:
 
         if disk_id is None:
             raise Exception("Unable to locate disk id in neuro output: \n" + res.stdout)
-        yield f"disk:{disk_id}"
-    finally:
-        # Delete disk
-        if disk_id is not None:
-            res = cli_runner(["neuro", "disk", "rm", disk_id])
+
+        wait_started = time.time()
+        wait_delta = 10.0
+        while True:
+            if time.time() - wait_started > 5 * 10:
+                raise ValueError(f"Could not get disk {disk_id} ready: {res.stdout}")
+            res = cli_runner(["neuro", "disk", "get", disk_id])
             assert res.returncode == 0, res
-            assert res.stderr == ""
+            if "Ready" in res.stdout:
+                break
+            wait_delta *= 1.5
+            time.sleep(wait_delta)
+
+        yield f"disk:{disk_id}"
+
+    finally:
+        try:
+            # Delete disk
+            if disk_id is not None:
+                res = cli_runner(["neuro", "disk", "rm", disk_id])
+                assert res.returncode == 0, res
+        except BaseException as e:
+            logger.warning(f"Finalization error: {e}")
 
 
 @pytest.mark.skipif(
