@@ -842,6 +842,9 @@ def test_data_cp_from_cloud_to_local_compress(
                 bucket, src, f"{tmp_dir}/hello.{archive_extension}", False, True
             )
         )
+        if res.returncode != 0:
+            print(res.stdout)
+            print(res.stderr)
         assert res.returncode == 0, res
 
         expected_file = Path(tmp_dir) / f"hello.{archive_extension}"
