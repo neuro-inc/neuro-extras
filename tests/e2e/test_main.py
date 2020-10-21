@@ -833,6 +833,9 @@ def test_data_cp_from_cloud_to_local_compress(
 ) -> None:
     TEMP_UNPACK_DIR.mkdir(parents=True, exist_ok=True)
     with TemporaryDirectory(dir=TEMP_UNPACK_DIR.expanduser()) as tmp_dir:
+        # XXX: attempt to fix https://github.com/neuro-inc/neuro-extras/issues/124
+        Path(tmp_dir).mkdir(exist_ok=True)
+
         src = f"{bucket}/hello.{archive_extension}"
         res = cli_runner(
             args_data_cp_from_cloud(
