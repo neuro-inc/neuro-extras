@@ -125,8 +125,10 @@ jobs:
       - name: Configure neuro
         run: |
           neuro config login-with-token $NEURO_TOKEN $NEURO_STAGING_URL
+          # neuro config switch-cluster $NEURO_CLUSTER
           neuro config show
-          neuro config switch-cluster $NEURO_CLUSTER
+          neuro run -s cpu-small -n test-name ubuntu true
+          false
       - name: Configure GCP access
         uses: GoogleCloudPlatform/github-actions/setup-gcloud@master
         with:
