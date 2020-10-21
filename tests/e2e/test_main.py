@@ -95,7 +95,7 @@ def repeat_until_success(
         time_sleep = 5.0
         attempts = 0
         while True:
-            if time_started - time.time() > timeout:
+            if time.time() - time_started > timeout:
                 raise ValueError(
                     f"Command {args} couldn't succeed in {attempts} attempts"
                 )
@@ -177,7 +177,7 @@ def test_image_build_custom_dockerfile(
     assert result.returncode == 0, result
     sleep(10)
 
-    result = repeat_until_success(["neuro", "image", "tags", img_name], timeout=5 * 60)
+    result = repeat_until_success(["neuro", "image", "tags", img_name])
     assert tag in result.stdout
     assert tag in result.stdout
 
@@ -285,14 +285,14 @@ def test_image_transfer(
     )
     assert result.returncode == 0, result
 
-    result = repeat_until_success(["neuro", "image", "tags", image], timeout=5 * 60)
+    result = repeat_until_success(["neuro", "image", "tags", image])
     assert tag in result.stdout
     assert tag in result.stdout
 
     result = cli_runner(["neuro", "image-transfer", img_uri_str, image])
     assert result.returncode == 0, result
 
-    result = repeat_until_success(["neuro", "image", "tags", image], timeout=5 * 60)
+    result = repeat_until_success(["neuro", "image", "tags", image])
     assert tag in result.stdout
     assert result.returncode == 0, result
 
@@ -463,7 +463,7 @@ def test_seldon_deploy_from_local(
     )
     assert result.returncode == 0, result
 
-    result = repeat_until_success(["neuro", "image", "tags", img_name], timeout=5 * 60)
+    result = repeat_until_success(["neuro", "image", "tags", img_name])
     assert tag in result.stdout
 
 
