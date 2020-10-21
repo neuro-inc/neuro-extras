@@ -880,9 +880,12 @@ def test_data_cp_from_cloud_to_storage(
         assert expected_file in out, out
 
     finally:
-        res = cli_runner(["neuro", "rm", "-r", storage_url])
-        if res.returncode != 0:
-            logger.error(f"WARNING: Finalization failed! {res}")
+        try:
+            # Delete disk
+            res = cli_runner(["neuro", "rm", "-r", storage_url])
+            assert res.returncode == 0, res
+        except BaseException as e:
+            logger.warning(f"Finalization error: {e}")
 
 
 @pytest.fixture
