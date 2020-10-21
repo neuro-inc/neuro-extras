@@ -5,6 +5,7 @@ import os
 import re
 import sys
 import textwrap
+import time
 import uuid
 from pathlib import Path
 from subprocess import CompletedProcess, check_output
@@ -50,7 +51,7 @@ AWS_BUCKET = "s3://cookiecutter-e2e"
 
 @pytest.fixture()
 def cli_runner(capfd: CaptureFixture[str], project_dir: Path) -> CLIRunner:
-    def _run_cli(args: List[str]) -> CompletedProcess:  # type: ignore
+    def _run_cli(args: List[str]) -> "CompletedProcess[str]":
         cmd = args.pop(0)
         if cmd not in ("neuro", "neuro-extras"):
             pytest.fail(f"Illegal command: {cmd}")
@@ -84,6 +85,30 @@ def cli_runner(capfd: CaptureFixture[str], project_dir: Path) -> CLIRunner:
     return _run_cli
 
 
+@pytest.fixture
+def repeat_until_success(
+    cli_runner: CLIRunner,
+) -> Callable[..., "CompletedProcess[str]"]:
+    def _f(args: List[str], timeout: int = 5 * 60) -> "CompletedProcess[str]":
+        logger.info(f"Waiting {timeout} sec for success of {args}")
+        time_started = time.time()
+        time_sleep = 5.0
+        attempts = 0
+        while True:
+            if time_started - time.time() > timeout:
+                raise ValueError(
+                    f"Command {args} couldn't succeed in {attempts} attempts"
+                )
+            attempts += 1
+            result = cli_runner(args)
+            if result.returncode == 0:
+                return result
+            time.sleep(time_sleep)
+            time_sleep *= 1.1
+
+    return _f
+
+
 def test_init_aliases(cli_runner: CLIRunner) -> None:
     toml_path = Path(".neuro.toml")
     assert not toml_path.exists()
@@ -114,7 +139,9 @@ def test_image_build_failure(cli_runner: CLIRunner) -> None:
 
 
 @pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
-def test_image_build_custom_dockerfile(cli_runner: CLIRunner) -> None:
+def test_image_build_custom_dockerfile(
+    cli_runner: CLIRunner, repeat_until_success: Callable[..., "CompletedProcess[str]"]
+) -> None:
     result = cli_runner(["neuro-extras", "init-aliases"])
     assert result.returncode == 0, result
 
@@ -147,8 +174,8 @@ def test_image_build_custom_dockerfile(cli_runner: CLIRunner) -> None:
     assert result.returncode == 0, result
     sleep(10)
 
-    result = cli_runner(["neuro", "image", "tags", img_name])
-    assert result.returncode == 0, result
+    result = repeat_until_success(["neuro", "image", "tags", img_name], timeout=5 * 60)
+    assert tag in result.stdout
     assert tag in result.stdout
 
 
@@ -221,7 +248,9 @@ def test_data_transfer(cli_runner: CLIRunner) -> None:
 
 
 @pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
-def test_image_transfer(cli_runner: CLIRunner) -> None:
+def test_image_transfer(
+    cli_runner: CLIRunner, repeat_until_success: Callable[..., "CompletedProcess[str]"]
+) -> None:
     result = cli_runner(["neuro-extras", "init-aliases"])
     assert result.returncode == 0, result
 
@@ -252,16 +281,16 @@ def test_image_transfer(cli_runner: CLIRunner) -> None:
         ["neuro", "image-build", "-f", str(dockerfile_path), ".", img_uri_str]
     )
     assert result.returncode == 0, result
-    sleep(10)
 
-    result = cli_runner(["neuro", "image", "tags", image])
-    assert result.returncode == 0, result
+    result = repeat_until_success(["neuro", "image", "tags", image], timeout=5 * 60)
+    assert tag in result.stdout
     assert tag in result.stdout
 
     result = cli_runner(["neuro", "image-transfer", img_uri_str, image])
     assert result.returncode == 0, result
-    sleep(10)
-    result = cli_runner(["neuro", "image", "tags", image])
+
+    result = repeat_until_success(["neuro", "image", "tags", image], timeout=5 * 60)
+    assert tag in result.stdout
     assert result.returncode == 0, result
 
 
@@ -407,7 +436,9 @@ def test_image_build_volume(cli_runner: CLIRunner, temp_random_secret: Secret) -
 
 
 @pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
-def test_seldon_deploy_from_local(cli_runner: CLIRunner) -> None:
+def test_seldon_deploy_from_local(
+    cli_runner: CLIRunner, repeat_until_success: Callable[..., "CompletedProcess[str]"]
+) -> None:
     result = cli_runner(["neuro-extras", "init-aliases"])
     assert result.returncode == 0, result
 
@@ -428,10 +459,8 @@ def test_seldon_deploy_from_local(cli_runner: CLIRunner) -> None:
         ["neuro", "image-build", "-f", "seldon.Dockerfile", str(pkg_path), img_uri_str]
     )
     assert result.returncode == 0, result
-    sleep(10)
 
-    result = cli_runner(["neuro", "image", "tags", img_name])
-    assert result.returncode == 0, result
+    result = repeat_until_success(["neuro", "image", "tags", img_name], timeout=5 * 60)
     assert tag in result.stdout
 
 
