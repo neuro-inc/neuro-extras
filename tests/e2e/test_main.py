@@ -179,7 +179,6 @@ def test_image_build_custom_dockerfile(
 
     result = repeat_until_success(["neuro", "image", "tags", img_name])
     assert tag in result.stdout
-    assert tag in result.stdout
 
 
 @pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
@@ -286,7 +285,6 @@ def test_image_transfer(
     assert result.returncode == 0, result
 
     result = repeat_until_success(["neuro", "image", "tags", image])
-    assert tag in result.stdout
     assert tag in result.stdout
 
     result = cli_runner(["neuro", "image-transfer", img_uri_str, image])
