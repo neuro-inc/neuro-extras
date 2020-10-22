@@ -81,7 +81,7 @@ jobs:
         run: |
             export REPO_URL=https://github.com/neuro-inc/neuro-extras.git
             export PACKAGE="git+$REPO_URL@$SHA"
-            docker build -t neuromation/neuro-extras:$SHA
+            docker build -t neuromation/neuro-extras:$SHA \
               --build-arg NEURO_EXTRAS_PACKAGE="$PACKAGE" .
       - name: Push test image
         run: |
