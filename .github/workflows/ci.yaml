@@ -47,7 +47,7 @@ jobs:
 
   pretest:
     name: Prepare for e2e tests
-    needs: [lint]
+#    needs: [lint]
     if: github.event_name != 'release'
     runs-on: ubuntu-latest
     env:
