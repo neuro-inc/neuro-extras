@@ -55,7 +55,7 @@ jobs:
       DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
       DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
       # Note: ${{ github.sha }} not working, see https://github.com/actions/checkout/issues/299
-      SHA: ${{ github.event.pull_request.head.sha }}
+      NEURO_EXTRAS_IMAGE_TAG: ${{ github.event.pull_request.head.sha }}
     steps:
       - name: Checkout commit
         uses: actions/checkout@v2
@@ -67,9 +67,10 @@ jobs:
               --build-arg NEURO_EXTRAS_PACKAGE="$PACKAGE" .
       - name: Push test image
         run: |
-          docker login $DOCKER_SERVER --username $DOCKER_USERNAME --password $DOCKER_PASSWORD
-          docker tag neuromation/neuro-extras:latest neuromation/neuro-extras:$SHA
-          docker push neuromation/neuro-extras:$SHA
+            docker login $DOCKER_SERVER \
+              --username $DOCKER_USERNAME --password $DOCKER_PASSWORD
+            neuro push neuromation/neuro-extras:latest \
+              image:neuromation/neuro-extras:$NEURO_EXTRAS_IMAGE_TAG
 
   test:
     name: Run e2e tests
@@ -155,21 +156,11 @@ jobs:
       DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
       DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
       # Note: ${{ github.sha }} not working, see https://github.com/actions/checkout/issues/299
-      SHA: ${{ github.event.pull_request.head.sha }}
+      NEURO_EXTRAS_IMAGE_TAG: ${{ github.event.pull_request.head.sha }}
     steps:
       - name: Delete test image
         run: |
-          # TODO (yartem) For now, DockerHub user `neuromationservice`, which we use, doesn't have perms to delete tags.
-          # Note: `docker` doesn't have API for tag deletion so we should utilize REST, see https://stackoverflow.com/a/62471863
-          # ORG=neuromation
-          # REPO=neuro-extras
-          # TAG=$SHA
-          # URL=https://hub.docker.com
-          # USER=$DOCKER_USERNAME
-          # PASS=$DOCKER_PASSWORD
-          # CT="Content-Type: application/json"
-          # TOKEN=$(curl -s -X POST -H $CT -d '{"username":"'$USER'","password":"'$PASS'"}' $URL/v2/users/login/ | jq -r .token)
-          # curl -s -X DELETE -H "Authorization: JWT $TOKEN" $URL/v2/repositories/$ORG/$REPO/tags/$TAG/
+          # TODO: neuro image delete image:neuromation/neuro-extras:$NEURO_EXTRAS_IMAGE_TAG
 
   devpi_deploy:
     name: Release package if needed

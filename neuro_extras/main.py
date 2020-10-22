@@ -29,8 +29,9 @@ from yarl import URL
 from .version import __version__
 
 
+NEURO_EXTRAS_IMAGE_REPO = os.environ.get("NEURO_EXTRAS_IMAGE_REPO", "neuromation/neuro-extras")  # noqa
 NEURO_EXTRAS_IMAGE_TAG = os.environ.get("NEURO_EXTRAS_IMAGE_TAG", __version__)
-NEURO_EXTRAS_IMAGE = f"neuromation/neuro-extras:{NEURO_EXTRAS_IMAGE_TAG}"
+NEURO_EXTRAS_IMAGE = f"{NEURO_EXTRAS_IMAGE_REPO}:{NEURO_EXTRAS_IMAGE_TAG}"
 
 SUPPORTED_ARCHIVE_TYPES = (
     ".tar.gz",
