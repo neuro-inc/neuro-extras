@@ -72,19 +72,20 @@ jobs:
           neuro config login-with-token ${{ env.NEURO_TOKEN }} ${{ env.NEURO_STAGING_URL }}
           neuro config switch-cluster ${{ env.NEURO_CLUSTER }}
           neuro config show
+      - name: Configure docker
+        run: |
+          docker login $DOCKER_SERVER \
+            --username $DOCKER_USERNAME --password $DOCKER_PASSWORD
+          neuro config docker
       - name: Build test image
         run: |
             export REPO_URL=https://github.com/neuro-inc/neuro-extras.git
             export PACKAGE="git+$REPO_URL@$SHA"
-            docker build -t neuromation/neuro-extras:$SHA \
+            docker build -t neuromation/neuro-extras:$SHA
               --build-arg NEURO_EXTRAS_PACKAGE="$PACKAGE" .
       - name: Push test image
         run: |
-            docker login $DOCKER_SERVER \
-              --username $DOCKER_USERNAME --password $DOCKER_PASSWORD
-            neuro config docker
-            neuro push neuromation/neuro-extras:$SHA \
-              image:neuromation/neuro-extras:$SHA
+            neuro push neuromation/neuro-extras:$SHA image:neuromation/neuro-extras:$SHA
 
   test:
     name: Run e2e tests
