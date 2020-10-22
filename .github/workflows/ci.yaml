@@ -64,7 +64,7 @@ jobs:
         uses: actions/checkout@v2
       - name: Install and configure neuro
         run: |
-          pip install -U neuromation
+          python -m pip install -U neuromation
           neuro config login-with-token ${{ env.NEURO_TOKEN }} ${{ env.NEURO_STAGING_URL }}
           neuro config switch-cluster ${{ env.NEURO_CLUSTER }}
           neuro config show
