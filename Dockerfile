@@ -28,7 +28,7 @@ RUN chmod u+x /var/lib/neuro/entrypoint.sh
 WORKDIR /root
 ENV PATH=/root/.local/bin:$PATH
 
-RUN pip install --user $NEURO_EXTRAS_PACKAGE
+RUN pip install --user ${NEURO_EXTRAS_PACKAGE}
 RUN neuro-extras init-aliases
 
 ENTRYPOINT ["/var/lib/neuro/entrypoint.sh"]
