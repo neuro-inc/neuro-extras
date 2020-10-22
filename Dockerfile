@@ -25,8 +25,7 @@ WORKDIR /root
 ENV PATH=/root/.local/bin:$PATH
 
 
-ARG NEURO_EXTRAS_VERSION
-ARG NEURO_EXTRAS_PACKAGE="neuro-extras==$NEURO_EXTRAS_VERSION"
+ARG NEURO_EXTRAS_PACKAGE
 RUN pip install --user $NEURO_EXTRAS_PACKAGE
 
 RUN neuro-extras init-aliases
