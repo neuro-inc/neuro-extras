@@ -62,6 +62,10 @@ jobs:
     steps:
       - name: Checkout commit
         uses: actions/checkout@v2
+      - name: Install python ${{ matrix.python-version }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
       - name: Install and configure neuro
         run: |
           python -m pip install -U neuromation
@@ -170,6 +174,10 @@ jobs:
 #      # Note: ${{ github.sha }} not working, see https://github.com/actions/checkout/issues/299
 #      NEURO_EXTRAS_IMAGE: image:neuromation/neuro-extras:${{ github.event.pull_request.head.sha }}
 #    steps:
+#      - name: Install python ${{ matrix.python-version }}
+#        uses: actions/setup-python@v2
+#        with:
+#          python-version: ${{ matrix.python-version }}
 #      - name: Install and configure neuro
 #        run: |
 #          pip install -U neuromation
