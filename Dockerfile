@@ -2,8 +2,6 @@ FROM python:3.7-stretch as requirements
 
 # package version is to be overloaded with exact version
 ARG NEURO_EXTRAS_PACKAGE=neuro-extras
-# workaround for missing $NEURO_EXTRAS_PACKAGE value during the build
-ENV NEURO_EXTRAS_PACKAGE=$NEURO_EXTRAS_PACKAGE
 
 
 RUN pip install --user \
@@ -30,8 +28,7 @@ RUN chmod u+x /var/lib/neuro/entrypoint.sh
 WORKDIR /root
 ENV PATH=/root/.local/bin:$PATH
 
-RUN echo "Installing $NEURO_EXTRAS_PACKAGE" && \
-    pip install --user $NEURO_EXTRAS_PACKAGE
+RUN pip install --user $NEURO_EXTRAS_PACKAGE
 RUN neuro-extras init-aliases
 
 ENTRYPOINT ["/var/lib/neuro/entrypoint.sh"]
