@@ -1,7 +1,9 @@
 FROM python:3.7-stretch as requirements
 
 # package version is to be overloaded with exact version
-ARG NEURO_EXTRAS_PACKAGE="neuro-extras"
+ARG NEURO_EXTRAS_PACKAGE=neuro-extras
+
+RUN echo "Installing $NEURO_EXTRAS_PACKAGE" && false
 
 RUN pip install --user \
     awscli google-cloud-storage crcmod
