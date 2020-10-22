@@ -29,8 +29,9 @@ from yarl import URL
 from .version import __version__
 
 
-DEFAULT_NEURO_EXTRAS_IMAGE = f"neuromation/neuro-extras:{__version__}"
-NEURO_EXTRAS_IMAGE = os.environ.get("NEURO_EXTRAS_IMAGE", DEFAULT_NEURO_EXTRAS_IMAGE)
+NEURO_EXTRAS_IMAGE = os.environ.get(
+    "NEURO_EXTRAS_IMAGE", f"neuromation/neuro-extras:{__version__}"
+)
 
 SUPPORTED_ARCHIVE_TYPES = (
     ".tar.gz",
@@ -194,6 +195,11 @@ def config_save_docker_json(path: str) -> None:
 TEMP_UNPACK_DIR = Path.home() / ".neuro-tmp"
 
 
+async def _parse_neuro_image(image: str) -> neuro_api.RemoteImage:
+    async with neuro_api.get() as client:
+        return client.parse.remote_image(image)
+
+
 class DataCopier:
     def __init__(self, client: neuro_api.Client):
         self._client = client
@@ -235,8 +241,9 @@ class DataCopier:
         )
 
         cmd = f"neuro-extras data cp {args}"
+        image = await _parse_neuro_image(NEURO_EXTRAS_IMAGE)
         return neuro_api.Container(
-            image=neuro_api.RemoteImage.new_external_image(NEURO_EXTRAS_IMAGE),
+            image=image,
             resources=neuro_api.Resources(cpu=2.0, memory_mb=4096),
             volumes=volumes,
             disk_volumes=disk_volumes,

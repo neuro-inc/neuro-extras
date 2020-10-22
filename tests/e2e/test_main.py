@@ -872,9 +872,9 @@ def _run_test_data_cp_from_cloud_to_local_compress(
         assert expected_file.exists()
 
 
-@pytest.mark.parametrize("bucket", [GCP_BUCKET, AWS_BUCKET])
+@pytest.mark.parametrize("bucket", [GCP_BUCKET])  # , AWS_BUCKET])
 @pytest.mark.parametrize("archive_extension", ["tar.gz"])
-@pytest.mark.parametrize("extract", [True, False])
+@pytest.mark.parametrize("extract", [True])  # , False])
 @pytest.mark.skipif(
     sys.platform == "win32",
     reason="Windows path are not supported yet + no utilities on windows",
