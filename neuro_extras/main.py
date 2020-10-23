@@ -575,19 +575,28 @@ async def _get_client(cluster: Optional[str] = None):  # type: ignore
 
 async def _transfer_image(src: str, dst: str) -> None:
     with tempfile.TemporaryDirectory() as tmpdir:
-        async with _get_client() as client:
-            remote_image = client.parse.remote_image(image=src)
+        async with _get_client() as src_client:
+            src_image = src_client.parse.remote_image(image=src)
+            src_client_config = src_client.config
 
         dockerfile = Path(f"{tmpdir}/Dockerfile")
         dockerfile.write_text(
             textwrap.dedent(
                 f"""\
-                FROM {_as_repo_str(remote_image)}
+                FROM {_as_repo_str(src_image)}
                 LABEL neu.ro/source-image-uri={src}
                 """
             )
         )
-        await _build_image(dockerfile.name, tmpdir, dst, [], [], [])
+        await _build_image(
+            dockerfile_path=dockerfile.name,
+            context=tmpdir,
+            image_uri=dst,
+            build_args=[],
+            volume=[],
+            env=[],
+            other_client_configs=[src_client_config],
+        )
 
 
 async def _attach_job_stdout(
@@ -627,20 +636,24 @@ async def _build_image(
     build_args: Sequence[str],
     volume: Sequence[str],
     env: Sequence[str],
+    other_client_configs: Sequence[neuro_api.Config] = (),
 ) -> None:
-    image_cluster = uri_from_cli(image_uri, "", "", allowed_schemes=("image",)).host
-    async with _get_client(image_cluster) as client:
+    dst_cluster = uri_from_cli(image_uri, "", "", allowed_schemes=("image",)).host
+    if not dst_cluster:
+        raise ValueError(f"Missing cluster name: {image_uri}")
+
+    async with _get_client(dst_cluster) as dst_client:
         context_uri = uri_from_cli(
             context,
-            client.username,
-            client.cluster_name,
+            dst_client.username,
+            dst_client.cluster_name,
             allowed_schemes=("file", "storage"),
         )
-        builder = ImageBuilder(client)
+        builder = ImageBuilder(dst_client, other_clients_configs=other_client_configs)
         job = await builder.launch(
             dockerfile_path, context_uri, image_uri, build_args, volume, env
         )
-        exit_code = await _attach_job_stdout(job, client, name="builder")
+        exit_code = await _attach_job_stdout(job, dst_client, name="builder")
         if exit_code == EX_OK:
             logger.info(f"Successfully built {image_uri}")
         else:
@@ -709,8 +722,17 @@ class DockerConfig:
 
 
 class ImageBuilder:
-    def __init__(self, client: neuro_api.Client) -> None:
+    def __init__(
+        self,
+        client: neuro_api.Client,
+        other_clients_configs: Sequence[neuro_api.Config] = (),
+    ) -> None:
         self._client = client
+        self._other_clients_configs = list(other_clients_configs)
+
+    @property
+    def _all_configs(self) -> Sequence[neuro_api.Config]:
+        return [self._client.config] + self._other_clients_configs
 
     def _generate_build_uri(self) -> URL:
         return normalize_storage_path_uri(
@@ -719,22 +741,21 @@ class ImageBuilder:
             self._client.cluster_name,
         )
 
-    def _get_registry(self) -> str:
-        url = self._client.config.registry_url
+    def _get_registry(self, config: neuro_api.Config) -> str:
+        url = config.registry_url
         if url.explicit_port:  # type: ignore
             return f"{url.host}:{url.explicit_port}"  # type: ignore
         return url.host  # type: ignore
 
     async def create_docker_config(self) -> DockerConfig:
-        config = self._client.config
-        token = await config.token()
         return DockerConfig(
             auths=[
                 DockerConfigAuth(
-                    registry=self._get_registry(),
+                    registry=self._get_registry(config),
                     username=config.username,
-                    password=token,
+                    password=await config.token(),
                 )
+                for config in self._all_configs
             ]
         )
 
