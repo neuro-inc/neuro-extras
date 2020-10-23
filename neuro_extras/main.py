@@ -1014,8 +1014,9 @@ async def _transfer_data(source: str, destination: str) -> None:
     dst_uri = uri_from_cli(destination, "", "")
     dst_cluster = dst_uri.host
 
-    assert src_cluster
-    assert dst_cluster
+    err_msg = "Please provide full {} path, including cluster and user names."
+    assert src_cluster, err_msg.format("SOURCE")
+    assert dst_cluster, err_msg.format("DESTINATION")
     async with neuro_api.get() as client:
         await client.config.switch_cluster(dst_cluster)
         await client.storage.mkdir(URL("storage:"), parents=True, exist_ok=True)
