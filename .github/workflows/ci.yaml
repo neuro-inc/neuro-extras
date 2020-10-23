@@ -58,7 +58,7 @@ jobs:
       DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
       DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
       # Note: ${{ github.sha }} not working, see https://github.com/actions/checkout/issues/299
-      SHA: ${{ github.event.pull_request.head.sha }}
+      SHA: ${{ github.event.pull_request.head.sha || github.sha }}
     steps:
       - name: Checkout commit
         uses: actions/checkout@v2
@@ -106,7 +106,7 @@ jobs:
       DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
       DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
       # Note: ${{ github.sha }} not working, see https://github.com/actions/checkout/issues/299
-      NEURO_EXTRAS_IMAGE: image:neuromation/neuro-extras:${{ github.event.pull_request.head.sha }}
+      NEURO_EXTRAS_IMAGE: image:neuromation/neuro-extras:${{ github.event.pull_request.head.sha || github.sha }}
     steps:
       - name: Checkout commit
         uses: actions/checkout@v2
@@ -173,7 +173,7 @@ jobs:
 #      NEURO_TOKEN: ${{ secrets.NEURO_TOKEN }}
 #      NEURO_CLUSTER: neuro-compute
 #      # Note: ${{ github.sha }} not working, see https://github.com/actions/checkout/issues/299
-#      NEURO_EXTRAS_IMAGE: image:neuromation/neuro-extras:${{ github.event.pull_request.head.sha }}
+#      NEURO_EXTRAS_IMAGE: image:neuromation/neuro-extras:${{ github.event.pull_request.head.sha || github.sha }}
 #    steps:
 #      - name: Setup Python 3.7
 #        uses: actions/setup-python@v2
