@@ -223,6 +223,7 @@ def test_ignored_files_are_not_copied(
     assert ignored_file_content not in result.stdout
 
 
+@pytest.mark.serial
 def test_data_transfer(
     cli_runner: CLIRunner,
     current_user: str,
@@ -257,6 +258,7 @@ def test_data_transfer(
         assert result.returncode == 0, result
 
 
+@pytest.mark.serial
 @pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
 def test_image_transfer(
     cli_runner: CLIRunner,
