@@ -264,11 +264,21 @@ def test_image_transfer(
     current_cluster: str,
     current_user: str,
 ) -> None:
-    to_cluster = "neuro-public"#"onprem-poc"
+    to_cluster = "onprem-poc"
     assert to_cluster != current_cluster, f"same cluster: {to_cluster}"
 
     result = cli_runner(["neuro-extras", "init-aliases"])
     assert result.returncode == 0, result
+
+    # WORKAROUND: Fixing 401 Not Authorized because of this problem:
+    # https://github.com/neuromation/platform-registry-api/issues/209
+    rnd = uuid.uuid4().hex[:6]
+    img_name = f"extras-e2e-image-copy-{rnd}"
+
+    tag = str(uuid.uuid4())
+    # from_img = f"image://{current_cluster}/{current_user}/{img_name}:{tag}"
+    from_img = f"image:{img_name}:{tag}"
+    to_img = f"image://{to_cluster}/{current_user}/{img_name}:{tag}"
 
     dockerfile_path = Path("nested/custom.Dockerfile")
     dockerfile_path.parent.mkdir(parents=True)
@@ -284,15 +294,6 @@ def test_image_transfer(
                 """
             )
         )
-
-    # WORKAROUND: Fixing 401 Not Authorized because of this problem:
-    # https://github.com/neuromation/platform-registry-api/issues/209
-    rnd = uuid.uuid4().hex[:6]
-    img_name = f"extras-e2e-image-copy-{rnd}"
-
-    tag = str(uuid.uuid4())
-    from_img = f"image:{img_name}:{tag}"
-    to_img = f"image://{to_cluster}/{current_user}/{img_name}:{tag}"
 
     result = cli_runner(
         ["neuro", "image-build", "-f", str(dockerfile_path), ".", from_img]

@@ -8,6 +8,7 @@ import sys
 import tempfile
 import textwrap
 import uuid
+from builtins import ValueError
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from distutils import dir_util
@@ -551,50 +552,42 @@ def data_cp(
 @asynccontextmanager
 async def _get_client(cluster: Optional[str] = None):  # type: ignore
     async with neuro_api.get() as client:
-        old_cluster = client.cluster_name
+        orig = client.cluster_name
         try:
             if cluster is not None:
-                if cluster != old_cluster:
-                    logger.info(
-                        f"Temporarily switching cluster: {old_cluster} -> {cluster}"
-                    )
+                if cluster != orig:
+                    logger.info(f"Temporarily switching cluster: {orig} -> {cluster}")
                     await client.config.switch_cluster(cluster)
                 else:
                     logger.info(f"Already on cluster: {cluster}")
-
             yield client
-
         finally:
-            if cluster is not None and cluster != old_cluster:
-                logger.info(f"Switching back cluster: {cluster} -> {old_cluster}")
+            if cluster is not None and cluster != orig:
+                logger.info(f"Switching back cluster: {cluster} -> {orig}")
                 try:
-                    await client.config.switch_cluster(old_cluster)
+                    await client.config.switch_cluster(orig)
                 except BaseException:
                     logger.error(
-                        f"Could not switch back to cluster '{old_cluster}'. Please "
-                        f"run manually: 'neuro config switch-cluster {old_cluster}'"
+                        f"Could not switch back to cluster '{orig}'. Please "
+                        f"run manually: 'neuro config switch-cluster {orig}'"
                     )
 
 
-async def _transfer_image(source: str, destination: str) -> None:
-    dst_uri = uri_from_cli(destination, "", "", allowed_schemes=("image",))
-    dst_cluster = dst_uri.host
-    assert dst_cluster, "missing destination cluster name"
-
+async def _transfer_image(src: str, dst: str) -> None:
     with tempfile.TemporaryDirectory() as tmpdir:
-        async with _get_client(cluster=dst_cluster) as client:
-            remote_image = client.parse.remote_image(image=source)
-            dockerfile_path = Path(f"{tmpdir}/Dockerfile")
-            with open(str(dockerfile_path), "w") as f:
-                f.write(
-                    textwrap.dedent(
-                        f"""\
-                        FROM {_as_repo_str(remote_image)}
-                        LABEL neu.ro/source-image-uri={source}
-                        """
-                    )
-                )
-            await _build_image("Dockerfile", tmpdir, destination, [], [], [])
+        async with _get_client() as client:
+            remote_image = client.parse.remote_image(image=src)
+
+        dockerfile = Path(f"{tmpdir}/Dockerfile")
+        dockerfile.write_text(
+            textwrap.dedent(
+                f"""\
+                FROM {_as_repo_str(remote_image)}
+                LABEL neu.ro/source-image-uri={src}
+                """
+            )
+        )
+        await _build_image(dockerfile.name, tmpdir, dst, [], [], [])
 
 
 async def _attach_job_stdout(
@@ -635,7 +628,8 @@ async def _build_image(
     volume: Sequence[str],
     env: Sequence[str],
 ) -> None:
-    async with neuro_api.get() as client:
+    image_cluster = uri_from_cli(image_uri, "", "", allowed_schemes=("image",)).host
+    async with _get_client(image_cluster) as client:
         context_uri = uri_from_cli(
             context,
             client.username,
@@ -1064,7 +1058,6 @@ async def _transfer_data(source: str, destination: str) -> None:
     assert src_cluster, err_msg.format("SOURCE")
     assert dst_cluster, err_msg.format("DESTINATION")
     async with _get_client(cluster=dst_cluster) as client:
-        await client.config.switch_cluster(dst_cluster)
         await client.storage.mkdir(URL("storage:"), parents=True, exist_ok=True)
     await _run_copy_container(src_cluster, str(src_uri), str(dst_uri))
 
