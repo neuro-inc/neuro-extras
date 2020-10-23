@@ -3,7 +3,7 @@ import re
 from setuptools import find_packages, setup
 
 
-with open("neuro_extras/__init__.py") as f:
+with open("neuro_extras/version.py") as f:
     txt = f.read()
     try:
         version = re.findall(r'^__version__ = "([^"]+)"\r?$', txt, re.M)[0]

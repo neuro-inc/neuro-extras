@@ -15,8 +15,8 @@ Suppose, today is October 15, 2020, and we want to update both neuro-extras pip 
 
 1. Bump alpha version in the code.
     - `git checkout master`;
-    - update `neuro_extras/__init__.py`: `__version__ = "v20.10.15a1"` (note postfix `a1`);
-    - `git commit -m "Update __init__.py version to v20.10.15a1"` and `push` directly to `origin/master`;
+    - update `neuro_extras/version.py`: `__version__ = "v20.10.15a1"` (note postfix `a1`);
+    - `git add . && git commit -m "Update code version to v20.10.15a1"` and `push` directly to `origin/master`;
     - wait for green build in [Actions](https://github.com/neuro-inc/neuro-extras/actions);
 
 2. Submit a pre-release on GitHub.
@@ -34,7 +34,7 @@ Suppose, today is October 15, 2020, and we want to update both neuro-extras pip 
 
 4. Bump non-alpha version in the code.
     - `git checkout master`;
-    - update `neuro_extras/__init__.py`: `__version__ = "v20.10.15"` (note: no postfixes);
+    - update `neuro_extras/version.py`: `__version__ = "v20.10.15"` (note: no postfixes);
     - run `make changelog-draft` and verify changelog looks valid;
     - run `make changelog` - this will delete changelog items from `CHANGELOG.d`;
     - `git add . && git commit -m "Release version v20.10.15"` and `push` directly to `origin/master`;

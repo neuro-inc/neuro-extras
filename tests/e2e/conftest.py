@@ -7,6 +7,8 @@ from typing import Callable, Iterator, List, Optional, Union
 
 import pytest
 
+from neuro_extras.main import NEURO_EXTRAS_IMAGE
+
 
 CLIRunner = Callable[[List[str]], CompletedProcess]
 
@@ -47,3 +49,8 @@ def gen_random_file(location: Union[str, Path], name: Optional[str] = None) -> P
     file = location / name
     file.write_text(str(uuid.uuid4()))
     return file
+
+
+@pytest.fixture(scope="session", autouse=True)
+def print_neuro_extras_image() -> None:
+    logger.warning(f"Using neuro-extras image: '{NEURO_EXTRAS_IMAGE}'")
