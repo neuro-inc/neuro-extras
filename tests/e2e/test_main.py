@@ -226,14 +226,13 @@ def test_ignored_files_are_not_copied(
 def test_data_transfer(
     cli_runner: CLIRunner,
     current_user: str,
-    current_cluster: str,
     switch_cluster: Callable[[str], ContextManager[None]],
 ) -> None:
     # Note: we pushed test image to `neuro-compute`, so it should be a target cluster
-    to_cluster = "neuro-compute"
-    from_cluster = "onprem-poc"  # can be any other cluster
+    src_cluster = "neuro-compute"
+    dst_cluster = "onprem-poc"  # can be any other cluster
 
-    with switch_cluster(from_cluster):
+    with switch_cluster(dst_cluster):
         result = cli_runner(["neuro-extras", "init-aliases"])
         assert result.returncode == 0, result
 
@@ -247,13 +246,13 @@ def test_data_transfer(
             [
                 "neuro",
                 "data-transfer",
-                f"storage://{current_cluster}/{current_user}/{src_path}",
-                f"storage://{to_cluster}/{current_user}/{dst_path}",
+                f"storage:{src_path}",  # also, full src uri is supported
+                f"storage://{src_cluster}/{current_user}/{dst_path}",
             ]
         )
         assert result.returncode == 0, result
 
-    with switch_cluster(to_cluster):
+    with switch_cluster(src_cluster):
         result = cli_runner(["neuro", "ls", f"storage:{dst_path}"])
         assert result.returncode == 0, result
 
@@ -263,14 +262,13 @@ def test_image_transfer(
     cli_runner: CLIRunner,
     repeat_until_success: Callable[..., "CompletedProcess[str]"],
     switch_cluster: Callable[[str], ContextManager[None]],
-    current_cluster: str,
     current_user: str,
 ) -> None:
     # Note: we pushed test image to `neuro-compute`, so it should be a target cluster
-    to_cluster = "neuro-compute"
-    from_cluster = "onprem-poc"  # can be any other cluster
+    src_cluster = "neuro-compute"
+    dst_cluster = "onprem-poc"  # can be any other cluster
 
-    with switch_cluster(from_cluster):
+    with switch_cluster(dst_cluster):
         result = cli_runner(["neuro-extras", "init-aliases"])
         assert result.returncode == 0, result
 
@@ -280,9 +278,8 @@ def test_image_transfer(
         img_name = f"extras-e2e-image-copy-{rnd}"
 
         tag = str(uuid.uuid4())
-        # from_img = f"image://{current_cluster}/{current_user}/{img_name}:{tag}"
-        from_img = f"image:{img_name}:{tag}"
-        to_img = f"image://{to_cluster}/{current_user}/{img_name}:{tag}"
+        from_img = f"image:{img_name}:{tag}"  # also, full src uri is supported
+        to_img = f"image://{src_cluster}/{current_user}/{img_name}:{tag}"
 
         dockerfile_path = Path("nested/custom.Dockerfile")
         dockerfile_path.parent.mkdir(parents=True)
@@ -311,7 +308,7 @@ def test_image_transfer(
         result = cli_runner(["neuro", "image-transfer", from_img, to_img])
         assert result.returncode == 0, result
 
-    with switch_cluster(to_cluster):
+    with switch_cluster(src_cluster):
         result = repeat_until_success(["neuro", "image", "tags", f"image:{img_name}"])
         assert tag in result.stdout
 
