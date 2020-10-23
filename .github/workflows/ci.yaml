@@ -155,8 +155,7 @@ jobs:
           aws-region: us-east-1
       - name: Run e2e tests
         run: |
-            echo "non-windows: NEURO_EXTRAS_IMAGE=$NEURO_EXTRAS_IMAGE"
-            echo "windows:     NEURO_EXTRAS_IMAGE=%NEURO_EXTRAS_IMAGE%"
+            echo "NEURO_EXTRAS_IMAGE=${{ env.NEURO_EXTRAS_IMAGE }}"
             make test_e2e
 
 
