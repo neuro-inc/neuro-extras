@@ -1,3 +1,4 @@
+import asyncio
 import base64
 import json
 import logging
@@ -11,7 +12,7 @@ from pathlib import Path
 from subprocess import CompletedProcess, check_output
 from tempfile import TemporaryDirectory
 from time import sleep
-from typing import Callable, Iterator, List
+from typing import Callable, ContextManager, Iterator, List
 from unittest import mock
 
 import pytest
@@ -108,6 +109,8 @@ def repeat_until_success(
                 result = cli_runner(args)
                 if result.returncode == 0:
                     return result
+            except asyncio.CancelledError:
+                raise
             except BaseException as e:
                 logger.info(f"Command {args}, exception caught: {e}")
             time.sleep(time_sleep)
@@ -255,8 +258,15 @@ def test_data_transfer(cli_runner: CLIRunner) -> None:
 
 @pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
 def test_image_transfer(
-    cli_runner: CLIRunner, repeat_until_success: Callable[..., "CompletedProcess[str]"]
+    cli_runner: CLIRunner,
+    repeat_until_success: Callable[..., "CompletedProcess[str]"],
+    switch_cluster: Callable[[str], ContextManager[None]],
+    current_cluster: str,
+    current_user: str,
 ) -> None:
+    to_cluster = "neuro-public"#"onprem-poc"
+    assert to_cluster != current_cluster, f"same cluster: {to_cluster}"
+
     result = cli_runner(["neuro-extras", "init-aliases"])
     assert result.returncode == 0, result
 
@@ -278,25 +288,27 @@ def test_image_transfer(
     # WORKAROUND: Fixing 401 Not Authorized because of this problem:
     # https://github.com/neuromation/platform-registry-api/issues/209
     rnd = uuid.uuid4().hex[:6]
-    image = f"image:extras-e2e-image-copy-{rnd}"
+    img_name = f"extras-e2e-image-copy-{rnd}"
 
     tag = str(uuid.uuid4())
-    img_uri_str = f"{image}:{tag}"
+    from_img = f"image:{img_name}:{tag}"
+    to_img = f"image://{to_cluster}/{current_user}/{img_name}:{tag}"
 
     result = cli_runner(
-        ["neuro", "image-build", "-f", str(dockerfile_path), ".", img_uri_str]
+        ["neuro", "image-build", "-f", str(dockerfile_path), ".", from_img]
     )
     assert result.returncode == 0, result
 
-    result = repeat_until_success(["neuro", "image", "tags", image])
+    result = repeat_until_success(["neuro", "image", "tags", f"image:{img_name}"])
     assert tag in result.stdout
 
-    result = cli_runner(["neuro", "image-transfer", img_uri_str, image])
+    # Note: this command switches cluster to 'to_cluster'
+    result = cli_runner(["neuro", "image-transfer", from_img, to_img])
     assert result.returncode == 0, result
 
-    result = repeat_until_success(["neuro", "image", "tags", image])
-    assert tag in result.stdout
-    assert result.returncode == 0, result
+    with switch_cluster(to_cluster):
+        result = repeat_until_success(["neuro", "image", "tags", f"image:{img_name}"])
+        assert tag in result.stdout
 
 
 @pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")

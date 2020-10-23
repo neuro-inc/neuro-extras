@@ -8,11 +8,12 @@ import sys
 import tempfile
 import textwrap
 import uuid
+from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from distutils import dir_util
 from enum import Enum
 from pathlib import Path
-from typing import Any, AsyncIterator, Dict, List, MutableMapping, Sequence
+from typing import Any, AsyncIterator, Dict, List, MutableMapping, Optional, Sequence
 
 import click
 import toml
@@ -96,8 +97,7 @@ def image_transfer(source: str, destination: str) -> None:
     """
     Copy images between clusters.
     """
-    exit_code = run_async(_transfer_image(source, destination))
-    sys.exit(exit_code)
+    run_async(_transfer_image(source, destination))
 
 
 @main.command("init-aliases")
@@ -339,12 +339,11 @@ async def _data_cp(
                 volume=volume,
                 env=env,
             )
-
             exit_code = await _attach_job_stdout(job, client, name="copy")
             if exit_code == EX_OK:
                 logger.info("Successfully copied data")
-            # TODO (yartem) only highest-level CLI methods should do sys.exit
-            sys.exit(exit_code)
+            else:
+                raise click.ClickException(f"Data copy failed: {exit_code}")
 
     else:
         # otherwise we deal with cloud/local src and destination
@@ -387,10 +386,10 @@ async def _data_cp(
                 )
 
             click.echo(f"Running {command} {' '.join(args)}")
-            subprocess = await asyncio.create_subprocess_exec(command, *args)
-            returncode = await subprocess.wait()
+            proc = await asyncio.create_subprocess_exec(command, *args)
+            returncode = await proc.wait()
             if returncode != 0:
-                raise click.ClickException(f"Extraction failed: {subprocess.stderr}")
+                raise click.ClickException(f"Extraction failed: {proc.returncode}")
             else:
                 if file.exists():
                     # gunzip removes src after extraction, while tar - not
@@ -549,21 +548,53 @@ def data_cp(
     run_async(_data_cp(source, destination, extract, compress, list(volume), list(env)))
 
 
-async def _transfer_image(source: str, destination: str) -> int:
+@asynccontextmanager
+async def _get_client(cluster: Optional[str] = None):  # type: ignore
+    async with neuro_api.get() as client:
+        old_cluster = client.cluster_name
+        try:
+            if cluster is not None:
+                if cluster != old_cluster:
+                    logger.info(
+                        f"Temporarily switching cluster: {old_cluster} -> {cluster}"
+                    )
+                    await client.config.switch_cluster(cluster)
+                else:
+                    logger.info(f"Already on cluster: {cluster}")
+
+            yield client
+
+        finally:
+            if cluster is not None and cluster != old_cluster:
+                logger.info(f"Switching back cluster: {cluster} -> {old_cluster}")
+                try:
+                    await client.config.switch_cluster(old_cluster)
+                except BaseException:
+                    logger.error(
+                        f"Could not switch back to cluster '{old_cluster}'. Please "
+                        f"run manually: 'neuro config switch-cluster {old_cluster}'"
+                    )
+
+
+async def _transfer_image(source: str, destination: str) -> None:
+    dst_uri = uri_from_cli(destination, "", "", allowed_schemes=("image",))
+    dst_cluster = dst_uri.host
+    assert dst_cluster, "missing destination cluster name"
+
     with tempfile.TemporaryDirectory() as tmpdir:
-        async with neuro_api.get() as client:
+        async with _get_client(cluster=dst_cluster) as client:
             remote_image = client.parse.remote_image(image=source)
-        dockerfile_path = Path(f"{tmpdir}/Dockerfile")
-        with open(str(dockerfile_path), "w") as f:
-            f.write(
-                textwrap.dedent(
-                    f"""\
-                    FROM {_as_repo_str(remote_image)}
-                    LABEL neu.ro/source-image-uri={source}
-                    """
+            dockerfile_path = Path(f"{tmpdir}/Dockerfile")
+            with open(str(dockerfile_path), "w") as f:
+                f.write(
+                    textwrap.dedent(
+                        f"""\
+                        FROM {_as_repo_str(remote_image)}
+                        LABEL neu.ro/source-image-uri={source}
+                        """
+                    )
                 )
-            )
-        return await _build_image("Dockerfile", tmpdir, destination, [], [], [])
+            await _build_image("Dockerfile", tmpdir, destination, [], [], [])
 
 
 async def _attach_job_stdout(
@@ -603,7 +634,7 @@ async def _build_image(
     build_args: Sequence[str],
     volume: Sequence[str],
     env: Sequence[str],
-) -> int:
+) -> None:
     async with neuro_api.get() as client:
         context_uri = uri_from_cli(
             context,
@@ -618,7 +649,8 @@ async def _build_image(
         exit_code = await _attach_job_stdout(job, client, name="builder")
         if exit_code == EX_OK:
             logger.info(f"Successfully built {image_uri}")
-        return exit_code
+        else:
+            raise click.ClickException(f"Failed to build image: {exit_code}")
 
 
 @image.command(
@@ -805,7 +837,6 @@ class ImageBuilder:
 
         build_uri = self._generate_build_uri()
         await self._client.storage.mkdir(build_uri, parents=True, exist_ok=True)
-
         if context_uri.scheme == "file":
             local_context_uri, context_uri = context_uri, build_uri / "context"
             logger.info(f"Uploading {local_context_uri} to {context_uri}")
@@ -1032,7 +1063,7 @@ async def _transfer_data(source: str, destination: str) -> None:
     err_msg = "Please provide full {} path, including cluster and user names."
     assert src_cluster, err_msg.format("SOURCE")
     assert dst_cluster, err_msg.format("DESTINATION")
-    async with neuro_api.get() as client:
+    async with _get_client(cluster=dst_cluster) as client:
         await client.config.switch_cluster(dst_cluster)
         await client.storage.mkdir(URL("storage:"), parents=True, exist_ok=True)
     await _run_copy_container(src_cluster, str(src_uri), str(dst_uri))

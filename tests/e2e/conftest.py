@@ -1,11 +1,14 @@
 import logging
 import uuid
+from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 from subprocess import CompletedProcess
-from typing import Callable, Iterator, List, Optional, Union
+from typing import Callable, ContextManager, Iterator, List, Optional, Union
 
+import neuromation.api as neuro_api  # NOTE: don't use async test functions (issue #129)
 import pytest
+from neuromation.cli.asyncio_utils import run as run_async
 
 from neuro_extras.main import NEURO_EXTRAS_IMAGE
 
@@ -52,3 +55,53 @@ def gen_random_file(location: Union[str, Path], name: Optional[str] = None) -> P
 @pytest.fixture(scope="session", autouse=True)
 def print_neuro_extras_image() -> None:
     logger.warning(f"Using neuro-extras image: '{NEURO_EXTRAS_IMAGE}'")
+
+
+async def _async_get_bare_client() -> neuro_api.Client:
+    """ Return uninitialized neuro client. """
+    return await neuro_api.get()
+
+
+@pytest.fixture
+def _neuro_client() -> Iterator[neuro_api.Client]:
+    # Note: because of issue #129 we can't use async methods of the client,
+    # therefore this fixture is private
+    client = run_async(_async_get_bare_client())
+    try:
+        yield client
+    finally:
+        run_async(client.__aexit__())  # it doesn't use arguments
+
+
+@pytest.fixture
+def current_cluster(_neuro_client: neuro_api.Client) -> str:
+    return _neuro_client.cluster_name
+
+
+@pytest.fixture
+def current_user(_neuro_client: neuro_api.Client) -> str:
+    return _neuro_client.username
+
+
+@pytest.fixture
+def switch_cluster(
+    _neuro_client: neuro_api.Client,
+) -> Callable[[str], ContextManager[None]]:
+    @contextmanager
+    def _f(cluster: str) -> Iterator[None]:
+        orig_cluster = _neuro_client.config.cluster_name
+        try:
+            logger.info(f"Temporary cluster switch: {orig_cluster} -> {cluster}")
+            run_async(_neuro_client.config.switch_cluster(cluster))
+            yield
+        finally:
+            logger.info(f"Switch back cluster: {cluster} -> {orig_cluster}")
+            try:
+                run_async(_neuro_client.config.switch_cluster(orig_cluster))
+            except Exception as e:
+                logger.error(
+                    f"Could not switch back to cluster '{orig_cluster}': {e}. "
+                    f"Please run manually: 'neuro config switch-cluster {orig_cluster}'"
+                )
+
+    return _f
