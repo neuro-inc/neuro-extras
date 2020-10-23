@@ -196,18 +196,18 @@ jobs:
     # needs: test  # we don't run tests before manual deploy
     if: github.event_name == 'release'
     steps:
+      - name: Checkout commit
+        uses: actions/checkout@v2
       - name: Sanity check for tag and version
         run: |
           export VERSION=${{ needs.lint.outputs.version }}
-          if [ "refs/tags/v$VERSION" != "${{ github.ref }}" ]
+          if [ "${{ github.ref }}" != "refs/tags/v$VERSION" ]
           then
-            echo "Git tag '${{ github.ref }}' != hard-coded package version $VERSION"
+            echo "Git tag '${{ github.ref }}' != hard-coded package version '$VERSION'"
             exit 1
           else
-            echo "OK, git tag matches hard-coded package version: $VERSION"
+            echo "OK, git tag matches hard-coded package version: '$VERSION'"
           fi
-      - name: Checkout commit
-        uses: actions/checkout@v2
       - name: Install python
         uses: actions/setup-python@v2
         with:
