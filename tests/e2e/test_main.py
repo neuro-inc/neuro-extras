@@ -18,7 +18,7 @@ import pytest
 import toml
 import yaml
 from _pytest.capture import CaptureFixture
-from neuromation.cli.const import EX_OK
+from neuromation.cli.const import EX_OK, EX_PLATFORMERROR
 from neuromation.cli.main import cli as neuro_main
 
 from neuro_extras.main import NEURO_EXTRAS_IMAGE, TEMP_UNPACK_DIR, main as extras_main
@@ -143,8 +143,8 @@ def test_image_build_failure(cli_runner: CLIRunner) -> None:
             "<invalid>",
         ]
     )
-    assert result.returncode == 1, result
-    assert "repository can only contain" in result.stdout
+    assert result.returncode == EX_PLATFORMERROR, result
+    assert "Failed to build image: URI Scheme not specified." in result.stdout
 
 
 @pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")

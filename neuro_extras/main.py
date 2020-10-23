@@ -708,8 +708,11 @@ def image_build(
     volume: Sequence[str],
     env: Sequence[str],
 ) -> None:
-    exit_code = run_async(_build_image(file, path, image_uri, build_arg, volume, env))
-    sys.exit(exit_code)
+    try:
+        run_async(_build_image(file, path, image_uri, build_arg, volume, env))
+    except (ValueError, click.ClickException) as e:
+        logger.error(f"Failed to build image: {e}")
+        sys.exit(EX_PLATFORMERROR)
 
 
 @dataclass

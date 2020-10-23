@@ -1,0 +1,317 @@
+[1mdiff --git a/neuro_extras/main.py b/neuro_extras/main.py[m
+[1mindex 382494f..42fa14c 100644[m
+[1m--- a/neuro_extras/main.py[m
+[1m+++ b/neuro_extras/main.py[m
+[36m@@ -8,11 +8,12 @@[m [mimport sys[m
+ import tempfile[m
+ import textwrap[m
+ import uuid[m
+[32m+[m[32mfrom builtins import ValueError[m
+ from dataclasses import dataclass, field[m
+ from distutils import dir_util[m
+ from enum import Enum[m
+ from pathlib import Path[m
+[31m-from typing import Any, AsyncIterator, Dict, List, MutableMapping, Sequence[m
+[32m+[m[32mfrom typing import Any, AsyncIterator, Dict, List, MutableMapping, Optional, Sequence[m
+ [m
+ import click[m
+ import toml[m
+[36m@@ -26,6 +27,12 @@[m [mfrom neuromation.cli.asyncio_utils import run as run_async[m
+ from neuromation.cli.const import EX_OK, EX_PLATFORMERROR[m
+ from yarl import URL[m
+ [m
+[32m+[m
+[32m+[m[32mif sys.version_info >= (3, 7):  # pragma: no cover[m
+[32m+[m[32m    from contextlib import asynccontextmanager  # noqa[m
+[32m+[m[32melse:[m
+[32m+[m[32m    from async_generator import asynccontextmanager  # noqa[m
+[32m+[m
+ from .version import __version__[m
+ [m
+ [m
+[36m@@ -78,7 +85,7 @@[m [mdef data_transfer(source: str, destination: str) -> None:[m
+     """[m
+     Copy data between storages on different clusters.[m
+     """[m
+[31m-    run_async(_transfer_data(source, destination))[m
+[32m+[m[32m    run_async(_data_transfer(source, destination))[m
+ [m
+ [m
+ @main.group()[m
+[36m@@ -96,8 +103,7 @@[m [mdef image_transfer(source: str, destination: str) -> None:[m
+     """[m
+     Copy images between clusters.[m
+     """[m
+[31m-    exit_code = run_async(_transfer_image(source, destination))[m
+[31m-    sys.exit(exit_code)[m
+[32m+[m[32m    run_async(_image_transfer(source, destination))[m
+ [m
+ [m
+ @main.command("init-aliases")[m
+[36m@@ -339,12 +345,11 @@[m [masync def _data_cp([m
+                 volume=volume,[m
+                 env=env,[m
+             )[m
+[31m-[m
+             exit_code = await _attach_job_stdout(job, client, name="copy")[m
+             if exit_code == EX_OK:[m
+                 logger.info("Successfully copied data")[m
+[31m-            # TODO (yartem) only highest-level CLI methods should do sys.exit[m
+[31m-            sys.exit(exit_code)[m
+[32m+[m[32m            else:[m
+[32m+[m[32m                raise click.ClickException(f"Data copy failed: {exit_code}")[m
+ [m
+     else:[m
+         # otherwise we deal with cloud/local src and destination[m
+[36m@@ -387,10 +392,10 @@[m [masync def _data_cp([m
+                 )[m
+ [m
+             click.echo(f"Running {command} {' '.join(args)}")[m
+[31m-            subprocess = await asyncio.create_subprocess_exec(command, *args)[m
+[31m-            returncode = await subprocess.wait()[m
+[32m+[m[32m            proc = await asyncio.create_subprocess_exec(command, *args)[m
+[32m+[m[32m            returncode = await proc.wait()[m
+             if returncode != 0:[m
+[31m-                raise click.ClickException(f"Extraction failed: {subprocess.stderr}")[m
+[32m+[m[32m                raise click.ClickException(f"Extraction failed: {proc.returncode}")[m
+             else:[m
+                 if file.exists():[m
+                     # gunzip removes src after extraction, while tar - not[m
+[36m@@ -549,21 +554,64 @@[m [mdef data_cp([m
+     run_async(_data_cp(source, destination, extract, compress, list(volume), list(env)))[m
+ [m
+ [m
+[31m-async def _transfer_image(source: str, destination: str) -> int:[m
+[32m+[m[32m@asynccontextmanager[m
+[32m+[m[32masync def _get_client(cluster: Optional[str] = None):  # type: ignore[m
+[32m+[m[32m    async with neuro_api.get() as client:[m
+[32m+[m[32m        orig = client.cluster_name[m
+[32m+[m[32m        try:[m
+[32m+[m[32m            if cluster is not None:[m
+[32m+[m[32m                if cluster != orig:[m
+[32m+[m[32m                    logger.info(f"Temporarily switching cluster: {orig} -> {cluster}")[m
+[32m+[m[32m                    await client.config.switch_cluster(cluster)[m
+[32m+[m[32m                else:[m
+[32m+[m[32m                    logger.info(f"Already on cluster: {cluster}")[m
+[32m+[m[32m            yield client[m
+[32m+[m[32m        finally:[m
+[32m+[m[32m            if cluster is not None and cluster != orig:[m
+[32m+[m[32m                logger.info(f"Switching back cluster: {cluster} -> {orig}")[m
+[32m+[m[32m                try:[m
+[32m+[m[32m                    await client.config.switch_cluster(orig)[m
+[32m+[m[32m                except BaseException:[m
+[32m+[m[32m                    logger.error([m
+[32m+[m[32m                        f"Could not switch back to cluster '{orig}'. Please "[m
+[32m+[m[32m                        f"run manually: 'neuro config switch-cluster {orig}'"[m
+[32m+[m[32m                    )[m
+[32m+[m
+[32m+[m
+[32m+[m[32mdef _get_cluster_from_uri(image_uri: str, *, scheme: str) -> Optional[str]:[m
+[32m+[m[32m    uri = uri_from_cli(image_uri, "", "", allowed_schemes=[scheme])[m
+[32m+[m[32m    return uri.host[m
+[32m+[m
+[32m+[m
+[32m+[m[32masync def _image_transfer(src_uri: str, dst_uri: str) -> None:[m
+[32m+[m[32m    src_cluster: Optional[str] = _get_cluster_from_uri(src_uri, scheme="image")[m
+[32m+[m[32m    dst_cluster: Optional[str] = _get_cluster_from_uri(dst_uri, scheme="image")[m
+[32m+[m[32m    if not dst_cluster:[m
+[32m+[m[32m        raise ValueError(f"Invalid destination image {dst_uri}: missing cluster name")[m
+[32m+[m
+     with tempfile.TemporaryDirectory() as tmpdir:[m
+[31m-        async with neuro_api.get() as client:[m
+[31m-            remote_image = client.parse.remote_image(image=source)[m
+[31m-        dockerfile_path = Path(f"{tmpdir}/Dockerfile")[m
+[31m-        with open(str(dockerfile_path), "w") as f:[m
+[31m-            f.write([m
+[31m-                textwrap.dedent([m
+[31m-                    f"""\[m
+[31m-                    FROM {_as_repo_str(remote_image)}[m
+[31m-                    LABEL neu.ro/source-image-uri={source}[m
+[31m-                    """[m
+[31m-                )[m
+[32m+[m[32m        async with _get_client(cluster=src_cluster) as src_client:[m
+[32m+[m[32m            src_image = src_client.parse.remote_image(image=src_uri)[m
+[32m+[m[32m            src_client_config = src_client.config[m
+[32m+[m
+[32m+[m[32m        dockerfile = Path(f"{tmpdir}/Dockerfile")[m
+[32m+[m[32m        dockerfile.write_text([m
+[32m+[m[32m            textwrap.dedent([m
+[32m+[m[32m                f"""\[m
+[32m+[m[32m                FROM {_as_repo_str(src_image)}[m
+[32m+[m[32m                LABEL neu.ro/source-image-uri={src_uri}[m
+[32m+[m[32m                """[m
+             )[m
+[31m-        return await _build_image("Dockerfile", tmpdir, destination, [], [], [])[m
+[32m+[m[32m        )[m
+[32m+[m[32m        await _build_image([m
+[32m+[m[32m            dockerfile_path=dockerfile.name,[m
+[32m+[m[32m            context=tmpdir,[m
+[32m+[m[32m            image_uri=dst_uri,[m
+[32m+[m[32m            build_args=[],[m
+[32m+[m[32m            volume=[],[m
+[32m+[m[32m            env=[],[m
+[32m+[m[32m            other_client_configs=[src_client_config],[m
+[32m+[m[32m        )[m
+ [m
+ [m
+ async def _attach_job_stdout([m
+[36m@@ -603,22 +651,25 @@[m [masync def _build_image([m
+     build_args: Sequence[str],[m
+     volume: Sequence[str],[m
+     env: Sequence[str],[m
+[31m-) -> int:[m
+[31m-    async with neuro_api.get() as client:[m
+[32m+[m[32m    other_client_configs: Sequence[neuro_api.Config] = (),[m
+[32m+[m[32m) -> None:[m
+[32m+[m[32m    cluster = _get_cluster_from_uri(image_uri, scheme="image")[m
+[32m+[m[32m    async with _get_client(cluster=cluster) as client:[m
+         context_uri = uri_from_cli([m
+             context,[m
+             client.username,[m
+             client.cluster_name,[m
+             allowed_schemes=("file", "storage"),[m
+         )[m
+[31m-        builder = ImageBuilder(client)[m
+[32m+[m[32m        builder = ImageBuilder(client, other_clients_configs=other_client_configs)[m
+         job = await builder.launch([m
+             dockerfile_path, context_uri, image_uri, build_args, volume, env[m
+         )[m
+         exit_code = await _attach_job_stdout(job, client, name="builder")[m
+         if exit_code == EX_OK:[m
+             logger.info(f"Successfully built {image_uri}")[m
+[31m-        return exit_code[m
+[32m+[m[32m        else:[m
+[32m+[m[32m            raise click.ClickException(f"Failed to build image: {exit_code}")[m
+ [m
+ [m
+ @image.command([m
+[36m@@ -657,8 +708,10 @@[m [mdef image_build([m
+     volume: Sequence[str],[m
+     env: Sequence[str],[m
+ ) -> None:[m
+[31m-    exit_code = run_async(_build_image(file, path, image_uri, build_arg, volume, env))[m
+[31m-    sys.exit(exit_code)[m
+[32m+[m[32m    try:[m
+[32m+[m[32m        run_async(_build_image(file, path, image_uri, build_arg, volume, env))[m
+[32m+[m[32m    except BaseException:[m
+[32m+[m[32m        sys.exit(EX_PLATFORMERROR)[m
+ [m
+ [m
+ @dataclass[m
+[36m@@ -683,8 +736,17 @@[m [mclass DockerConfig:[m
+ [m
+ [m
+ class ImageBuilder:[m
+[31m-    def __init__(self, client: neuro_api.Client) -> None:[m
+[32m+[m[32m    def __init__([m
+[32m+[m[32m        self,[m
+[32m+[m[32m        client: neuro_api.Client,[m
+[32m+[m[32m        other_clients_configs: Sequence[neuro_api.Config] = (),[m
+[32m+[m[32m    ) -> None:[m
+         self._client = client[m
+[32m+[m[32m        self._other_clients_configs = list(other_clients_configs)[m
+[32m+[m
+[32m+[m[32m    @property[m
+[32m+[m[32m    def _all_configs(self) -> Sequence[neuro_api.Config]:[m
+[32m+[m[32m        return [self._client.config] + self._other_clients_configs[m
+ [m
+     def _generate_build_uri(self) -> URL:[m
+         return normalize_storage_path_uri([m
+[36m@@ -693,22 +755,21 @@[m [mclass ImageBuilder:[m
+             self._client.cluster_name,[m
+         )[m
+ [m
+[31m-    def _get_registry(self) -> str:[m
+[31m-        url = self._client.config.registry_url[m
+[32m+[m[32m    def _get_registry(self, config: neuro_api.Config) -> str:[m
+[32m+[m[32m        url = config.registry_url[m
+         if url.explicit_port:  # type: ignore[m
+             return f"{url.host}:{url.explicit_port}"  # type: ignore[m
+         return url.host  # type: ignore[m
+ [m
+     async def create_docker_config(self) -> DockerConfig:[m
+[31m-        config = self._client.config[m
+[31m-        token = await config.token()[m
+         return DockerConfig([m
+             auths=[[m
+                 DockerConfigAuth([m
+[31m-                    registry=self._get_registry(),[m
+[32m+[m[32m                    registry=self._get_registry(config),[m
+                     username=config.username,[m
+[31m-                    password=token,[m
+[32m+[m[32m                    password=await config.token(),[m
+                 )[m
+[32m+[m[32m                for config in self._all_configs[m
+             ][m
+         )[m
+ [m
+[36m@@ -805,7 +866,6 @@[m [mclass ImageBuilder:[m
+ [m
+         build_uri = self._generate_build_uri()[m
+         await self._client.storage.mkdir(build_uri, parents=True, exist_ok=True)[m
+[31m-[m
+         if context_uri.scheme == "file":[m
+             local_context_uri, context_uri = context_uri, build_uri / "context"[m
+             logger.info(f"Uploading {local_context_uri} to {context_uri}")[m
+[36m@@ -1022,23 +1082,25 @@[m [mdef generate_seldon_deployment([m
+     click.echo(yaml.dump(payload), nl=False)[m
+ [m
+ [m
+[31m-async def _transfer_data(source: str, destination: str) -> None:[m
+[31m-    src_uri = uri_from_cli(source, "", "")[m
+[31m-    src_cluster = src_uri.host[m
+[32m+[m[32masync def _data_transfer(src_uri: str, dst_uri: str) -> None:[m
+[32m+[m[32m    src_cluster_or_null = _get_cluster_from_uri(src_uri, scheme="storage")[m
+[32m+[m[32m    dst_cluster = _get_cluster_from_uri(dst_uri, scheme="storage")[m
+ [m
+[31m-    dst_uri = uri_from_cli(destination, "", "")[m
+[31m-    dst_cluster = dst_uri.host[m
+[32m+[m[32m    if not src_cluster_or_null:[m
+[32m+[m[32m        async with _get_client() as src_client:[m
+[32m+[m[32m            src_cluster = src_client.cluster_name[m
+[32m+[m[32m    else:[m
+[32m+[m[32m        src_cluster = src_cluster_or_null[m
+ [m
+[31m-    err_msg = "Please provide full {} path, including cluster and user names."[m
+[31m-    assert src_cluster, err_msg.format("SOURCE")[m
+[31m-    assert dst_cluster, err_msg.format("DESTINATION")[m
+[31m-    async with neuro_api.get() as client:[m
+[31m-        await client.config.switch_cluster(dst_cluster)[m
+[32m+[m[32m    if not dst_cluster:[m
+[32m+[m[32m        raise ValueError(f"Invalid destination path {dst_uri}: missing cluster name")[m
+[32m+[m
+[32m+[m[32m    async with _get_client(cluster=dst_cluster) as client:[m
+         await client.storage.mkdir(URL("storage:"), parents=True, exist_ok=True)[m
+[31m-    await _run_copy_container(src_cluster, str(src_uri), str(dst_uri))[m
+[32m+[m[32m        await _run_copy_container(src_cluster, src_uri, dst_uri)[m
+ [m
+ [m
+[31m-async def _run_copy_container(src_cluster: str, src_path: str, dst_path: str) -> None:[m
+[32m+[m[32masync def _run_copy_container(src_cluster: str, src_uri: str, dst_uri: str) -> None:[m
+     args = [[m
+         "neuro",[m
+         "run",[m
+[36m@@ -1046,18 +1108,18 @@[m [masync def _run_copy_container(src_cluster: str, src_path: str, dst_path: str) ->[m
+         "cpu-small",[m
+         "--pass-config",[m
+         "-v",[m
+[31m-        f"{dst_path}://storage",[m
+[32m+[m[32m        f"{dst_uri}:/storage:rw",[m
+         "-e",[m
+[31m-        f"NEURO_CLUSTER={src_cluster}",[m
+[32m+[m[32m        f"NEURO_CLUSTER={src_cluster}",  # inside the job, switch neuro to 'src_cluster'[m
+         NEURO_EXTRAS_IMAGE,[m
+[31m-        f'"neuro cp --progress -r -u -T {src_path} /storage"',[m
+[32m+[m[32m        f"neuro cp --progress -r -u -T {src_uri} /storage",[m
+     ][m
+     cmd = " ".join(args)[m
+[31m-    print(f"Executing '{cmd}'")[m
+[32m+[m[32m    click.echo(f"Running '{cmd}'")[m
+     subprocess = await asyncio.create_subprocess_shell(cmd)[m
+     returncode = await subprocess.wait()[m
+     if returncode != 0:[m
+[31m-        raise Exception("Unable to copy storage")[m
+[32m+[m[32m        raise click.ClickException("Unable to copy storage")[m
+ [m
+ [m
+ async def _upload(path: str) -> int:[m
