@@ -854,7 +854,7 @@ def test_data_cp_from_cloud_to_local_compress(
                 args_data_cp_from_cloud,
                 bucket,
                 archive_extension,
-                use_tmp_dir
+                use_tmp_dir,
             )
         except AssertionError as e:
             if "directory not found" in str(e):
