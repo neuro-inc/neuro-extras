@@ -232,7 +232,6 @@ def test_data_transfer(
     # Note: we pushed test image to `neuro-compute`, so it should be a target cluster
     to_cluster = "neuro-compute"
     from_cluster = "onprem-poc"  # can be any other cluster
-    assert to_cluster != current_cluster, f"same cluster: {to_cluster}"
 
     with switch_cluster(from_cluster):
         result = cli_runner(["neuro-extras", "init-aliases"])
@@ -270,7 +269,6 @@ def test_image_transfer(
     # Note: we pushed test image to `neuro-compute`, so it should be a target cluster
     to_cluster = "neuro-compute"
     from_cluster = "onprem-poc"  # can be any other cluster
-    assert to_cluster != current_cluster, f"same cluster: {to_cluster}"
 
     with switch_cluster(from_cluster):
         result = cli_runner(["neuro-extras", "init-aliases"])
