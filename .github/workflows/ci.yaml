@@ -20,6 +20,7 @@ jobs:
     env:
       NEURO_STAGING_URL: ${{ secrets.NEURO_STAGING_URL }}
       NEURO_TOKEN: ${{ secrets.NEURO_TOKEN }}
+      NEURO_CLUSTER: neuro-compute
       TEST_GITHUB_TOKEN: ${{ secrets.TEST_GITHUB_TOKEN }}
     steps:
       - name: Checkout commit
@@ -55,6 +56,7 @@ jobs:
       - name: Configure environment
         run: |
           neuro config login-with-token ${{ secrets.NEURO_TOKEN }} ${{ secrets.NEURO_STAGING_URL }}
+          neuro config switch-cluster ${{ env.NEURO_CLUSTER }}
           neuro config show
       - name: Configure GCP access
         uses: GoogleCloudPlatform/github-actions/setup-gcloud@master
