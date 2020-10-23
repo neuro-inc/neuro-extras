@@ -606,6 +606,7 @@ async def _build_image(
                 break
             click.echo(chunk.decode(errors="ignore"), nl=False)
         job = await client.jobs.status(job.id)
+        exit_code = EX_PLATFORMERROR
         if job.status == neuro_api.JobStatus.SUCCEEDED:
             logger.info(f"Successfully built {image_uri}")
             exit_code = EX_OK
@@ -613,7 +614,7 @@ async def _build_image(
             logger.error("The builder job has failed due to:")
             logger.error(f"  Reason: {job.history.reason}")
             logger.error(f"  Description: {job.history.description}")
-            exit_code = job.history.exit_code or EX_PLATFORMERROR
+            exit_code = job.history.exit_code or EX_PLATFORMERROR  # never 0 here
         return exit_code
 
 
