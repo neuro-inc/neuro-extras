@@ -229,26 +229,30 @@ def test_data_transfer(
     current_cluster: str,
     switch_cluster: Callable[[str], ContextManager[None]],
 ) -> None:
-    to_cluster = "onprem-poc"
+    # Note: we pushed test image to `neuro-compute`, so it should be a target cluster
+    to_cluster = "neuro-compute"
+    from_cluster = "onprem-poc"  # can be any other cluster
+    assert to_cluster != current_cluster, f"same cluster: {to_cluster}"
 
-    result = cli_runner(["neuro-extras", "init-aliases"])
-    assert result.returncode == 0, result
+    with switch_cluster(from_cluster):
+        result = cli_runner(["neuro-extras", "init-aliases"])
+        assert result.returncode == 0, result
 
-    src_path = f"copy-src/{str(uuid.uuid4())}"
-    result = cli_runner(["neuro", "mkdir", "-p", f"storage:{src_path}"])
-    assert result.returncode == 0, result
+        src_path = f"copy-src/{str(uuid.uuid4())}"
+        result = cli_runner(["neuro", "mkdir", "-p", f"storage:{src_path}"])
+        assert result.returncode == 0, result
 
-    dst_path = f"copy-dst/{str(uuid.uuid4())}"
+        dst_path = f"copy-dst/{str(uuid.uuid4())}"
 
-    result = cli_runner(
-        [
-            "neuro",
-            "data-transfer",
-            f"storage://{current_cluster}/{current_user}/{src_path}",
-            f"storage://{to_cluster}/{current_user}/{dst_path}",
-        ]
-    )
-    assert result.returncode == 0, result
+        result = cli_runner(
+            [
+                "neuro",
+                "data-transfer",
+                f"storage://{current_cluster}/{current_user}/{src_path}",
+                f"storage://{to_cluster}/{current_user}/{dst_path}",
+            ]
+        )
+        assert result.returncode == 0, result
 
     with switch_cluster(to_cluster):
         result = cli_runner(["neuro", "ls", f"storage:{dst_path}"])
@@ -263,48 +267,51 @@ def test_image_transfer(
     current_cluster: str,
     current_user: str,
 ) -> None:
-    to_cluster = "onprem-poc"
+    # Note: we pushed test image to `neuro-compute`, so it should be a target cluster
+    to_cluster = "neuro-compute"
+    from_cluster = "onprem-poc"  # can be any other cluster
     assert to_cluster != current_cluster, f"same cluster: {to_cluster}"
 
-    result = cli_runner(["neuro-extras", "init-aliases"])
-    assert result.returncode == 0, result
+    with switch_cluster(from_cluster):
+        result = cli_runner(["neuro-extras", "init-aliases"])
+        assert result.returncode == 0, result
 
-    # WORKAROUND: Fixing 401 Not Authorized because of this problem:
-    # https://github.com/neuromation/platform-registry-api/issues/209
-    rnd = uuid.uuid4().hex[:6]
-    img_name = f"extras-e2e-image-copy-{rnd}"
+        # WORKAROUND: Fixing 401 Not Authorized because of this problem:
+        # https://github.com/neuromation/platform-registry-api/issues/209
+        rnd = uuid.uuid4().hex[:6]
+        img_name = f"extras-e2e-image-copy-{rnd}"
 
-    tag = str(uuid.uuid4())
-    # from_img = f"image://{current_cluster}/{current_user}/{img_name}:{tag}"
-    from_img = f"image:{img_name}:{tag}"
-    to_img = f"image://{to_cluster}/{current_user}/{img_name}:{tag}"
+        tag = str(uuid.uuid4())
+        # from_img = f"image://{current_cluster}/{current_user}/{img_name}:{tag}"
+        from_img = f"image:{img_name}:{tag}"
+        to_img = f"image://{to_cluster}/{current_user}/{img_name}:{tag}"
 
-    dockerfile_path = Path("nested/custom.Dockerfile")
-    dockerfile_path.parent.mkdir(parents=True)
+        dockerfile_path = Path("nested/custom.Dockerfile")
+        dockerfile_path.parent.mkdir(parents=True)
 
-    random_file_to_disable_layer_caching = gen_random_file(dockerfile_path.parent)
-    with open(dockerfile_path, "w") as f:
-        f.write(
-            textwrap.dedent(
-                f"""\
-                FROM alpine:latest
-                ADD {random_file_to_disable_layer_caching} /tmp
-                RUN echo !
-                """
+        random_file_to_disable_layer_caching = gen_random_file(dockerfile_path.parent)
+        with open(dockerfile_path, "w") as f:
+            f.write(
+                textwrap.dedent(
+                    f"""\
+                    FROM alpine:latest
+                    ADD {random_file_to_disable_layer_caching} /tmp
+                    RUN echo !
+                    """
+                )
             )
+
+        result = cli_runner(
+            ["neuro", "image-build", "-f", str(dockerfile_path), ".", from_img]
         )
+        assert result.returncode == 0, result
 
-    result = cli_runner(
-        ["neuro", "image-build", "-f", str(dockerfile_path), ".", from_img]
-    )
-    assert result.returncode == 0, result
+        result = repeat_until_success(["neuro", "image", "tags", f"image:{img_name}"])
+        assert tag in result.stdout
 
-    result = repeat_until_success(["neuro", "image", "tags", f"image:{img_name}"])
-    assert tag in result.stdout
-
-    # Note: this command switches cluster to 'to_cluster'
-    result = cli_runner(["neuro", "image-transfer", from_img, to_img])
-    assert result.returncode == 0, result
+        # Note: this command switches cluster to 'to_cluster'
+        result = cli_runner(["neuro", "image-transfer", from_img, to_img])
+        assert result.returncode == 0, result
 
     with switch_cluster(to_cluster):
         result = repeat_until_success(["neuro", "image", "tags", f"image:{img_name}"])
