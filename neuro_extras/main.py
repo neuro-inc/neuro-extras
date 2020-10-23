@@ -80,7 +80,7 @@ def data_transfer(source: str, destination: str) -> None:
     """
     Copy data between storages on different clusters.
     """
-    run_async(_transfer_data(source, destination))
+    run_async(_data_transfer(source, destination))
 
 
 @main.group()
@@ -98,7 +98,7 @@ def image_transfer(source: str, destination: str) -> None:
     """
     Copy images between clusters.
     """
-    run_async(_transfer_image(source, destination))
+    run_async(_image_transfer(source, destination))
 
 
 @main.command("init-aliases")
@@ -573,10 +573,20 @@ async def _get_client(cluster: Optional[str] = None):  # type: ignore
                     )
 
 
-async def _transfer_image(src: str, dst: str) -> None:
+def _get_cluster_from_uri(image_uri: str, *, scheme: str) -> Optional[str]:
+    uri = uri_from_cli(image_uri, "", "", allowed_schemes=[scheme])
+    return uri.host
+
+
+async def _image_transfer(src_uri: str, dst_uri: str) -> None:
+    src_cluster: Optional[str] = _get_cluster_from_uri(src_uri, scheme="image")
+    dst_cluster: Optional[str] = _get_cluster_from_uri(dst_uri, scheme="image")
+    if not dst_cluster:
+        raise ValueError(f"Invalid destination image {dst_uri}: missing cluster name")
+
     with tempfile.TemporaryDirectory() as tmpdir:
-        async with _get_client() as src_client:
-            src_image = src_client.parse.remote_image(image=src)
+        async with _get_client(cluster=src_cluster) as src_client:
+            src_image = src_client.parse.remote_image(image=src_uri)
             src_client_config = src_client.config
 
         dockerfile = Path(f"{tmpdir}/Dockerfile")
@@ -584,14 +594,14 @@ async def _transfer_image(src: str, dst: str) -> None:
             textwrap.dedent(
                 f"""\
                 FROM {_as_repo_str(src_image)}
-                LABEL neu.ro/source-image-uri={src}
+                LABEL neu.ro/source-image-uri={src_uri}
                 """
             )
         )
         await _build_image(
             dockerfile_path=dockerfile.name,
             context=tmpdir,
-            image_uri=dst,
+            image_uri=dst_uri,
             build_args=[],
             volume=[],
             env=[],
@@ -638,22 +648,19 @@ async def _build_image(
     env: Sequence[str],
     other_client_configs: Sequence[neuro_api.Config] = (),
 ) -> None:
-    dst_cluster = uri_from_cli(image_uri, "", "", allowed_schemes=("image",)).host
-    if not dst_cluster:
-        raise ValueError(f"Missing cluster name: {image_uri}")
-
-    async with _get_client(dst_cluster) as dst_client:
+    cluster = _get_cluster_from_uri(image_uri, scheme="image")
+    async with _get_client(cluster=cluster) as client:
         context_uri = uri_from_cli(
             context,
-            dst_client.username,
-            dst_client.cluster_name,
+            client.username,
+            client.cluster_name,
             allowed_schemes=("file", "storage"),
         )
-        builder = ImageBuilder(dst_client, other_clients_configs=other_client_configs)
+        builder = ImageBuilder(client, other_clients_configs=other_client_configs)
         job = await builder.launch(
             dockerfile_path, context_uri, image_uri, build_args, volume, env
         )
-        exit_code = await _attach_job_stdout(job, dst_client, name="builder")
+        exit_code = await _attach_job_stdout(job, client, name="builder")
         if exit_code == EX_OK:
             logger.info(f"Successfully built {image_uri}")
         else:
@@ -1068,22 +1075,25 @@ def generate_seldon_deployment(
     click.echo(yaml.dump(payload), nl=False)
 
 
-async def _transfer_data(source: str, destination: str) -> None:
-    src_uri = uri_from_cli(source, "", "")
-    src_cluster = src_uri.host
+async def _data_transfer(src_uri: str, dst_uri: str) -> None:
+    src_cluster_or_null = _get_cluster_from_uri(src_uri, scheme="storage")
+    dst_cluster = _get_cluster_from_uri(dst_uri, scheme="storage")
 
-    dst_uri = uri_from_cli(destination, "", "")
-    dst_cluster = dst_uri.host
+    if not src_cluster_or_null:
+        async with _get_client() as src_client:
+            src_cluster = src_client.cluster_name
+    else:
+        src_cluster = src_cluster_or_null
 
-    err_msg = "Please provide full {} path, including cluster and user names."
-    assert src_cluster, err_msg.format("SOURCE")
-    assert dst_cluster, err_msg.format("DESTINATION")
+    if not dst_cluster:
+        raise ValueError(f"Invalid destination path {dst_uri}: missing cluster name")
+
     async with _get_client(cluster=dst_cluster) as client:
         await client.storage.mkdir(URL("storage:"), parents=True, exist_ok=True)
-    await _run_copy_container(src_cluster, str(src_uri), str(dst_uri))
+        await _run_copy_container(src_cluster, src_uri, dst_uri)
 
 
-async def _run_copy_container(src_cluster: str, src_path: str, dst_path: str) -> None:
+async def _run_copy_container(src_cluster: str, src_uri: str, dst_uri: str) -> None:
     args = [
         "neuro",
         "run",
@@ -1091,18 +1101,18 @@ async def _run_copy_container(src_cluster: str, src_path: str, dst_path: str) ->
         "cpu-small",
         "--pass-config",
         "-v",
-        f"{dst_path}://storage",
+        f"{dst_uri}:/storage:rw",
         "-e",
-        f"NEURO_CLUSTER={src_cluster}",
+        f"NEURO_CLUSTER={src_cluster}",  # inside the job, switch neuro to 'src_cluster'
         NEURO_EXTRAS_IMAGE,
-        f'"neuro cp --progress -r -u -T {src_path} /storage"',
+        f"neuro cp --progress -r -u -T {src_uri} /storage",
     ]
     cmd = " ".join(args)
-    print(f"Executing '{cmd}'")
+    click.echo(f"Running '{cmd}'")
     subprocess = await asyncio.create_subprocess_shell(cmd)
     returncode = await subprocess.wait()
     if returncode != 0:
-        raise Exception("Unable to copy storage")
+        raise click.ClickException("Unable to copy storage")
 
 
 async def _upload(path: str) -> int:
