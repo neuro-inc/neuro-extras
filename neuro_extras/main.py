@@ -9,7 +9,6 @@ import tempfile
 import textwrap
 import uuid
 from builtins import ValueError
-from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from distutils import dir_util
 from enum import Enum
@@ -27,6 +26,12 @@ from neuromation.api.url_utils import normalize_storage_path_uri, uri_from_cli
 from neuromation.cli.asyncio_utils import run as run_async
 from neuromation.cli.const import EX_OK, EX_PLATFORMERROR
 from yarl import URL
+
+
+if sys.version_info >= (3, 7):  # pragma: no cover
+    from contextlib import asynccontextmanager  # noqa
+else:
+    from async_generator import asynccontextmanager  # noqa
 
 from .version import __version__
 
