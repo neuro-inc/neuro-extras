@@ -28,7 +28,7 @@ jobs:
               pip-lint-
       - name: Install dependencies
         run: |
-          python -m pip install
+          python -m pip install pip
           make setup
       - name: Run linters
         run: |
