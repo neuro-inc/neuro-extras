@@ -1,10 +1,6 @@
 name: CI
 
 on:
-  push:
-    branches: [ master ]
-  pull_request:
-    branches: [ master ]
   release:
     types: [ published ]
 
@@ -155,7 +151,7 @@ jobs:
 
   test:
     name: Run e2e tests against release image
-    needs: [pretest]
+    needs: [dockerhub_deploy]
     if: github.event_name == 'release'
     strategy:
       matrix:
