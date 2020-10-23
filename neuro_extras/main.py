@@ -11,6 +11,7 @@ import uuid
 from dataclasses import dataclass, field
 from distutils import dir_util
 from enum import Enum
+from os import EX_OK
 from pathlib import Path
 from typing import Any, AsyncIterator, Dict, List, MutableMapping, Sequence
 
@@ -96,7 +97,8 @@ def image_transfer(source: str, destination: str) -> None:
     """
     Copy images between clusters.
     """
-    run_async(_transfer_image(source, destination))
+    exit_code = run_async(_transfer_image(source, destination))
+    sys.exit(exit_code)
 
 
 @main.command("init-aliases")
@@ -560,7 +562,7 @@ def data_cp(
     run_async(_data_cp(source, destination, extract, compress, list(volume), list(env)))
 
 
-async def _transfer_image(source: str, destination: str) -> None:
+async def _transfer_image(source: str, destination: str) -> int:
     with tempfile.TemporaryDirectory() as tmpdir:
         async with neuro_api.get() as client:
             remote_image = client.parse.remote_image(image=source)
@@ -574,7 +576,7 @@ async def _transfer_image(source: str, destination: str) -> None:
                     """
                 )
             )
-        await _build_image("Dockerfile", tmpdir, destination, [], [], [])
+        return await _build_image("Dockerfile", tmpdir, destination, [], [], [])
 
 
 async def _build_image(
@@ -584,7 +586,7 @@ async def _build_image(
     build_args: Sequence[str],
     volume: Sequence[str],
     env: Sequence[str],
-) -> None:
+) -> int:
     async with neuro_api.get() as client:
         context_uri = uri_from_cli(
             context,
@@ -604,16 +606,15 @@ async def _build_image(
                 break
             click.echo(chunk.decode(errors="ignore"), nl=False)
         job = await client.jobs.status(job.id)
-        if job.status == neuro_api.JobStatus.FAILED:
+        if job.status == neuro_api.JobStatus.SUCCEEDED:
+            logger.info(f"Successfully built {image_uri}")
+            exit_code = EX_OK
+        elif job.status == neuro_api.JobStatus.FAILED:
             logger.error("The builder job has failed due to:")
             logger.error(f"  Reason: {job.history.reason}")
             logger.error(f"  Description: {job.history.description}")
-            exit_code = job.history.exit_code
-            if exit_code is None:
-                exit_code = EX_PLATFORMERROR
-            sys.exit(exit_code)
-        else:
-            logger.info(f"Successfully built {image_uri}")
+            exit_code = job.history.exit_code or EX_PLATFORMERROR
+        return exit_code
 
 
 @image.command(
@@ -652,7 +653,8 @@ def image_build(
     volume: Sequence[str],
     env: Sequence[str],
 ) -> None:
-    run_async(_build_image(file, path, image_uri, build_arg, volume, env))
+    exit_code = run_async(_build_image(file, path, image_uri, build_arg, volume, env))
+    sys.exit(exit_code)
 
 
 @dataclass
