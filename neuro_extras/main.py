@@ -2,6 +2,7 @@ import asyncio
 import base64
 import json
 import logging
+import os
 import re
 import sys
 import tempfile
@@ -25,6 +26,12 @@ from neuromation.cli.asyncio_utils import run as run_async
 from neuromation.cli.const import EX_PLATFORMERROR
 from yarl import URL
 
+from .version import __version__
+
+
+NEURO_EXTRAS_IMAGE = os.environ.get(
+    "NEURO_EXTRAS_IMAGE", f"neuromation/neuro-extras:{__version__}"
+)
 
 SUPPORTED_ARCHIVE_TYPES = (
     ".tar.gz",
@@ -141,10 +148,6 @@ def init_aliases() -> None:
     logger.info(f"Added aliases to {toml_path}")
 
 
-NEURO_EXTRAS_IMAGE_TAG = "a3acb3c3dfeabbb01292c3a441f4bf03efd041e5"  # "v20.10.16a1"
-NEURO_EXTRAS_IMAGE = f"neuromation/neuro-extras:{NEURO_EXTRAS_IMAGE_TAG}"
-
-
 class ClickLogHandler(logging.Handler):
     def emit(self, record: logging.LogRecord) -> None:
         try:
@@ -192,6 +195,11 @@ def config_save_docker_json(path: str) -> None:
 TEMP_UNPACK_DIR = Path.home() / ".neuro-tmp"
 
 
+async def _parse_neuro_image(image: str) -> neuro_api.RemoteImage:
+    async with neuro_api.get() as client:
+        return client.parse.remote_image(image)
+
+
 class DataCopier:
     def __init__(self, client: neuro_api.Client):
         self._client = client
@@ -233,8 +241,9 @@ class DataCopier:
         )
 
         cmd = f"neuro-extras data cp {args}"
+        image = await _parse_neuro_image(NEURO_EXTRAS_IMAGE)
         return neuro_api.Container(
-            image=neuro_api.RemoteImage.new_external_image(NEURO_EXTRAS_IMAGE),
+            image=image,
             resources=neuro_api.Resources(cpu=2.0, memory_mb=4096),
             volumes=volumes,
             disk_volumes=disk_volumes,
