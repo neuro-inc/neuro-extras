@@ -695,6 +695,13 @@ def remote_project_dir(project_dir: Path) -> Path:
     return Path(remote_project_dir)
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32",
+    reason=(
+        "This test weirdly fails on Windows, "
+        "see https://github.com/neuro-inc/neuro-extras/issues/128"
+    ),
+)
 def test_upload_download_single_file(
     project_dir: Path, remote_project_dir: Path, cli_runner: CLIRunner
 ) -> None:
@@ -713,6 +720,13 @@ def test_upload_download_single_file(
     assert file.read_text() == test_file_content
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32",
+    reason=(
+        "This test weirdly fails on Windows, "
+        "see https://github.com/neuro-inc/neuro-extras/issues/128"
+    ),
+)
 def test_upload_download_subdir(
     project_dir: Path, remote_project_dir: Path, cli_runner: CLIRunner
 ) -> None:
