@@ -197,9 +197,9 @@ jobs:
       - name: Sanity check for tag and version
         run: |
           export VERSION=${{ needs.lint.outputs.version }}
-          if [ "${{ github.ref }}" != "refs/tags/v$VERSION" ]
+          if [ "${{ github.ref }}" != "refs/tags/$VERSION" ]
           then
-            echo "Git tag '${{ github.ref }}' != hard-coded package version '$VERSION'"
+            echo "Git tag '${{ github.ref }}' differs from hard-coded package version '$VERSION'"
             exit 1
           else
             echo "OK, git tag matches hard-coded package version: '$VERSION'"
@@ -260,14 +260,14 @@ jobs:
             --build-arg NEURO_EXTRAS_PACKAGE=$PACKAGE .
       - name: Push release release image
         run: |
-          export TAG=v${{ needs.lint.outputs.version }}
+          export TAG="${{ needs.lint.outputs.version }}"
 
           docker login $DOCKER_SERVER --username $DOCKER_USERNAME --password $DOCKER_PASSWORD
           docker tag neuromation/neuro-extras:latest neuromation/neuro-extras:$TAG
           docker push neuromation/neuro-extras:$TAG
           # Push latest if it's not an alpha release:
-          #   not alpha: TAG="v20.9.29"
-          #   alpha: TAG="v20.9.29a1"
+          #   not alpha: TAG="20.9.29"
+          #       alpha: TAG="20.9.29a1"
           if [[ ! "$TAG" =~ ^.*a[0-9]*$ ]]; then
             docker push neuromation/neuro-extras:latest
           fi
