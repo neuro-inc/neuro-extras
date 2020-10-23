@@ -11,7 +11,6 @@ import uuid
 from dataclasses import dataclass, field
 from distutils import dir_util
 from enum import Enum
-from os import EX_OK
 from pathlib import Path
 from typing import Any, AsyncIterator, Dict, List, MutableMapping, Sequence
 
@@ -24,7 +23,7 @@ from neuromation.api.config import load_user_config
 from neuromation.api.parsing_utils import _as_repo_str
 from neuromation.api.url_utils import normalize_storage_path_uri, uri_from_cli
 from neuromation.cli.asyncio_utils import run as run_async
-from neuromation.cli.const import EX_PLATFORMERROR
+from neuromation.cli.const import EX_OK, EX_PLATFORMERROR
 from yarl import URL
 
 from .version import __version__
