@@ -23,7 +23,7 @@ from neuromation.api.config import load_user_config
 from neuromation.api.parsing_utils import _as_repo_str
 from neuromation.api.url_utils import normalize_storage_path_uri, uri_from_cli
 from neuromation.cli.asyncio_utils import run as run_async
-from neuromation.cli.const import EX_PLATFORMERROR
+from neuromation.cli.const import EX_OK, EX_PLATFORMERROR
 from yarl import URL
 
 from .version import __version__
@@ -96,7 +96,8 @@ def image_transfer(source: str, destination: str) -> None:
     """
     Copy images between clusters.
     """
-    run_async(_transfer_image(source, destination))
+    exit_code = run_async(_transfer_image(source, destination))
+    sys.exit(exit_code)
 
 
 @main.command("init-aliases")
@@ -339,24 +340,12 @@ async def _data_cp(
                 env=env,
             )
 
-            while job.status == neuro_api.JobStatus.PENDING:
-                job = await client.jobs.status(job.id)
-                await asyncio.sleep(1.0)
-            async for chunk in client.jobs.monitor(job.id):
-                if not chunk:
-                    break
-                click.echo(chunk.decode(errors="ignore"), nl=False)
-            job = await client.jobs.status(job.id)
-            if job.status == neuro_api.JobStatus.FAILED:
-                logger.error("The copy job has failed due to:")
-                logger.error(f"  Reason: {job.history.reason}")
-                logger.error(f"  Description: {job.history.description}")
-                exit_code = job.history.exit_code
-                if exit_code is None:
-                    exit_code = EX_PLATFORMERROR
-                sys.exit(exit_code)
-            else:
+            exit_code = await _attach_job_stdout(job, client, name="copy")
+            if exit_code == EX_OK:
                 logger.info("Successfully copied data")
+            # TODO (yartem) only highest-level CLI methods should do sys.exit
+            sys.exit(exit_code)
+
     else:
         # otherwise we deal with cloud/local src and destination
 
@@ -560,7 +549,7 @@ def data_cp(
     run_async(_data_cp(source, destination, extract, compress, list(volume), list(env)))
 
 
-async def _transfer_image(source: str, destination: str) -> None:
+async def _transfer_image(source: str, destination: str) -> int:
     with tempfile.TemporaryDirectory() as tmpdir:
         async with neuro_api.get() as client:
             remote_image = client.parse.remote_image(image=source)
@@ -574,7 +563,37 @@ async def _transfer_image(source: str, destination: str) -> None:
                     """
                 )
             )
-        await _build_image("Dockerfile", tmpdir, destination, [], [], [])
+        return await _build_image("Dockerfile", tmpdir, destination, [], [], [])
+
+
+async def _attach_job_stdout(
+    job: neuro_api.JobDescription, client: neuro_api.Client, name: str = ""
+) -> int:
+    while job.status == neuro_api.JobStatus.PENDING:
+        job = await client.jobs.status(job.id)
+        await asyncio.sleep(1.0)
+    async for chunk in client.jobs.monitor(job.id):
+        if not chunk:
+            break
+        click.echo(chunk.decode(errors="ignore"), nl=False)
+    while job.status in (neuro_api.JobStatus.PENDING, neuro_api.JobStatus.RUNNING):
+        job = await client.jobs.status(job.id)
+        await asyncio.sleep(1.0)
+
+    job = await client.jobs.status(job.id)
+    exit_code = EX_PLATFORMERROR
+    if job.status == neuro_api.JobStatus.SUCCEEDED:
+        exit_code = EX_OK
+    elif job.status == neuro_api.JobStatus.FAILED:
+        logger.error(f"The {name} job {job.id} failed due to:")
+        logger.error(f"  Reason: {job.history.reason}")
+        logger.error(f"  Description: {job.history.description}")
+        exit_code = job.history.exit_code or EX_PLATFORMERROR  # never 0 for failed
+    elif job.status == neuro_api.JobStatus.CANCELLED:
+        logger.error(f"The {name} job {job.id} was cancelled")
+    else:
+        logger.error(f"The {name} job {job.id} terminated, status: {job.status}")
+    return exit_code
 
 
 async def _build_image(
@@ -584,7 +603,7 @@ async def _build_image(
     build_args: Sequence[str],
     volume: Sequence[str],
     env: Sequence[str],
-) -> None:
+) -> int:
     async with neuro_api.get() as client:
         context_uri = uri_from_cli(
             context,
@@ -596,24 +615,10 @@ async def _build_image(
         job = await builder.launch(
             dockerfile_path, context_uri, image_uri, build_args, volume, env
         )
-        while job.status == neuro_api.JobStatus.PENDING:
-            job = await client.jobs.status(job.id)
-            await asyncio.sleep(1.0)
-        async for chunk in client.jobs.monitor(job.id):
-            if not chunk:
-                break
-            click.echo(chunk.decode(errors="ignore"), nl=False)
-        job = await client.jobs.status(job.id)
-        if job.status == neuro_api.JobStatus.FAILED:
-            logger.error("The builder job has failed due to:")
-            logger.error(f"  Reason: {job.history.reason}")
-            logger.error(f"  Description: {job.history.description}")
-            exit_code = job.history.exit_code
-            if exit_code is None:
-                exit_code = EX_PLATFORMERROR
-            sys.exit(exit_code)
-        else:
+        exit_code = await _attach_job_stdout(job, client, name="builder")
+        if exit_code == EX_OK:
             logger.info(f"Successfully built {image_uri}")
+        return exit_code
 
 
 @image.command(
@@ -652,7 +657,8 @@ def image_build(
     volume: Sequence[str],
     env: Sequence[str],
 ) -> None:
-    run_async(_build_image(file, path, image_uri, build_arg, volume, env))
+    exit_code = run_async(_build_image(file, path, image_uri, build_arg, volume, env))
+    sys.exit(exit_code)
 
 
 @dataclass
