@@ -5,14 +5,11 @@ on:
     branches: [ master ]
   pull_request:
     branches: [ master ]
-  release:
-    types: [ published ]
 
 jobs:
 
   lint:
     name: Linter
-    if: github.event_name == 'release'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -39,7 +36,6 @@ jobs:
 
   pretest:
     name: Prepare for e2e tests
-    if: github.event_name == 'release'
     needs: [lint]
     runs-on: ubuntu-latest
     env:
@@ -81,7 +77,6 @@ jobs:
 
   test:
     name: Run e2e tests
-    if: github.event_name == 'release'
     needs: [pretest]
     strategy:
       matrix:
@@ -156,7 +151,6 @@ jobs:
 # TODO (yartem) Uncomment this step when neuro-image-delete is implemented
 #  posttest:
 #    name: Cleanup after successful e2e tests
-#    if: github.event_name == 'release'
 #    needs: [test]
 #    runs-on: ubuntu-latest
 #    env:
