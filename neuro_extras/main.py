@@ -1079,18 +1079,17 @@ def generate_seldon_deployment(
 async def _transfer_data(source: str, destination: str) -> None:
     src_uri = uri_from_cli(source, "", "")
     src_cluster = src_uri.host
-    src_path = src_uri.parts[2:]
 
     dst_uri = uri_from_cli(destination, "", "")
     dst_cluster = dst_uri.host
-    dst_path = dst_uri.parts[2:]
 
-    assert src_cluster
-    assert dst_cluster
+    err_msg = "Please provide full {} path, including cluster and user names."
+    assert src_cluster, err_msg.format("SOURCE")
+    assert dst_cluster, err_msg.format("DESTINATION")
     async with neuro_api.get() as client:
         await client.config.switch_cluster(dst_cluster)
         await client.storage.mkdir(URL("storage:"), parents=True, exist_ok=True)
-    await _run_copy_container(src_cluster, "/".join(src_path), "/".join(dst_path))
+    await _run_copy_container(src_cluster, str(src_uri), str(dst_uri))
 
 
 async def _run_copy_container(src_cluster: str, src_path: str, dst_path: str) -> None:
@@ -1101,11 +1100,11 @@ async def _run_copy_container(src_cluster: str, src_path: str, dst_path: str) ->
         "cpu-small",
         "--pass-config",
         "-v",
-        "storage:://storage",
+        f"{dst_path}://storage",
         "-e",
         f"NEURO_CLUSTER={src_cluster}",
         NEURO_EXTRAS_IMAGE,
-        f'"neuro cp --progress -r -u -T storage:{src_path} /storage/{dst_path}"',
+        f'"neuro cp --progress -r -u -T {src_path} /storage"',
     ]
     cmd = " ".join(args)
     print(f"Executing '{cmd}'")
