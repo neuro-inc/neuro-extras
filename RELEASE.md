@@ -1,6 +1,6 @@
 # Versioning
 
-The project uses release versioning a format `YY.MM.DD`. For instance, when releasing a version on Sep 15, 2021, it would be versionsed as `21.9.15` (no zero before `9`). Note: you'll be setting version in format `vYY.MM.DD`, prefix `v` will be cut automatically.
+The project uses release versioning a format `YY.MM.DD` (both for pip packages and image tags). For instance, when releasing a version on Sep 15, 2021, it would be versionsed as `21.9.15` (no zero before `9`).
 
 
 # Release process
@@ -11,36 +11,24 @@ Suppose, today is October 15, 2020, and we want to update both neuro-extras pip 
 
 0. Make sure all tests are green in `master` branch.
 
-## Part 1: alpha-release
-
-1. Bump alpha version in the code.
+1. Use the newly updated docker image inside the code.
     - `git checkout master`;
-    - update `neuro_extras/version.py`: `__version__ = "v20.10.15a1"` (note postfix `a1`);
-    - `git add . && git commit -m "Update code version to v20.10.15a1"` and `push` directly to `origin/master`;
-    - wait for green build in [Actions](https://github.com/neuro-inc/neuro-extras/actions);
-
-2. Submit a pre-release on GitHub.
-    - go to [Releases](https://github.com/neuro-inc/neuro-extras/releases/), `Draft a new release`, tag: `v20.10.15a1` (note: postfix `a1`);
-    - wait for green build in [Actions](https://github.com/neuro-inc/neuro-extras/actions);
-    - verify that docker image was updated on [DockerHub](https://hub.docker.com/r/neuromation/neuro-extras/tags);
-    - Note: `pip install -U neuro-extras` won't upgrade as it's an alpha release;
-
-## Part 2: full-release
-
-3. Use the newly updated docker image inside the code.
     - `git checkout master`;
-    - set the new alpha version `v20.10.15a1` to variable `NEURO_EXTRAS_IMAGE_TAG` in `neuro_extras/main.py`;
-    - `git commit -m "Use image version to v20.10.15a1"` and `push` directly to `origin/master`;
-
-4. Bump non-alpha version in the code.
-    - `git checkout master`;
-    - update `neuro_extras/version.py`: `__version__ = "v20.10.15"` (note: no postfixes);
+    - update `neuro_extras/version.py`: set `__version__ = "20.10.15"`;
     - run `make changelog-draft` and verify changelog looks valid;
     - run `make changelog` - this will delete changelog items from `CHANGELOG.d`;
-    - `git add . && git commit -m "Release version v20.10.15"` and `push` directly to `origin/master`;
+    - `git add . && git commit -m "Release version 20.10.15"` and `push` directly to `origin/master`;
     - wait for green build in [Actions](https://github.com/neuro-inc/neuro-extras/actions);
 
-5. Submit a release on GitHub.
+2. Submit a release on GitHub.
     - go to [Releases](https://github.com/neuro-inc/neuro-extras/releases/), `Draft a new release`, tag: `v20.10.15` (note: no postfixes);
     - wait for green build in [Actions](https://github.com/neuro-inc/neuro-extras/actions);
+    - if the build failed, fix the errors and repeat from step 1. with version postfix: `20.10.15-1`.
     - verify that `pip install -U neuro-extras` does install `neuro-extras==20.10.15`
+
+
+# Alpha release
+
+To debug a release process without changing latest versions of package and image, you can issue an alpha release just postfixing the version with `a`:
+- `20.10.15a1`
+- `20.10.15a2`
