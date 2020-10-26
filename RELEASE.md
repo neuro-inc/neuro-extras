@@ -5,13 +5,11 @@ The project uses release versioning a format `YY.MM.DD` (both for pip packages a
 
 # Release process
 
-*Note*: Start with part 1 if the docker image should be updated. Otherwise - go directly to part 2.
-
 Suppose, today is October 15, 2020, and we want to update both neuro-extras pip package and docker image.
 
 0. Make sure all tests are green in `master` branch.
 
-1. Use the newly updated docker image inside the code.
+1. Bump code version directly to `master`.
     - `git checkout master`;
     - update `neuro_extras/version.py`: set `__version__ = "20.10.15"`;
     - run `make changelog-draft` and verify changelog looks valid;
