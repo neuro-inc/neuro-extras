@@ -1,8 +1,8 @@
+import asyncio
 import base64
 import json
 import logging
 import os
-import re
 import sys
 import textwrap
 import time
@@ -11,14 +11,14 @@ from pathlib import Path
 from subprocess import CompletedProcess, check_output
 from tempfile import TemporaryDirectory
 from time import sleep
-from typing import Callable, Iterator, List
+from typing import Callable, ContextManager, Iterator, List
 from unittest import mock
 
 import pytest
 import toml
 import yaml
 from _pytest.capture import CaptureFixture
-from neuromation.cli.const import EX_OK
+from neuromation.cli.const import EX_OK, EX_PLATFORMERROR
 from neuromation.cli.main import cli as neuro_main
 
 from neuro_extras.main import NEURO_EXTRAS_IMAGE, TEMP_UNPACK_DIR, main as extras_main
@@ -108,6 +108,8 @@ def repeat_until_success(
                 result = cli_runner(args)
                 if result.returncode == 0:
                     return result
+            except asyncio.CancelledError:
+                raise
             except BaseException as e:
                 logger.info(f"Command {args}, exception caught: {e}")
             time.sleep(time_sleep)
@@ -141,8 +143,8 @@ def test_image_build_failure(cli_runner: CLIRunner) -> None:
             "<invalid>",
         ]
     )
-    assert result.returncode == 1, result
-    assert "repository can only contain" in result.stdout
+    assert result.returncode == EX_PLATFORMERROR, result
+    assert "Failed to build image: URI Scheme not specified." in result.stdout
 
 
 @pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
@@ -221,82 +223,96 @@ def test_ignored_files_are_not_copied(
     assert ignored_file_content not in result.stdout
 
 
-def test_data_transfer(cli_runner: CLIRunner) -> None:
-    result = cli_runner(["neuro-extras", "init-aliases"])
-    assert result.returncode == 0, result
+@pytest.mark.serial
+def test_data_transfer(
+    cli_runner: CLIRunner,
+    current_user: str,
+    switch_cluster: Callable[[str], ContextManager[None]],
+) -> None:
+    # Note: we pushed test image to `neuro-compute`, so it should be a target cluster
+    src_cluster = "neuro-compute"
+    dst_cluster = "onprem-poc"  # can be any other cluster
 
-    result = cli_runner(["neuro", "config", "show"])
-    username_re = re.compile(".*User Name: ([a-zA-Z0-9-]+).*", re.DOTALL)
-    cluster_re = re.compile(".*Current Cluster: ([a-zA-Z0-9-]+).*", re.DOTALL)
-    m = username_re.match(result.stdout)
-    assert m
-    username = m.groups()[0]
-    m = cluster_re.match(result.stdout)
-    assert m
-    current_cluster = m.groups()[0]
+    with switch_cluster(dst_cluster):
+        result = cli_runner(["neuro-extras", "init-aliases"])
+        assert result.returncode == 0, result
 
-    run_id = uuid.uuid4()
-    src_path = f"copy-src/{str(run_id)}"
-    result = cli_runner(["neuro", "mkdir", "-p", "storage:" + src_path])
-    assert result.returncode == 0, result
+        src_path = f"copy-src/{str(uuid.uuid4())}"
+        result = cli_runner(["neuro", "mkdir", "-p", f"storage:{src_path}"])
+        assert result.returncode == 0, result
 
-    dst_path = "copy-dst"
+        dst_path = f"copy-dst/{str(uuid.uuid4())}"
 
-    result = cli_runner(
-        [
-            "neuro",
-            "data-transfer",
-            f"storage://{current_cluster}/{username}/{src_path}",
-            f"storage://{current_cluster}/{username}/{dst_path}",
-        ]
-    )
-    assert result.returncode == 0, result
+        result = cli_runner(
+            [
+                "neuro",
+                "data-transfer",
+                f"storage:{src_path}",  # also, full src uri is supported
+                f"storage://{src_cluster}/{current_user}/{dst_path}",
+            ]
+        )
+        assert result.returncode == 0, result
+
+    with switch_cluster(src_cluster):
+        result = cli_runner(["neuro", "ls", f"storage:{dst_path}"])
+        assert result.returncode == 0, result
 
 
+@pytest.mark.serial
 @pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
 def test_image_transfer(
-    cli_runner: CLIRunner, repeat_until_success: Callable[..., "CompletedProcess[str]"]
+    cli_runner: CLIRunner,
+    repeat_until_success: Callable[..., "CompletedProcess[str]"],
+    switch_cluster: Callable[[str], ContextManager[None]],
+    current_user: str,
 ) -> None:
-    result = cli_runner(["neuro-extras", "init-aliases"])
-    assert result.returncode == 0, result
+    # Note: we pushed test image to `neuro-compute`, so it should be a target cluster
+    src_cluster = "neuro-compute"
+    dst_cluster = "onprem-poc"  # can be any other cluster
 
-    dockerfile_path = Path("nested/custom.Dockerfile")
-    dockerfile_path.parent.mkdir(parents=True)
+    with switch_cluster(dst_cluster):
+        result = cli_runner(["neuro-extras", "init-aliases"])
+        assert result.returncode == 0, result
 
-    random_file_to_disable_layer_caching = gen_random_file(dockerfile_path.parent)
-    with open(dockerfile_path, "w") as f:
-        f.write(
-            textwrap.dedent(
-                f"""\
-                FROM alpine:latest
-                ADD {random_file_to_disable_layer_caching} /tmp
-                RUN echo !
-                """
+        # WORKAROUND: Fixing 401 Not Authorized because of this problem:
+        # https://github.com/neuromation/platform-registry-api/issues/209
+        rnd = uuid.uuid4().hex[:6]
+        img_name = f"extras-e2e-image-copy-{rnd}"
+
+        tag = str(uuid.uuid4())
+        from_img = f"image:{img_name}:{tag}"  # also, full src uri is supported
+        to_img = f"image://{src_cluster}/{current_user}/{img_name}:{tag}"
+
+        dockerfile_path = Path("nested/custom.Dockerfile")
+        dockerfile_path.parent.mkdir(parents=True)
+
+        random_file_to_disable_layer_caching = gen_random_file(dockerfile_path.parent)
+        with open(dockerfile_path, "w") as f:
+            f.write(
+                textwrap.dedent(
+                    f"""\
+                    FROM alpine:latest
+                    ADD {random_file_to_disable_layer_caching} /tmp
+                    RUN echo !
+                    """
+                )
             )
+
+        result = cli_runner(
+            ["neuro", "image-build", "-f", str(dockerfile_path), ".", from_img]
         )
+        assert result.returncode == 0, result
 
-    # WORKAROUND: Fixing 401 Not Authorized because of this problem:
-    # https://github.com/neuromation/platform-registry-api/issues/209
-    rnd = uuid.uuid4().hex[:6]
-    image = f"image:extras-e2e-image-copy-{rnd}"
+        result = repeat_until_success(["neuro", "image", "tags", f"image:{img_name}"])
+        assert tag in result.stdout
 
-    tag = str(uuid.uuid4())
-    img_uri_str = f"{image}:{tag}"
+        # Note: this command switches cluster to 'to_cluster'
+        result = cli_runner(["neuro", "image-transfer", from_img, to_img])
+        assert result.returncode == 0, result
 
-    result = cli_runner(
-        ["neuro", "image-build", "-f", str(dockerfile_path), ".", img_uri_str]
-    )
-    assert result.returncode == 0, result
-
-    result = repeat_until_success(["neuro", "image", "tags", image])
-    assert tag in result.stdout
-
-    result = cli_runner(["neuro", "image-transfer", img_uri_str, image])
-    assert result.returncode == 0, result
-
-    result = repeat_until_success(["neuro", "image", "tags", image])
-    assert tag in result.stdout
-    assert result.returncode == 0, result
+    with switch_cluster(src_cluster):
+        result = repeat_until_success(["neuro", "image", "tags", f"image:{img_name}"])
+        assert tag in result.stdout
 
 
 @pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
