@@ -13,7 +13,6 @@ Suppose, today is October 15, 2020, and we want to update both neuro-extras pip 
 
 1. Use the newly updated docker image inside the code.
     - `git checkout master`;
-    - `git checkout master`;
     - update `neuro_extras/version.py`: set `__version__ = "20.10.15"`;
     - run `make changelog-draft` and verify changelog looks valid;
     - run `make changelog` - this will delete changelog items from `CHANGELOG.d`;
