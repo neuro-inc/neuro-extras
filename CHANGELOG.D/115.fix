@@ -1,1 +1,1 @@
-Move GCS auth to entrypoint & add hints to CLI commands.
+Fix data ingestion to/from GCP (move GCS auth to entrypoint) & add hints to CLI commands.

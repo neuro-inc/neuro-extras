@@ -3,7 +3,6 @@ import base64
 import json
 import logging
 import os
-import random
 import sys
 import textwrap
 import time
@@ -860,8 +859,19 @@ def test_data_cp_from_cloud_to_local(
 
 
 @pytest.mark.parametrize("bucket", [GCP_BUCKET, AWS_BUCKET])
-@pytest.mark.parametrize("archive_extension", TESTED_ARCHIVE_TYPES)
 @pytest.mark.parametrize("use_tmp_dir", [True, False])
+@pytest.mark.parametrize(
+    "from_extension, to_extension",
+    list(
+        zip(
+            TESTED_ARCHIVE_TYPES,
+            TESTED_ARCHIVE_TYPES[1:] + TESTED_ARCHIVE_TYPES[:1]
+        )
+    ) +
+    list(
+        (TESTED_ARCHIVE_TYPES[0], TESTED_ARCHIVE_TYPES[0])
+    ),
+)
 @pytest.mark.skipif(
     sys.platform == "win32",
     reason="Windows path are not supported yet + no utilities on windows",
@@ -872,7 +882,8 @@ def test_data_cp_from_cloud_to_local_compress(
     cli_runner: CLIRunner,
     args_data_cp_from_cloud: Callable[..., List[str]],
     bucket: str,
-    archive_extension: str,
+    from_extension: str,
+    to_extension: str,
     use_tmp_dir: bool,
 ) -> None:
     # TODO: retry because of: https://github.com/neuro-inc/neuro-extras/issues/124
@@ -883,7 +894,8 @@ def test_data_cp_from_cloud_to_local_compress(
                 cli_runner,
                 args_data_cp_from_cloud,
                 bucket,
-                archive_extension,
+                from_extension,
+                to_extension,
                 use_tmp_dir,
             )
         except AssertionError as e:
@@ -897,14 +909,14 @@ def _run_test_data_cp_from_cloud_to_local_compress(
     cli_runner: CLIRunner,
     args_data_cp_from_cloud: Callable[..., List[str]],
     bucket: str,
-    archive_extension: str,
+    from_extension: str,
+    to_extension: str,
     use_tmp_dir: bool,
 ) -> None:
     TEMP_UNPACK_DIR.mkdir(parents=True, exist_ok=True)
     with TemporaryDirectory(dir=TEMP_UNPACK_DIR.expanduser()) as tmp_dir:
-        # if src and dst archive types are the same - compression is skipped.
-        src = f"{bucket}/hello.{random.choice(TESTED_ARCHIVE_TYPES)}"
-        dst = f"{tmp_dir}/hello.{archive_extension}"
+        src = f"{bucket}/hello.{from_extension}"
+        dst = f"{tmp_dir}/hello.{to_extension}"
 
         res = cli_runner(
             args_data_cp_from_cloud(bucket, src, dst, False, True, use_tmp_dir)
@@ -915,7 +927,11 @@ def _run_test_data_cp_from_cloud_to_local_compress(
             print(f"STDERR: {res.stderr}")
         assert res.returncode == 0, res
 
-        expected_file = Path(tmp_dir) / f"hello.{archive_extension}"
+        if from_extension == to_extension:
+            # if src and dst archive types are the same - compression should be skipped.
+            assert "Skipping compression step" in res.stdout, res
+
+        expected_file = Path(tmp_dir) / f"hello.{to_extension}"
         assert expected_file.exists()
 
 
