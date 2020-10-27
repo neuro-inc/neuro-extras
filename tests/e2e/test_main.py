@@ -862,15 +862,8 @@ def test_data_cp_from_cloud_to_local(
 @pytest.mark.parametrize("use_tmp_dir", [True, False])
 @pytest.mark.parametrize(
     "from_extension, to_extension",
-    list(
-        zip(
-            TESTED_ARCHIVE_TYPES,
-            TESTED_ARCHIVE_TYPES[1:] + TESTED_ARCHIVE_TYPES[:1]
-        )
-    ) +
-    list(
-        (TESTED_ARCHIVE_TYPES[0], TESTED_ARCHIVE_TYPES[0])
-    ),
+    list(zip(TESTED_ARCHIVE_TYPES, TESTED_ARCHIVE_TYPES[1:] + TESTED_ARCHIVE_TYPES[:1]))
+    + [(TESTED_ARCHIVE_TYPES[0], TESTED_ARCHIVE_TYPES[0])],
 )
 @pytest.mark.skipif(
     sys.platform == "win32",
