@@ -241,7 +241,7 @@ class DataCopier:
         if extract:
             args = f"-x {args}"
         if use_tmp_dir:
-            args = f"--use_tmp_dir {args}"
+            args = f"--use-tmp-dir {args}"
 
         env_parse_result = self._client.parse.envs(env)
         vol = self._client.parse.volumes(volume)
@@ -297,7 +297,6 @@ async def _data_cp(
     source_url = URL(source)
     destination_url = URL(destination)
     source_url_type = UrlType.get_type(source_url)
-    logger.error(f"Neuro-extras image: {NEURO_EXTRAS_IMAGE}")
     if source_url_type == UrlType.UNSUPPORTED:
         raise ValueError(f"Unsupported source URL scheme: {source_url.scheme}")
     destination_url_type = UrlType.get_type(destination_url)
