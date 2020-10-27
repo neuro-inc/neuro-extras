@@ -12,7 +12,7 @@ from dataclasses import dataclass, field
 from distutils import dir_util
 from enum import Enum
 from pathlib import Path
-from typing import Any, AsyncIterator, Dict, List, MutableMapping, Sequence
+from typing import Any, AsyncIterator, Dict, List, MutableMapping, Optional, Sequence
 
 import click
 import toml
@@ -25,6 +25,12 @@ from neuromation.api.url_utils import normalize_storage_path_uri, uri_from_cli
 from neuromation.cli.asyncio_utils import run as run_async
 from neuromation.cli.const import EX_OK, EX_PLATFORMERROR
 from yarl import URL
+
+
+if sys.version_info >= (3, 7):  # pragma: no cover
+    from contextlib import asynccontextmanager  # noqa
+else:
+    from async_generator import asynccontextmanager  # noqa
 
 from .version import __version__
 
@@ -78,7 +84,7 @@ def data_transfer(source: str, destination: str) -> None:
     """
     Copy data between storages on different clusters.
     """
-    run_async(_transfer_data(source, destination))
+    run_async(_data_transfer(source, destination))
 
 
 @main.group()
@@ -96,7 +102,7 @@ def image_transfer(source: str, destination: str) -> None:
     """
     Copy images between clusters.
     """
-    exit_code = run_async(_transfer_image(source, destination))
+    exit_code = run_async(_image_transfer(source, destination))
     sys.exit(exit_code)
 
 
@@ -345,12 +351,11 @@ async def _data_cp(
                 env=env,
                 use_tmp_dir=use_tmp_dir,
             )
-
             exit_code = await _attach_job_stdout(job, client, name="copy")
             if exit_code == EX_OK:
                 logger.info("Successfully copied data")
-            # TODO (yartem) only highest-level CLI methods should do sys.exit
-            sys.exit(exit_code)
+            else:
+                raise click.ClickException(f"Data copy failed: {exit_code}")
 
     else:
         # otherwise we deal with cloud/local src and destination
@@ -603,21 +608,64 @@ def data_cp(
     )
 
 
-async def _transfer_image(source: str, destination: str) -> int:
+@asynccontextmanager
+async def _get_client(cluster: Optional[str] = None):  # type: ignore
+    async with neuro_api.get() as client:
+        orig = client.cluster_name
+        try:
+            if cluster is not None:
+                if cluster != orig:
+                    logger.info(f"Temporarily switching cluster: {orig} -> {cluster}")
+                    await client.config.switch_cluster(cluster)
+                else:
+                    logger.info(f"Already on cluster: {cluster}")
+            yield client
+        finally:
+            if cluster is not None and cluster != orig:
+                logger.info(f"Switching back cluster: {cluster} -> {orig}")
+                try:
+                    await client.config.switch_cluster(orig)
+                except BaseException:
+                    logger.error(
+                        f"Could not switch back to cluster '{orig}'. Please "
+                        f"run manually: 'neuro config switch-cluster {orig}'"
+                    )
+
+
+def _get_cluster_from_uri(image_uri: str, *, scheme: str) -> Optional[str]:
+    uri = uri_from_cli(image_uri, "", "", allowed_schemes=[scheme])
+    return uri.host
+
+
+async def _image_transfer(src_uri: str, dst_uri: str) -> None:
+    src_cluster: Optional[str] = _get_cluster_from_uri(src_uri, scheme="image")
+    dst_cluster: Optional[str] = _get_cluster_from_uri(dst_uri, scheme="image")
+    if not dst_cluster:
+        raise ValueError(f"Invalid destination image {dst_uri}: missing cluster name")
+
     with tempfile.TemporaryDirectory() as tmpdir:
-        async with neuro_api.get() as client:
-            remote_image = client.parse.remote_image(image=source)
-        dockerfile_path = Path(f"{tmpdir}/Dockerfile")
-        with open(str(dockerfile_path), "w") as f:
-            f.write(
-                textwrap.dedent(
-                    f"""\
-                    FROM {_as_repo_str(remote_image)}
-                    LABEL neu.ro/source-image-uri={source}
-                    """
-                )
+        async with _get_client(cluster=src_cluster) as src_client:
+            src_image = src_client.parse.remote_image(image=src_uri)
+            src_client_config = src_client.config
+
+        dockerfile = Path(f"{tmpdir}/Dockerfile")
+        dockerfile.write_text(
+            textwrap.dedent(
+                f"""\
+                FROM {_as_repo_str(src_image)}
+                LABEL neu.ro/source-image-uri={src_uri}
+                """
             )
-        return await _build_image("Dockerfile", tmpdir, destination, [], [], [])
+        )
+        await _build_image(
+            dockerfile_path=dockerfile.name,
+            context=tmpdir,
+            image_uri=dst_uri,
+            build_args=[],
+            volume=[],
+            env=[],
+            other_client_configs=[src_client_config],
+        )
 
 
 async def _attach_job_stdout(
@@ -657,22 +705,25 @@ async def _build_image(
     build_args: Sequence[str],
     volume: Sequence[str],
     env: Sequence[str],
-) -> int:
-    async with neuro_api.get() as client:
+    other_client_configs: Sequence[neuro_api.Config] = (),
+) -> None:
+    cluster = _get_cluster_from_uri(image_uri, scheme="image")
+    async with _get_client(cluster=cluster) as client:
         context_uri = uri_from_cli(
             context,
             client.username,
             client.cluster_name,
             allowed_schemes=("file", "storage"),
         )
-        builder = ImageBuilder(client)
+        builder = ImageBuilder(client, other_clients_configs=other_client_configs)
         job = await builder.launch(
             dockerfile_path, context_uri, image_uri, build_args, volume, env
         )
         exit_code = await _attach_job_stdout(job, client, name="builder")
         if exit_code == EX_OK:
             logger.info(f"Successfully built {image_uri}")
-        return exit_code
+        else:
+            raise click.ClickException(f"Failed to build image: {exit_code}")
 
 
 @image.command(
@@ -711,8 +762,11 @@ def image_build(
     volume: Sequence[str],
     env: Sequence[str],
 ) -> None:
-    exit_code = run_async(_build_image(file, path, image_uri, build_arg, volume, env))
-    sys.exit(exit_code)
+    try:
+        run_async(_build_image(file, path, image_uri, build_arg, volume, env))
+    except (ValueError, click.ClickException) as e:
+        logger.error(f"Failed to build image: {e}")
+        sys.exit(EX_PLATFORMERROR)
 
 
 @dataclass
@@ -737,8 +791,17 @@ class DockerConfig:
 
 
 class ImageBuilder:
-    def __init__(self, client: neuro_api.Client) -> None:
+    def __init__(
+        self,
+        client: neuro_api.Client,
+        other_clients_configs: Sequence[neuro_api.Config] = (),
+    ) -> None:
         self._client = client
+        self._other_clients_configs = list(other_clients_configs)
+
+    @property
+    def _all_configs(self) -> Sequence[neuro_api.Config]:
+        return [self._client.config] + self._other_clients_configs
 
     def _generate_build_uri(self) -> URL:
         return normalize_storage_path_uri(
@@ -747,22 +810,21 @@ class ImageBuilder:
             self._client.cluster_name,
         )
 
-    def _get_registry(self) -> str:
-        url = self._client.config.registry_url
+    def _get_registry(self, config: neuro_api.Config) -> str:
+        url = config.registry_url
         if url.explicit_port:  # type: ignore
             return f"{url.host}:{url.explicit_port}"  # type: ignore
         return url.host  # type: ignore
 
     async def create_docker_config(self) -> DockerConfig:
-        config = self._client.config
-        token = await config.token()
         return DockerConfig(
             auths=[
                 DockerConfigAuth(
-                    registry=self._get_registry(),
+                    registry=self._get_registry(config),
                     username=config.username,
-                    password=token,
+                    password=await config.token(),
                 )
+                for config in self._all_configs
             ]
         )
 
@@ -859,7 +921,6 @@ class ImageBuilder:
 
         build_uri = self._generate_build_uri()
         await self._client.storage.mkdir(build_uri, parents=True, exist_ok=True)
-
         if context_uri.scheme == "file":
             local_context_uri, context_uri = context_uri, build_uri / "context"
             logger.info(f"Uploading {local_context_uri} to {context_uri}")
@@ -1076,23 +1137,25 @@ def generate_seldon_deployment(
     click.echo(yaml.dump(payload), nl=False)
 
 
-async def _transfer_data(source: str, destination: str) -> None:
-    src_uri = uri_from_cli(source, "", "")
-    src_cluster = src_uri.host
+async def _data_transfer(src_uri: str, dst_uri: str) -> None:
+    src_cluster_or_null = _get_cluster_from_uri(src_uri, scheme="storage")
+    dst_cluster = _get_cluster_from_uri(dst_uri, scheme="storage")
 
-    dst_uri = uri_from_cli(destination, "", "")
-    dst_cluster = dst_uri.host
+    if not src_cluster_or_null:
+        async with _get_client() as src_client:
+            src_cluster = src_client.cluster_name
+    else:
+        src_cluster = src_cluster_or_null
 
-    err_msg = "Please provide full {} path, including cluster and user names."
-    assert src_cluster, err_msg.format("SOURCE")
-    assert dst_cluster, err_msg.format("DESTINATION")
-    async with neuro_api.get() as client:
-        await client.config.switch_cluster(dst_cluster)
+    if not dst_cluster:
+        raise ValueError(f"Invalid destination path {dst_uri}: missing cluster name")
+
+    async with _get_client(cluster=dst_cluster) as client:
         await client.storage.mkdir(URL("storage:"), parents=True, exist_ok=True)
-    await _run_copy_container(src_cluster, str(src_uri), str(dst_uri))
+        await _run_copy_container(src_cluster, src_uri, dst_uri)
 
 
-async def _run_copy_container(src_cluster: str, src_path: str, dst_path: str) -> None:
+async def _run_copy_container(src_cluster: str, src_uri: str, dst_uri: str) -> None:
     args = [
         "neuro",
         "run",
@@ -1100,18 +1163,18 @@ async def _run_copy_container(src_cluster: str, src_path: str, dst_path: str) ->
         "cpu-small",
         "--pass-config",
         "-v",
-        f"{dst_path}://storage",
+        f"{dst_uri}:/storage:rw",
         "-e",
-        f"NEURO_CLUSTER={src_cluster}",
+        f"NEURO_CLUSTER={src_cluster}",  # inside the job, switch neuro to 'src_cluster'
         NEURO_EXTRAS_IMAGE,
-        f'"neuro cp --progress -r -u -T {src_path} /storage"',
+        f"neuro cp --progress -r -u -T {src_uri} /storage",
     ]
     cmd = " ".join(args)
-    print(f"Executing '{cmd}'")
+    click.echo(f"Running '{cmd}'")
     subprocess = await asyncio.create_subprocess_shell(cmd)
     returncode = await subprocess.wait()
     if returncode != 0:
-        raise Exception("Unable to copy storage")
+        raise click.ClickException("Unable to copy storage")
 
 
 async def _upload(path: str) -> int:
