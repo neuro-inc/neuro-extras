@@ -481,14 +481,25 @@ async def _compress(source_url: URL, destination_url: URL, rm_src: bool) -> None
             str(destination_url.path),
             "-C",
             str(Path(source_url.path).parent),
+            f"--exclude={str(destination_url.name)}",
             ".",
         ]
     elif suffixes[-2:] == [".tar", ".bz2"] or suffixes[-1] in (".tbz2", ".tbz"):
         command = "tar"
-        args = ["jcf", str(destination_url.path), str(source_url.path)]
+        args = [
+            "jcf",
+            str(destination_url.path),
+            f"--exclude={str(destination_url.name)}",
+            str(source_url.path),
+        ]
     elif suffixes[-1] == ".tar":
         command = "tar"
-        args = ["cf", str(destination_url.path), str(source_url.path)]
+        args = [
+            "cf",
+            str(destination_url.path),
+            f"--exclude={str(destination_url.name)}",
+            str(source_url.path),
+        ]
     elif suffixes[-1] == ".gz":
         command = "gzip"
         args = ["-r", str(destination_url.path), str(source_url.path)]
