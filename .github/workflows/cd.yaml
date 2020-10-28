@@ -223,5 +223,6 @@ jobs:
       - name: Run e2e tests on Windows
         if: matrix.os == 'windows'
         run: |
-          Remove-Item Env:\NEURO_EXTRAS_IMAGE  # clear this env var to test it in real
+          Get-Childitem -Path Env:* | Sort-Object Name # print all env variables just in case
+          Remove-Item Env:NEURO_EXTRAS_IMAGE  # clear this env var to test it in real
           make test_e2e
