@@ -333,11 +333,11 @@ async def _data_cp(
             container_src_uri = source_url
 
         if destination_url_type == UrlType.STORAGE:
-            volume.append(f"{str(destination_url)}:/var/storage")
-            container_dst_uri = URL("/var/storage")
+            volume.append(f"{str(destination_url.parent)}:/var/storage")
+            container_dst_uri = URL(f"/var/storage/{destination_url.name}")
         elif destination_url_type == UrlType.DISK:
-            volume.append(f"{str(destination_url)}:/var/disk:rw")
-            container_dst_uri = URL("/var/disk/")
+            volume.append(f"disk:{str(destination_url.parent)}:/var/disk:rw")
+            container_dst_uri = URL(f"/var/disk/{destination_url.name}")
         else:
             container_dst_uri = destination_url
 
