@@ -1034,9 +1034,7 @@ def test_data_cp_from_cloud_to_disk(
 
     src = f"{GCP_BUCKET}/{filename}"
     dst = f"{disk}:/intermediate/{filename}"
-    res = cli_runner(
-        args_data_cp_from_cloud(GCP_BUCKET, src, dst, False, False, False)
-    )
+    res = cli_runner(args_data_cp_from_cloud(GCP_BUCKET, src, dst, False, False, False))
     assert res.returncode == 0, res
 
     res = cli_runner(
