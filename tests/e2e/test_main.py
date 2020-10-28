@@ -780,7 +780,7 @@ def args_data_cp_from_cloud(cli_runner: CLIRunner) -> Callable[..., List[str]]:
         dst: str,
         extract: bool,
         compress: bool,
-        use_tmp_dir: bool,
+        use_temp_dir: bool,
     ) -> List[str]:
         args = ["neuro-extras", "data", "cp", src, dst]
         if (
@@ -813,7 +813,7 @@ def args_data_cp_from_cloud(cli_runner: CLIRunner) -> Callable[..., List[str]]:
             args.append("-x")
         if compress:
             args.append("-c")
-        if use_tmp_dir:
+        if use_temp_dir:
             args.append("-t")
         return args
 
@@ -823,7 +823,7 @@ def args_data_cp_from_cloud(cli_runner: CLIRunner) -> Callable[..., List[str]]:
 @pytest.mark.parametrize("bucket", [GCP_BUCKET, AWS_BUCKET])
 @pytest.mark.parametrize("archive_extension", TESTED_ARCHIVE_TYPES)
 @pytest.mark.parametrize("extract", [True, False])
-@pytest.mark.parametrize("use_tmp_dir", [True, False])
+@pytest.mark.parametrize("use_temp_dir", [True, False])
 @pytest.mark.skipif(
     sys.platform == "win32",
     reason="Windows path are not supported yet + no utilities on windows",
@@ -836,7 +836,7 @@ def test_data_cp_from_cloud_to_local(
     bucket: str,
     archive_extension: str,
     extract: bool,
-    use_tmp_dir: bool,
+    use_temp_dir: bool,
 ) -> None:
     TEMP_UNPACK_DIR.mkdir(parents=True, exist_ok=True)
     with TemporaryDirectory(dir=TEMP_UNPACK_DIR.expanduser()) as tmp_dir:
@@ -846,7 +846,7 @@ def test_data_cp_from_cloud_to_local(
             dst = f"{tmp_dir}/hello.{archive_extension}"
 
         res = cli_runner(
-            args_data_cp_from_cloud(bucket, src, dst, extract, False, use_tmp_dir)
+            args_data_cp_from_cloud(bucket, src, dst, extract, False, use_temp_dir)
         )
         assert res.returncode == 0, res
 
@@ -859,7 +859,7 @@ def test_data_cp_from_cloud_to_local(
 
 
 @pytest.mark.parametrize("bucket", [GCP_BUCKET, AWS_BUCKET])
-@pytest.mark.parametrize("use_tmp_dir", [True, False])
+@pytest.mark.parametrize("use_temp_dir", [True, False])
 @pytest.mark.parametrize(
     "from_extension, to_extension",
     list(zip(TESTED_ARCHIVE_TYPES, TESTED_ARCHIVE_TYPES[1:] + TESTED_ARCHIVE_TYPES[:1]))
@@ -877,7 +877,7 @@ def test_data_cp_from_cloud_to_local_compress(
     bucket: str,
     from_extension: str,
     to_extension: str,
-    use_tmp_dir: bool,
+    use_temp_dir: bool,
 ) -> None:
     # TODO: retry because of: https://github.com/neuro-inc/neuro-extras/issues/124
     N = 3
@@ -889,7 +889,7 @@ def test_data_cp_from_cloud_to_local_compress(
                 bucket,
                 from_extension,
                 to_extension,
-                use_tmp_dir,
+                use_temp_dir,
             )
         except AssertionError as e:
             if "directory not found" in str(e):
@@ -905,7 +905,7 @@ def _run_test_data_cp_from_cloud_to_local_compress(
     bucket: str,
     from_extension: str,
     to_extension: str,
-    use_tmp_dir: bool,
+    use_temp_dir: bool,
 ) -> None:
     TEMP_UNPACK_DIR.mkdir(parents=True, exist_ok=True)
     with TemporaryDirectory(dir=TEMP_UNPACK_DIR.expanduser()) as tmp_dir:
@@ -913,7 +913,7 @@ def _run_test_data_cp_from_cloud_to_local_compress(
         dst = f"{tmp_dir}/hello.{to_extension}"
 
         res = cli_runner(
-            args_data_cp_from_cloud(bucket, src, dst, False, True, use_tmp_dir)
+            args_data_cp_from_cloud(bucket, src, dst, False, True, use_temp_dir)
         )
         # XXX: debug info for https://github.com/neuro-inc/neuro-extras/issues/124
         if res.returncode != 0:

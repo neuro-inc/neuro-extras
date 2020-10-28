@@ -221,11 +221,11 @@ class DataCopier:
         dst_uri: URL,
         volume: Sequence[str],
         env: Sequence[str],
-        use_tmp_dir: bool,
+        use_temp_dir: bool,
     ) -> neuro_api.JobDescription:
         logger.info("Submitting a copy job")
         copier_container = await self._create_copier_container(
-            extract, src_uri, dst_uri, volume, env, use_tmp_dir
+            extract, src_uri, dst_uri, volume, env, use_temp_dir
         )
         job = await self._client.jobs.run(copier_container, life_span=60 * 60)
         logger.info(f"The copy job ID: {job.id}")
@@ -238,13 +238,13 @@ class DataCopier:
         dst_uri: URL,
         volume: Sequence[str],
         env: Sequence[str],
-        use_tmp_dir: bool,
+        use_temp_dir: bool,
     ) -> neuro_api.Container:
         args = f"{str(src_uri)} {str(dst_uri)}"
         if extract:
             args = f"-x {args}"
-        if use_tmp_dir:
-            args = f"--use-tmp-dir {args}"
+        if use_temp_dir:
+            args = f"--use-temp-dir {args}"
 
         env_parse_result = self._client.parse.envs(env)
         vol = self._client.parse.volumes(volume)
@@ -295,7 +295,7 @@ async def _data_cp(
     compress: bool,
     volume: List[str],
     env: List[str],
-    use_tmp_dir: bool,
+    use_temp_dir: bool,
 ) -> None:
     source_url = URL(source)
     destination_url = URL(destination)
@@ -353,7 +353,7 @@ async def _data_cp(
                 extract=extract,
                 volume=volume,
                 env=env,
-                use_tmp_dir=use_tmp_dir,
+                use_temp_dir=use_temp_dir,
             )
             exit_code = await _attach_job_stdout(job, client, name="copy")
             if exit_code == EX_OK:
@@ -367,7 +367,7 @@ async def _data_cp(
         dst_dir = Path(destination_url.path).parent
         dst_name = origin_dst_name = Path(destination_url.path).name
 
-        if use_tmp_dir:
+        if use_temp_dir:
             # substitute original dst with TMP dst.
             # do extraction / compression there
             TEMP_UNPACK_DIR.mkdir(parents=True, exist_ok=True)
@@ -400,7 +400,7 @@ async def _data_cp(
             await _compress(source_url, compression_dst_url, rm_src=True)
             source_url = compression_dst_url
 
-        if use_tmp_dir:
+        if use_temp_dir:
             # Move downloaded and maybe extracted / compressed files to
             # original destination.
             # Otherwise (if tmp was not used) - they are already there.
@@ -587,7 +587,7 @@ def _rm_local(target: Path) -> None:
 )
 @click.option(
     "-t",
-    "--use-tmp-dir",
+    "--use-temp-dir",
     default=False,
     is_flag=True,
     help=(
@@ -605,7 +605,7 @@ def data_cp(
     compress: bool,
     volume: Sequence[str],
     env: Sequence[str],
-    use_tmp_dir: bool,
+    use_temp_dir: bool,
 ) -> None:
     if extract and compress:
         raise click.ClickException("Extract and compress can't be used together")
@@ -617,7 +617,7 @@ def data_cp(
             compress,
             list(volume),
             list(env),
-            use_tmp_dir,
+            use_temp_dir,
         )
     )
 
