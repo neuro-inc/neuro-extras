@@ -215,7 +215,13 @@ jobs:
           aws-access-key-id: ${{ secrets.E2E_COOKIECUTTER_AWS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.E2E_COOKIECUTTER_AWS_ACCESS_KEY }}
           aws-region: us-east-1
-      - name: Run e2e tests
+      - name: Run e2e tests on MacOS and Linux
+        if: matrix.os != 'windows'
         run: |
             unset NEURO_EXTRAS_IMAGE  # clear this env var to test it in real
             make test_e2e
+      - name: Run e2e tests on Windows
+        if: matrix.os == 'windows'
+        run: |
+          Remove-Item Env:\NEURO_EXTRAS_IMAGE  # clear this env var to test it in real
+          make test_e2e
