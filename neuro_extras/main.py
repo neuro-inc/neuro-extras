@@ -57,6 +57,9 @@ SUPPORTED_OBJECT_STORAGE_SCHEMES = {
 
 
 @click.group()
+@click.version_option(
+    version=__version__, message="neuro-extras package version: %(version)s"
+)
 def main() -> None:
     """
     Auxiliary scripts and recipes for automating routine tasks.
