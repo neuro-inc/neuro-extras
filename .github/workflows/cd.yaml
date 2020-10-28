@@ -93,7 +93,7 @@ jobs:
           python-version: "3.7"
       - name: Install dependencies
         run: |
-          python -m pip install
+          python -m pip install pip
           make setup
       - name: Wait until package becomes available on PyPI
         timeout-minutes: 5
