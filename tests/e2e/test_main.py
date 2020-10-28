@@ -8,7 +8,7 @@ import textwrap
 import time
 import uuid
 from pathlib import Path
-from subprocess import CompletedProcess, check_output
+from subprocess import CompletedProcess
 from tempfile import TemporaryDirectory
 from time import sleep
 from typing import Callable, ContextManager, Iterator, List
@@ -23,7 +23,7 @@ from neuromation.cli.main import cli as neuro_main
 
 from neuro_extras.main import NEURO_EXTRAS_IMAGE, TEMP_UNPACK_DIR, main as extras_main
 
-from .conftest import CLIRunner, Secret, gen_random_file
+from .conftest import TESTED_ARCHIVE_TYPES, CLIRunner, Secret, gen_random_file
 
 
 logger = logging.getLogger(__name__)
@@ -780,6 +780,7 @@ def args_data_cp_from_cloud(cli_runner: CLIRunner) -> Callable[..., List[str]]:
         dst: str,
         extract: bool,
         compress: bool,
+        use_temp_dir: bool,
     ) -> List[str]:
         args = ["neuro-extras", "data", "cp", src, dst]
         if (
@@ -812,14 +813,17 @@ def args_data_cp_from_cloud(cli_runner: CLIRunner) -> Callable[..., List[str]]:
             args.append("-x")
         if compress:
             args.append("-c")
+        if use_temp_dir:
+            args.append("-t")
         return args
 
     return _f
 
 
 @pytest.mark.parametrize("bucket", [GCP_BUCKET, AWS_BUCKET])
-@pytest.mark.parametrize("archive_extension", ["tar.gz", "tgz", "zip", "tar"])
+@pytest.mark.parametrize("archive_extension", TESTED_ARCHIVE_TYPES)
 @pytest.mark.parametrize("extract", [True, False])
+@pytest.mark.parametrize("use_temp_dir", [True, False])
 @pytest.mark.skipif(
     sys.platform == "win32",
     reason="Windows path are not supported yet + no utilities on windows",
@@ -832,23 +836,35 @@ def test_data_cp_from_cloud_to_local(
     bucket: str,
     archive_extension: str,
     extract: bool,
+    use_temp_dir: bool,
 ) -> None:
     TEMP_UNPACK_DIR.mkdir(parents=True, exist_ok=True)
     with TemporaryDirectory(dir=TEMP_UNPACK_DIR.expanduser()) as tmp_dir:
         src = f"{bucket}/hello.{archive_extension}"
-        res = cli_runner(args_data_cp_from_cloud(bucket, src, tmp_dir, extract, False))
+        dst = tmp_dir
+        if not extract:
+            dst = f"{tmp_dir}/hello.{archive_extension}"
+
+        res = cli_runner(
+            args_data_cp_from_cloud(bucket, src, dst, extract, False, use_temp_dir)
+        )
         assert res.returncode == 0, res
 
         if extract:
-            expected_file = Path(tmp_dir) / "data" / "hello.txt"
+            expected_file = Path(dst) / "data" / "hello.txt"
             assert "Hello world!" in expected_file.read_text()
         else:
-            expected_archive = Path(tmp_dir) / f"hello.{archive_extension}"
+            expected_archive = Path(dst)
             assert expected_archive.is_file()
 
 
 @pytest.mark.parametrize("bucket", [GCP_BUCKET, AWS_BUCKET])
-@pytest.mark.parametrize("archive_extension", ["tar.gz", "tgz", "zip", "tar"])
+@pytest.mark.parametrize("use_temp_dir", [True, False])
+@pytest.mark.parametrize(
+    "from_extension, to_extension",
+    list(zip(TESTED_ARCHIVE_TYPES, TESTED_ARCHIVE_TYPES[1:] + TESTED_ARCHIVE_TYPES[:1]))
+    + [(TESTED_ARCHIVE_TYPES[0], TESTED_ARCHIVE_TYPES[0])],
+)
 @pytest.mark.skipif(
     sys.platform == "win32",
     reason="Windows path are not supported yet + no utilities on windows",
@@ -859,7 +875,9 @@ def test_data_cp_from_cloud_to_local_compress(
     cli_runner: CLIRunner,
     args_data_cp_from_cloud: Callable[..., List[str]],
     bucket: str,
-    archive_extension: str,
+    from_extension: str,
+    to_extension: str,
+    use_temp_dir: bool,
 ) -> None:
     # TODO: retry because of: https://github.com/neuro-inc/neuro-extras/issues/124
     N = 3
@@ -869,28 +887,33 @@ def test_data_cp_from_cloud_to_local_compress(
                 cli_runner,
                 args_data_cp_from_cloud,
                 bucket,
-                archive_extension,
+                from_extension,
+                to_extension,
+                use_temp_dir,
             )
         except AssertionError as e:
             if "directory not found" in str(e):
                 logger.info(f"Attempt {attempt}/{N} failed")
             else:
                 raise
+        return
 
 
 def _run_test_data_cp_from_cloud_to_local_compress(
     cli_runner: CLIRunner,
     args_data_cp_from_cloud: Callable[..., List[str]],
     bucket: str,
-    archive_extension: str,
+    from_extension: str,
+    to_extension: str,
+    use_temp_dir: bool,
 ) -> None:
     TEMP_UNPACK_DIR.mkdir(parents=True, exist_ok=True)
     with TemporaryDirectory(dir=TEMP_UNPACK_DIR.expanduser()) as tmp_dir:
-        src = f"{bucket}/hello.{archive_extension}"
+        src = f"{bucket}/hello.{from_extension}"
+        dst = f"{tmp_dir}/hello.{to_extension}"
+
         res = cli_runner(
-            args_data_cp_from_cloud(
-                bucket, src, f"{tmp_dir}/hello.{archive_extension}", False, True
-            )
+            args_data_cp_from_cloud(bucket, src, dst, False, True, use_temp_dir)
         )
         # XXX: debug info for https://github.com/neuro-inc/neuro-extras/issues/124
         if res.returncode != 0:
@@ -898,7 +921,11 @@ def _run_test_data_cp_from_cloud_to_local_compress(
             print(f"STDERR: {res.stderr}")
         assert res.returncode == 0, res
 
-        expected_file = Path(tmp_dir) / f"hello.{archive_extension}"
+        if from_extension == to_extension:
+            # if src and dst archive types are the same - compression should be skipped.
+            assert "Skipping compression step" in res.stdout, res
+
+        expected_file = Path(tmp_dir) / f"hello.{to_extension}"
         assert expected_file.exists()
 
 
@@ -918,31 +945,34 @@ def test_data_cp_from_cloud_to_storage(
     archive_extension: str,
     extract: bool,
 ) -> None:
-    storage_url = f"storage:neuro-extras-data-cp/{uuid.uuid4()}"
+    dst = f"storage:neuro-extras-data-cp/{uuid.uuid4()}"
     try:
         src = f"{bucket}/hello.{archive_extension}"
+        if not extract:
+            dst = f"{dst}/hello.{archive_extension}"
+
         res = cli_runner(
-            args_data_cp_from_cloud(bucket, src, storage_url, extract, False)
+            args_data_cp_from_cloud(bucket, src, dst, extract, False, True)
         )
         assert res.returncode == 0, res
 
         if extract:
-            check_url = storage_url + "/data"
-            expected_file = "hello.txt"
+            glob_pattern = f"{dst}/data/*"
+            expected_file = "/data/hello.txt"
         else:
-            check_url = storage_url
-            expected_file = f"hello.{archive_extension}"
+            glob_pattern = f"{dst}*"
+            expected_file = f"{Path(dst).name}"
 
         # BUG: (yartem) cli_runner returns wrong result here putting neuro's debug info
         # to stdout and not putting result of neuro-ls to stdout.
         # So prob cli_runner is to be re-written with subprocess.run
-        out = check_output(["neuro", "ls", check_url]).decode()
-        assert expected_file in out, out
+        out = cli_runner(["neuro", "storage", "glob", glob_pattern])
+        assert expected_file in out.stdout, out.stdout
 
     finally:
         try:
             # Delete disk
-            res = cli_runner(["neuro", "rm", "-r", storage_url])
+            res = cli_runner(["neuro", "rm", "-r", dst])
             assert res.returncode == 0, res
         except BaseException as e:
             logger.warning(f"Finalization error: {e}")
@@ -1004,7 +1034,8 @@ def test_data_cp_from_cloud_to_disk(
     local_folder = "/var/disk"
 
     src = f"{GCP_BUCKET}/{filename}"
-    res = cli_runner(args_data_cp_from_cloud(GCP_BUCKET, src, disk, False, False))
+    dst = f"{disk}:/intermediate/{filename}"
+    res = cli_runner(args_data_cp_from_cloud(GCP_BUCKET, src, dst, False, False, False))
     assert res.returncode == 0, res
 
     res = cli_runner(
@@ -1014,7 +1045,7 @@ def test_data_cp_from_cloud_to_disk(
             "-v",
             f"{disk}:{local_folder}:rw",
             "ubuntu",
-            f"bash -c 'ls -l {local_folder}/{filename}'",
+            f"bash -c 'ls -l {local_folder}/intermediate/{filename}'",
         ]
     )
     assert res.returncode == 0, res

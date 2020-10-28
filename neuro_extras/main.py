@@ -105,7 +105,8 @@ def image_transfer(source: str, destination: str) -> None:
     """
     Copy images between clusters.
     """
-    run_async(_image_transfer(source, destination))
+    exit_code = run_async(_image_transfer(source, destination))
+    sys.exit(exit_code)
 
 
 @main.command("init-aliases")
@@ -220,10 +221,11 @@ class DataCopier:
         dst_uri: URL,
         volume: Sequence[str],
         env: Sequence[str],
+        use_temp_dir: bool,
     ) -> neuro_api.JobDescription:
         logger.info("Submitting a copy job")
         copier_container = await self._create_copier_container(
-            extract, src_uri, dst_uri, volume, env
+            extract, src_uri, dst_uri, volume, env, use_temp_dir
         )
         job = await self._client.jobs.run(copier_container, life_span=60 * 60)
         logger.info(f"The copy job ID: {job.id}")
@@ -236,10 +238,13 @@ class DataCopier:
         dst_uri: URL,
         volume: Sequence[str],
         env: Sequence[str],
+        use_temp_dir: bool,
     ) -> neuro_api.Container:
         args = f"{str(src_uri)} {str(dst_uri)}"
         if extract:
             args = f"-x {args}"
+        if use_temp_dir:
+            args = f"--use-temp-dir {args}"
 
         env_parse_result = self._client.parse.envs(env)
         vol = self._client.parse.volumes(volume)
@@ -290,6 +295,7 @@ async def _data_cp(
     compress: bool,
     volume: List[str],
     env: List[str],
+    use_temp_dir: bool,
 ) -> None:
     source_url = URL(source)
     destination_url = URL(destination)
@@ -330,11 +336,12 @@ async def _data_cp(
             container_src_uri = source_url
 
         if destination_url_type == UrlType.STORAGE:
-            volume.append(f"{str(destination_url)}:/var/storage")
-            container_dst_uri = URL("/var/storage")
+            volume.append(f"{str(destination_url.parent)}:/var/storage")
+            container_dst_uri = URL(f"/var/storage/{destination_url.name}")
         elif destination_url_type == UrlType.DISK:
-            volume.append(f"{str(destination_url)}:/var/disk:rw")
-            container_dst_uri = URL("/var/disk/")
+            disk_id = str(destination_url.path)[:41]  # disk ID is 41 symbols long
+            volume.append(f"disk:{disk_id}:/var/disk:rw")
+            container_dst_uri = URL(f"/var/disk/{str(destination_url.path)[42:]}")
         else:
             container_dst_uri = destination_url
 
@@ -346,6 +353,7 @@ async def _data_cp(
                 extract=extract,
                 volume=volume,
                 env=env,
+                use_temp_dir=use_temp_dir,
             )
             exit_code = await _attach_job_stdout(job, client, name="copy")
             if exit_code == EX_OK:
@@ -355,99 +363,48 @@ async def _data_cp(
 
     else:
         # otherwise we deal with cloud/local src and destination
+        origin_src_url = source_url
+        dst_dir = Path(destination_url.path).parent
+        dst_name = origin_dst_name = Path(destination_url.path).name
 
-        TEMP_UNPACK_DIR.mkdir(parents=True, exist_ok=True)
-        tmp_dir_name = tempfile.mkdtemp(dir=str(TEMP_UNPACK_DIR))
-        tmp_dst_url = URL.build(path=(tmp_dir_name + "/"))
-
-        await _nonstorage_cp(source_url, tmp_dst_url)
-        source_url = tmp_dst_url
-        # for clarity
-        source_url_type = UrlType.LOCAL
-
-        # at this point source is always local
+        if use_temp_dir:
+            # substitute original dst with TMP dst.
+            # do extraction / compression there
+            TEMP_UNPACK_DIR.mkdir(parents=True, exist_ok=True)
+            dst_dir = Path(tempfile.mkdtemp(dir=str(TEMP_UNPACK_DIR)))
         if extract:
-            # extract to tmp dir
-            file = Path(source_url.path)
-            if file.is_dir():
-                file = list(file.glob("*"))[0]
-            suffixes = file.suffixes
-            if suffixes[-2:] == [".tar", ".gz"] or suffixes[-1] == ".tgz":
-                command = "tar"
-                args = ["zxvf", str(file), "-C", str(tmp_dst_url)]
-            elif suffixes[-2:] == [".tar", ".bz2"] or suffixes[-1] in (".tbz2", ".tbz"):
-                command = "tar"
-                args = ["jxvf", str(file), "-C", str(tmp_dst_url)]
-            elif suffixes[-1] == ".tar":
-                command = "tar"
-                args = ["xvf", str(file), "-C", str(tmp_dst_url)]
-            elif suffixes[-1] == ".gz":
-                command = "gunzip"
-                args = [str(file), str(tmp_dst_url) + file.name[:-3]]
-            elif suffixes[-1] == ".zip":
-                command = "unzip"
-                args = [str(file), "-d", str(tmp_dst_url)]
-            else:
-                raise ValueError(
-                    f"Don't know how to extract file {file.name}"
-                    f"Supported archive types: {', '.join(SUPPORTED_ARCHIVE_TYPES)}"
-                )
-
-            click.echo(f"Running {command} {' '.join(args)}")
-            proc = await asyncio.create_subprocess_exec(command, *args)
-            returncode = await proc.wait()
-            if returncode != 0:
-                raise click.ClickException(f"Extraction failed: {proc.returncode}")
-            else:
-                if file.exists():
-                    # gunzip removes src after extraction, while tar - not
-                    file.unlink()
-
+            # download data into subfolder of target for extraction
+            dst_name = origin_dst_name + "/" + origin_src_url.name
         if compress:
-            file = Path(destination_url.path.split("/")[-1])
-            tmp_dst_archive = Path(TEMP_UNPACK_DIR / file)
-            suffixes = file.suffixes
-            if suffixes[-2:] == [".tar", ".gz"] or suffixes[-1] == ".tgz":
-                command = "tar"
-                args = ["zcf", str(tmp_dst_archive), "-C", str(source_url.path), "."]
-            elif suffixes[-2:] == [".tar", ".bz2"] or suffixes[-1] in (".tbz2", ".tbz"):
-                command = "tar"
-                args = ["jcf", str(tmp_dst_archive), str(source_url.path)]
-            elif suffixes[-1] == ".tar":
-                command = "tar"
-                args = ["cf", str(tmp_dst_archive), str(source_url.path)]
-            elif suffixes[-1] == ".gz":
-                command = "gzip"
-                args = ["-r", str(tmp_dst_archive), str(source_url.path)]
-            elif suffixes[-1] == ".zip":
-                command = "zip"
-                args = [str(tmp_dst_archive), str(source_url.path)]
-            else:
-                raise ValueError(
-                    f"Don't know how to compress to archive type {file.name}. "
-                    f"Supported archive types: {', '.join(SUPPORTED_ARCHIVE_TYPES)}"
+            # preserve origin destination name for compressor
+            if origin_dst_name == origin_src_url.name:
+                logging.warning(
+                    "Source file already has required archive extension. "
+                    "Skipping compression step."
                 )
-
-            click.echo(f"Running {command} {' '.join(args)}")
-            subprocess = await asyncio.create_subprocess_exec(command, *args)
-            returncode = await subprocess.wait()
-            if returncode != 0:
-                raise click.ClickException(f"Compression failed: {subprocess.stderr}")
+                compress = False
             else:
-                source_url = URL(str(tmp_dst_archive))
-                # At this moment we know destination URL is a file, but we need its
-                # parent directory
-                destination_file = Path(destination_url.path)
-                destination_dir = destination_file.parent
-                destination_url = URL.build(
-                    scheme=destination_url.scheme, path=str(destination_dir)
-                )
+                dst_name = origin_src_url.name
 
-        # handle upload/rclone
-        await _nonstorage_cp(source_url, destination_url, remove_source=True)
+        cp_destination_url = URL.build(path=str(dst_dir / dst_name))
+        await _nonstorage_cp(origin_src_url, cp_destination_url, remove_source=False)
+        source_url = cp_destination_url
+
+        if extract:
+            dir_util.mkpath(str(dst_dir))
+            extraction_dst_url = URL.build(path=str(dst_dir / origin_dst_name))
+            await _extract(source_url, extraction_dst_url, rm_src=True)
+            source_url = extraction_dst_url
         if compress:
-            if tmp_dst_archive.exists():
-                tmp_dst_archive.unlink()
+            compression_dst_url = URL.build(path=str(dst_dir / origin_dst_name))
+            await _compress(source_url, compression_dst_url, rm_src=True)
+            source_url = compression_dst_url
+
+        if use_temp_dir:
+            # Move downloaded and maybe extracted / compressed files to
+            # original destination.
+            # Otherwise (if tmp was not used) - they are already there.
+            await _nonstorage_cp(source_url, destination_url, remove_source=True)
 
 
 async def _nonstorage_cp(
@@ -465,7 +422,7 @@ async def _nonstorage_cp(
     elif source_url.scheme == "" and destination_url.scheme == "":
         command = "rclone"
         args = [
-            "copy",  # TODO: investigate usage of 'sync' for potential speedup.
+            "copyto",  # TODO: investigate usage of 'sync' for potential speedup.
             "--checkers=16",  # https://rclone.org/docs/#checkers-n , default is 8
             "--transfers=8",  # https://rclone.org/docs/#transfers-n , default is 4.
             "--verbose=1",  # default is 0, set 2 for debug
@@ -474,19 +431,106 @@ async def _nonstorage_cp(
         ]
     else:
         raise ValueError("Unknown cloud provider")
-    click.echo(f"Running {command} {' '.join(args)}")
+    click.echo(f"Running '{command} {' '.join(args)}'")
     subprocess = await asyncio.create_subprocess_exec(command, *args)
     returncode = await subprocess.wait()
+    if UrlType.get_type(source_url) == UrlType.LOCAL and remove_source:
+        _rm_local(Path(source_url.path))
     if returncode != 0:
         raise click.ClickException("Cloud copy failed")
-    elif UrlType.get_type(source_url) == UrlType.LOCAL:
-        source_path = Path(source_url.path)
-        if remove_source:
-            if source_path.is_dir():
-                dir_util.remove_tree(str(source_path))
-            else:
-                if source_path.exists():
-                    source_path.unlink()
+
+
+async def _extract(source_url: URL, destination_url: URL, rm_src: bool) -> None:
+    file = Path(source_url.path)
+    if file.is_dir():
+        file = list(file.glob("*"))[0]
+    suffixes = file.suffixes
+    if suffixes[-2:] == [".tar", ".gz"] or suffixes[-1] == ".tgz":
+        command = "tar"
+        args = ["zxvf", str(file), "-C", str(destination_url.path)]
+    elif suffixes[-2:] == [".tar", ".bz2"] or suffixes[-1] in (".tbz2", ".tbz"):
+        command = "tar"
+        args = ["jxvf", str(file), "-C", str(destination_url)]
+    elif suffixes[-1] == ".tar":
+        command = "tar"
+        args = ["xvf", str(file), "-C", str(destination_url)]
+    elif suffixes[-1] == ".gz":
+        command = "gunzip"
+        args = ["--keep", str(file), str(destination_url) + file.name[:-3]]
+    elif suffixes[-1] == ".zip":
+        command = "unzip"
+        args = [str(file), "-d", str(destination_url)]
+    else:
+        raise ValueError(
+            f"Don't know how to extract file {file.name}"
+            f"Supported archive types: {', '.join(SUPPORTED_ARCHIVE_TYPES)}"
+        )
+
+    click.echo(f"Running '{command} {' '.join(args)}'")
+    subprocess = await asyncio.create_subprocess_exec(command, *args)
+    returncode = await subprocess.wait()
+    if rm_src:
+        _rm_local(Path(source_url.path))
+    if returncode != 0:
+        raise click.ClickException(f"Extraction failed: {subprocess.stderr}")
+
+
+async def _compress(source_url: URL, destination_url: URL, rm_src: bool) -> None:
+    file = Path(destination_url.path.split("/")[-1])
+    suffixes = file.suffixes
+    if suffixes[-2:] == [".tar", ".gz"] or suffixes[-1] == ".tgz":
+        command = "tar"
+        args = [
+            "zcf",
+            str(destination_url.path),
+            "-C",
+            str(Path(source_url.path).parent),
+            f"--exclude={str(destination_url.name)}",
+            ".",
+        ]
+    elif suffixes[-2:] == [".tar", ".bz2"] or suffixes[-1] in (".tbz2", ".tbz"):
+        command = "tar"
+        args = [
+            "jcf",
+            str(destination_url.path),
+            f"--exclude={str(destination_url.name)}",
+            str(source_url.path),
+        ]
+    elif suffixes[-1] == ".tar":
+        command = "tar"
+        args = [
+            "cf",
+            str(destination_url.path),
+            f"--exclude={str(destination_url.name)}",
+            str(source_url.path),
+        ]
+    elif suffixes[-1] == ".gz":
+        command = "gzip"
+        args = ["-r", str(destination_url.path), str(source_url.path)]
+    elif suffixes[-1] == ".zip":
+        command = "zip"
+        args = ["-r", str(destination_url.path), str(source_url.path)]
+    else:
+        raise ValueError(
+            f"Don't know how to compress to archive type {file.name}. "
+            f"Supported archive types: {', '.join(SUPPORTED_ARCHIVE_TYPES)}"
+        )
+
+    click.echo(f"Running '{command} {' '.join(args)}'")
+    subprocess = await asyncio.create_subprocess_exec(command, *args)
+    returncode = await subprocess.wait()
+    if rm_src:
+        _rm_local(Path(source_url.path))
+    if returncode != 0:
+        raise click.ClickException(f"Compression failed: {subprocess.stderr}")
+
+
+def _rm_local(target: Path) -> None:
+    # maybe also AWS / GCS clouds or storage?
+    if target.is_dir():
+        dir_util.remove_tree(str(target))
+    if target.is_file() and target.exists():
+        target.unlink()
 
 
 @data.command(
@@ -505,9 +549,8 @@ async def _nonstorage_cp(
     default=False,
     is_flag=True,
     help=(
-        "Perform extraction of SOURCE into the temporal folder and move "
-        "extracted files to DESTINATION. The archive type is derived "
-        "from the file name. "
+        "Perform extraction of SOURCE into the DESTINATION directory. "
+        "The archive type is derived from the file name. "
         f"Supported types: {', '.join(SUPPORTED_ARCHIVE_TYPES)}."
     ),
 )
@@ -517,9 +560,8 @@ async def _nonstorage_cp(
     default=False,
     is_flag=True,
     help=(
-        "Perform compression of SOURCE into the temporal folder and move "
-        "created archive to DESTINATION. The archive type is derived "
-        "from the file name. "
+        "Perform compression of SOURCE into the DESTINATION file. "
+        "The archive type is derived from the file name. "
         f"Supported types: {', '.join(SUPPORTED_ARCHIVE_TYPES)}."
     ),
 )
@@ -530,7 +572,7 @@ async def _nonstorage_cp(
     multiple=True,
     help=(
         "Mounts directory from vault into container. "
-        "Use multiple options to mount more than one volume. "
+        "Use multiple options to mount more than one volume."
     ),
 )
 @click.option(
@@ -539,8 +581,21 @@ async def _nonstorage_cp(
     metavar="VAR=VAL",
     multiple=True,
     help=(
-        "Set environment variable in container "
-        "Use multiple options to define more than one variable"
+        "Set environment variable in container. "
+        "Use multiple options to define more than one variable."
+    ),
+)
+@click.option(
+    "-t",
+    "--use-temp-dir",
+    default=False,
+    is_flag=True,
+    help=(
+        "Download and extract / compress data (if needed) "
+        " inside the temporal directory. "
+        "Afterwards move resulted file(s) into the DESTINATION. "
+        "NOTE: use it if 'storage:' is involved and "
+        "extraction or compression is performed to speedup the process."
     ),
 )
 def data_cp(
@@ -550,10 +605,21 @@ def data_cp(
     compress: bool,
     volume: Sequence[str],
     env: Sequence[str],
+    use_temp_dir: bool,
 ) -> None:
     if extract and compress:
         raise click.ClickException("Extract and compress can't be used together")
-    run_async(_data_cp(source, destination, extract, compress, list(volume), list(env)))
+    run_async(
+        _data_cp(
+            source,
+            destination,
+            extract,
+            compress,
+            list(volume),
+            list(env),
+            use_temp_dir,
+        )
+    )
 
 
 @asynccontextmanager
@@ -585,7 +651,7 @@ def _get_cluster_from_uri(image_uri: str, *, scheme: str) -> Optional[str]:
     return uri.host
 
 
-async def _image_transfer(src_uri: str, dst_uri: str) -> None:
+async def _image_transfer(src_uri: str, dst_uri: str) -> int:
     src_cluster: Optional[str] = _get_cluster_from_uri(src_uri, scheme="image")
     dst_cluster: Optional[str] = _get_cluster_from_uri(dst_uri, scheme="image")
     if not dst_cluster:
@@ -605,7 +671,7 @@ async def _image_transfer(src_uri: str, dst_uri: str) -> None:
                 """
             )
         )
-        await _build_image(
+        return await _build_image(
             dockerfile_path=dockerfile.name,
             context=tmpdir,
             image_uri=dst_uri,
@@ -654,7 +720,7 @@ async def _build_image(
     volume: Sequence[str],
     env: Sequence[str],
     other_client_configs: Sequence[neuro_api.Config] = (),
-) -> None:
+) -> int:
     cluster = _get_cluster_from_uri(image_uri, scheme="image")
     async with _get_client(cluster=cluster) as client:
         context_uri = uri_from_cli(
@@ -670,6 +736,7 @@ async def _build_image(
         exit_code = await _attach_job_stdout(job, client, name="builder")
         if exit_code == EX_OK:
             logger.info(f"Successfully built {image_uri}")
+            return EX_OK
         else:
             raise click.ClickException(f"Failed to build image: {exit_code}")
 
@@ -711,7 +778,7 @@ def image_build(
     env: Sequence[str],
 ) -> None:
     try:
-        run_async(_build_image(file, path, image_uri, build_arg, volume, env))
+        sys.exit(run_async(_build_image(file, path, image_uri, build_arg, volume, env)))
     except (ValueError, click.ClickException) as e:
         logger.error(f"Failed to build image: {e}")
         sys.exit(EX_PLATFORMERROR)

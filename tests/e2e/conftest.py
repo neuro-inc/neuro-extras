@@ -17,6 +17,8 @@ CLIRunner = Callable[[List[str]], CompletedProcess]
 
 logger = logging.getLogger(__name__)
 
+TESTED_ARCHIVE_TYPES = ["tar.gz", "tgz", "zip", "tar"]
+
 
 @dataclass
 class Secret:

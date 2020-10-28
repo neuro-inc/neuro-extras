@@ -1,0 +1,1 @@
+data cp: fix source archive removal if SRC is a local file; add flag for optional TMP folder usage
