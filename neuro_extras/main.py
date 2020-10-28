@@ -435,7 +435,7 @@ async def _nonstorage_cp(
     subprocess = await asyncio.create_subprocess_exec(command, *args)
     returncode = await subprocess.wait()
     if UrlType.get_type(source_url) == UrlType.LOCAL and remove_source:
-        _rm_by_url(source_url)
+        _rm_local(Path(source_url.path))
     if returncode != 0:
         raise click.ClickException("Cloud copy failed")
 
@@ -470,7 +470,7 @@ async def _extract(source_url: URL, destination_url: URL, rm_src: bool) -> None:
     subprocess = await asyncio.create_subprocess_exec(command, *args)
     returncode = await subprocess.wait()
     if rm_src:
-        _rm_by_url(source_url)
+        _rm_local(Path(source_url.path))
     if returncode != 0:
         raise click.ClickException(f"Extraction failed: {subprocess.stderr}")
 
@@ -520,18 +520,17 @@ async def _compress(source_url: URL, destination_url: URL, rm_src: bool) -> None
     subprocess = await asyncio.create_subprocess_exec(command, *args)
     returncode = await subprocess.wait()
     if rm_src:
-        _rm_by_url(source_url)
+        _rm_local(Path(source_url.path))
     if returncode != 0:
         raise click.ClickException(f"Compression failed: {subprocess.stderr}")
 
 
-def _rm_by_url(src_url: URL) -> None:
+def _rm_local(target: Path) -> None:
     # maybe also AWS / GCS clouds or storage?
-    src_path = Path(src_url.path)
-    if src_path.is_dir():
-        dir_util.remove_tree(str(src_path))
-    if src_path.is_file() and src_path.exists():
-        src_path.unlink()
+    if target.is_dir():
+        dir_util.remove_tree(str(target))
+    if target.is_file() and target.exists():
+        target.unlink()
 
 
 @data.command(
