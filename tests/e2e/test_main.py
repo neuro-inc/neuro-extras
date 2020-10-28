@@ -958,10 +958,10 @@ def test_data_cp_from_cloud_to_storage(
 
         if extract:
             glob_pattern = f"{dst}/data/*"
-            expected_file = f"{dst}/data/hello.txt"
+            expected_file = "/data/hello.txt"
         else:
             glob_pattern = f"{dst}*"
-            expected_file = f"{dst}"
+            expected_file = f"{Path(dst).name}"
 
         # BUG: (yartem) cli_runner returns wrong result here putting neuro's debug info
         # to stdout and not putting result of neuro-ls to stdout.
