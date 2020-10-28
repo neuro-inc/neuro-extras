@@ -957,10 +957,10 @@ def test_data_cp_from_cloud_to_storage(
         assert res.returncode == 0, res
 
         if extract:
-            glob_pattern = f'"{dst}/data/*"'
+            glob_pattern = f'{dst}/data/*'
             expected_file = f"{dst}/data/hello.txt"
         else:
-            glob_pattern = f'"{dst}*"'
+            glob_pattern = f'{dst}*'
             expected_file = f"{dst}"
 
         # BUG: (yartem) cli_runner returns wrong result here putting neuro's debug info
