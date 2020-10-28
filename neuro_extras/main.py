@@ -336,8 +336,9 @@ async def _data_cp(
             volume.append(f"{str(destination_url.parent)}:/var/storage")
             container_dst_uri = URL(f"/var/storage/{destination_url.name}")
         elif destination_url_type == UrlType.DISK:
-            volume.append(f"disk:{str(destination_url.parent)}:/var/disk:rw")
-            container_dst_uri = URL(f"/var/disk/{destination_url.name}")
+            disk_ref = str(destination_url)[:46]  # disk:$ID (which is 41 symbols long)
+            volume.append(f"{disk_ref}:/var/disk:rw")
+            container_dst_uri = URL(f"/var/disk/{str(destination_url)[47:]}")
         else:
             container_dst_uri = destination_url
 
@@ -648,7 +649,7 @@ def _get_cluster_from_uri(image_uri: str, *, scheme: str) -> Optional[str]:
     return uri.host
 
 
-async def _image_transfer(src_uri: str, dst_uri: str) -> None:
+async def _image_transfer(src_uri: str, dst_uri: str) -> int:
     src_cluster: Optional[str] = _get_cluster_from_uri(src_uri, scheme="image")
     dst_cluster: Optional[str] = _get_cluster_from_uri(dst_uri, scheme="image")
     if not dst_cluster:
@@ -668,7 +669,7 @@ async def _image_transfer(src_uri: str, dst_uri: str) -> None:
                 """
             )
         )
-        await _build_image(
+        return await _build_image(
             dockerfile_path=dockerfile.name,
             context=tmpdir,
             image_uri=dst_uri,
@@ -717,7 +718,7 @@ async def _build_image(
     volume: Sequence[str],
     env: Sequence[str],
     other_client_configs: Sequence[neuro_api.Config] = (),
-) -> None:
+) -> int:
     cluster = _get_cluster_from_uri(image_uri, scheme="image")
     async with _get_client(cluster=cluster) as client:
         context_uri = uri_from_cli(
@@ -733,6 +734,7 @@ async def _build_image(
         exit_code = await _attach_job_stdout(job, client, name="builder")
         if exit_code == EX_OK:
             logger.info(f"Successfully built {image_uri}")
+            return EX_OK
         else:
             raise click.ClickException(f"Failed to build image: {exit_code}")
 
@@ -774,7 +776,7 @@ def image_build(
     env: Sequence[str],
 ) -> None:
     try:
-        run_async(_build_image(file, path, image_uri, build_arg, volume, env))
+        sys.exit(run_async(_build_image(file, path, image_uri, build_arg, volume, env)))
     except (ValueError, click.ClickException) as e:
         logger.error(f"Failed to build image: {e}")
         sys.exit(EX_PLATFORMERROR)

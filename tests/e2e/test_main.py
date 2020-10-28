@@ -1033,8 +1033,9 @@ def test_data_cp_from_cloud_to_disk(
     local_folder = "/var/disk"
 
     src = f"{GCP_BUCKET}/{filename}"
+    dst = f"{disk}:/intermediate/{filename}"
     res = cli_runner(
-        args_data_cp_from_cloud(GCP_BUCKET, src, disk, False, False, False)
+        args_data_cp_from_cloud(GCP_BUCKET, src, dst, False, False, False)
     )
     assert res.returncode == 0, res
 
@@ -1045,7 +1046,7 @@ def test_data_cp_from_cloud_to_disk(
             "-v",
             f"{disk}:{local_folder}:rw",
             "ubuntu",
-            f"bash -c 'ls -l {local_folder}/{filename}'",
+            f"bash -c 'ls -l {local_folder}/intermediate/{filename}'",
         ]
     )
     assert res.returncode == 0, res
