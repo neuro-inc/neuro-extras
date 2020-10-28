@@ -339,9 +339,9 @@ async def _data_cp(
             volume.append(f"{str(destination_url.parent)}:/var/storage")
             container_dst_uri = URL(f"/var/storage/{destination_url.name}")
         elif destination_url_type == UrlType.DISK:
-            disk_ref = str(destination_url)[:46]  # disk:$ID (which is 41 symbols long)
-            volume.append(f"{disk_ref}:/var/disk:rw")
-            container_dst_uri = URL(f"/var/disk/{str(destination_url)[47:]}")
+            disk_id = str(destination_url.path)[:41]  # disk ID is 41 symbols long
+            volume.append(f"disk:{disk_id}:/var/disk:rw")
+            container_dst_uri = URL(f"/var/disk/{str(destination_url.path)[42:]}")
         else:
             container_dst_uri = destination_url
 
