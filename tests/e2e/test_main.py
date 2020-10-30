@@ -148,6 +148,69 @@ def test_image_build_failure(cli_runner: CLIRunner) -> None:
 
 
 @pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
+async def test_image_build_custom_preset(
+    cli_runner: CLIRunner, repeat_until_success: Callable[..., "CompletedProcess[str]"]
+) -> None:
+    result = cli_runner(["neuro-extras", "init-aliases"])
+    assert result.returncode == 0, result
+
+    # A tricky way to parse neuro config show output and get SECOND preset in a row
+    # First one is used by default
+    process = await asyncio.create_subprocess_shell(
+        "neuro config show | "
+        "grep 'Resource Presets:' -A 3 | "
+        "tail -1 | "
+        "awk '{print $1}'",
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+    )
+    stdout, stderr = await process.communicate()
+    assert process.returncode == 0, process
+    custom_preset = stdout.decode()
+
+    dockerfile_path = Path("nested/custom.Dockerfile")
+    dockerfile_path.parent.mkdir(parents=True)
+
+    random_file_to_disable_layer_caching = gen_random_file(dockerfile_path.parent)
+    with open(dockerfile_path, "w") as f:
+        f.write(
+            textwrap.dedent(
+                f"""\
+                FROM ubuntu:latest
+                ADD {random_file_to_disable_layer_caching} /tmp
+                RUN echo !
+                """
+            )
+        )
+
+    tag = str(uuid.uuid4())
+
+    # WORKAROUND: Fixing 401 Not Authorized because of this problem:
+    # https://github.com/neuromation/platform-registry-api/issues/209
+    rnd = uuid.uuid4().hex[:6]
+    img_name = f"image:extras-e2e-custom-preset-{rnd}"
+    img_uri_str = f"{img_name}:{tag}"
+
+    result = cli_runner(
+        [
+            "neuro",
+            "image-build",
+            "--preset",
+            custom_preset,
+            "-f",
+            str(dockerfile_path),
+            ".",
+            img_uri_str,
+        ]
+    )
+    assert result.returncode == 0, result
+    sleep(10)
+
+    result = repeat_until_success(["neuro", "image", "tags", img_name])
+    assert tag in result.stdout
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
 def test_image_build_custom_dockerfile(
     cli_runner: CLIRunner, repeat_until_success: Callable[..., "CompletedProcess[str]"]
 ) -> None:
