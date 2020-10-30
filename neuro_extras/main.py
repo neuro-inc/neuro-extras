@@ -50,6 +50,7 @@ SUPPORTED_ARCHIVE_TYPES = (
 SUPPORTED_OBJECT_STORAGE_SCHEMES = {
     "AWS": "s3://",
     "GCS": "gs://",
+    "AZURE": "https://",
 }
 
 
@@ -299,7 +300,7 @@ class UrlType(Enum):
             return UrlType.STORAGE
         if url.scheme == "":
             return UrlType.LOCAL
-        if url.scheme in ("s3", "gs"):
+        if url.scheme in ("s3", "gs", "https"):
             return UrlType.CLOUD
         if url.scheme == "disk":
             return UrlType.DISK
@@ -437,6 +438,15 @@ async def _nonstorage_cp(
         command = "gsutil"
         # gsutil service credentials are activated in entrypoint.sh
         args = ["-m", "cp", "-r", str(source_url), str(destination_url)]
+    elif "https" in (source_url.scheme, destination_url.scheme):
+        # Azure Blob Storage URLs look like "https://account.blob.core.windows.net/..."
+        if "core.windows.net" in (source_url.path, destination_url.path):
+            command = "azcopy"
+            # azure credentials are activated in entrypoint.sh
+            args = ["cp", "-r", str(source_url), str(destination_url)]
+        else:
+            # TODO: Implement regular HTTPS
+            raise NotImplementedError("HTTPS protocol is not supported yet")
     elif source_url.scheme == "" and destination_url.scheme == "":
         command = "rclone"
         args = [
