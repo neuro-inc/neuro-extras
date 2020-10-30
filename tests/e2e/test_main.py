@@ -3,7 +3,6 @@ import base64
 import json
 import logging
 import os
-import subprocess
 import sys
 import textwrap
 import time
@@ -157,15 +156,12 @@ def test_image_build_custom_preset(
 
     # A tricky way to parse neuro config show output and get SECOND preset in a row
     # First one is used by default
-    process = subprocess.run(
-        "neuro config show | "
-        "grep 'Resource Presets:' -A 3 | "
-        "tail -1 | "
-        "awk '{print $1}'",
-        stdout=subprocess.PIPE,
-    )
+    process = cli_runner(["neuro", "config", "show"])
     assert process.returncode == 0, process
-    custom_preset = process.stdout.decode()
+    config_lines = [line.strip() for line in process.stdout.splitlines()]
+    first_preset_index = config_lines.index("Resource Presets:") + 2
+    second_preset_index = first_preset_index + 1
+    custom_preset = config_lines[second_preset_index].split()[0]
 
     dockerfile_path = Path("nested/custom.Dockerfile")
     dockerfile_path.parent.mkdir(parents=True)

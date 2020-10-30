@@ -779,7 +779,6 @@ PRESET = PresetType()
 @click.option(
     "-s",
     "--preset",
-    type=PRESET,
     metavar="PRESET",
     help=(
         "Predefined resource configuration (to see available values, "
