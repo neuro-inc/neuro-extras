@@ -3,6 +3,7 @@ import base64
 import json
 import logging
 import os
+import subprocess
 import sys
 import textwrap
 import time
@@ -148,8 +149,7 @@ def test_image_build_failure(cli_runner: CLIRunner) -> None:
 
 
 @pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
-@pytest.mark.asyncio
-async def test_image_build_custom_preset(
+def test_image_build_custom_preset(
     cli_runner: CLIRunner, repeat_until_success: Callable[..., "CompletedProcess[str]"]
 ) -> None:
     result = cli_runner(["neuro-extras", "init-aliases"])
@@ -157,17 +157,16 @@ async def test_image_build_custom_preset(
 
     # A tricky way to parse neuro config show output and get SECOND preset in a row
     # First one is used by default
-    process = await asyncio.create_subprocess_shell(
+    process = subprocess.run(
         "neuro config show | "
         "grep 'Resource Presets:' -A 3 | "
         "tail -1 | "
         "awk '{print $1}'",
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE,
+        capture_output=True,
+        text=True,
     )
-    stdout, stderr = await process.communicate()
     assert process.returncode == 0, process
-    custom_preset = stdout.decode()
+    custom_preset = process.stdout
 
     dockerfile_path = Path("nested/custom.Dockerfile")
     dockerfile_path.parent.mkdir(parents=True)

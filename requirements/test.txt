@@ -2,5 +2,4 @@
 -r syntax.txt
 pytest==6.1.1
 pytest-xdist==2.1.0
-pytest-asyncio==0.14.0
 towncrier==19.2.0
