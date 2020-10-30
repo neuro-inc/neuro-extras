@@ -148,6 +148,7 @@ def test_image_build_failure(cli_runner: CLIRunner) -> None:
 
 
 @pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
+@pytest.mark.asyncio
 async def test_image_build_custom_preset(
     cli_runner: CLIRunner, repeat_until_success: Callable[..., "CompletedProcess[str]"]
 ) -> None:
