@@ -162,11 +162,10 @@ def test_image_build_custom_preset(
         "grep 'Resource Presets:' -A 3 | "
         "tail -1 | "
         "awk '{print $1}'",
-        capture_output=True,
-        text=True,
+        stdout=subprocess.PIPE,
     )
     assert process.returncode == 0, process
-    custom_preset = process.stdout
+    custom_preset = process.stdout.decode()
 
     dockerfile_path = Path("nested/custom.Dockerfile")
     dockerfile_path.parent.mkdir(parents=True)
