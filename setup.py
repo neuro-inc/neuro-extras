@@ -12,9 +12,7 @@ with open("neuro_extras/version.py") as f:
 
 
 install_requires = [
-    "neuromation>=20.9.24",
-    "yarl==1.5.1",
-    "multidict==4.7.6",
+    "neuromation>=20.10.30",
     "click",
     "toml",
     "pyyaml",
