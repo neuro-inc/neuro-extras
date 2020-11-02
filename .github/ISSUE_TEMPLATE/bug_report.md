@@ -23,7 +23,7 @@ assignees: ''
 ###### Short explanation of what you expected to happen after performing steps to reproduce
 
 
-## Attachments 
+## Attachments
 ###### Any additional files which help you to explain and us to investigate the issue, e.g. screen-shots, log files, etc.
 
 

@@ -3,18 +3,15 @@ PYTEST_FLAGS=
 .PHONY: setup
 setup:
 	pip install -r requirements/test.txt
+	pre-commit install
 
 .PHONY: lint
-lint:
-	isort --check-only --diff neuro_extras tests setup.py
-	black --check neuro_extras tests setup.py
-	flake8 neuro_extras tests setup.py
+lint: format
 	mypy neuro_extras tests setup.py
 
 .PHONY: format
 format:
-	isort neuro_extras tests setup.py
-	black neuro_extras tests setup.py
+	pre-commit run --all-files --show-diff-on-failure
 
 .PHONY: test_e2e
 test_e2e:
