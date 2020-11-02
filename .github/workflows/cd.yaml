@@ -2,7 +2,7 @@ name: CI
 
 on:
   release:
-    types: [ published ]
+    types: [published]
 
 jobs:
 
@@ -14,30 +14,30 @@ jobs:
     outputs:
       version: ${{ steps.version.outputs.version }}
     steps:
-      - name: Checkout commit
-        uses: actions/checkout@v2
-      - name: Setup Python 3.7
-        uses: actions/setup-python@v2
-        with:
-          python-version: "3.7"
-      - name: Cache PyPI
-        uses: actions/cache@v2
-        with:
-          key: pip-lint-${{ hashFiles('requirements/*.txt') }}
-          path: ~/.cache/pip
-          restore-keys: |
-              pip-lint-
-      - name: Install dependencies
-        run: |
-          python -m pip install pip
-          make setup
-      - name: Save the package version
-        id: version
-        run: |
-          echo "::set-output name=version::$(python setup.py --version)"
-      - name: Show version
-        run: |
-            echo ${{ steps.version.outputs.version }}
+    - name: Checkout commit
+      uses: actions/checkout@v2
+    - name: Setup Python 3.7
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.7'
+    - name: Cache PyPI
+      uses: actions/cache@v2
+      with:
+        key: pip-lint-${{ hashFiles('requirements/*.txt') }}
+        path: ~/.cache/pip
+        restore-keys: |
+          pip-lint-
+    - name: Install dependencies
+      run: |
+        python -m pip install pip
+        make setup
+    - name: Save the package version
+      id: version
+      run: |
+        echo "::set-output name=version::$(python setup.py --version)"
+    - name: Show version
+      run: |
+        echo ${{ steps.version.outputs.version }}
 
   devpi_deploy:
     name: Release package
@@ -45,35 +45,35 @@ jobs:
     needs: [info]
     if: github.event_name == 'release'
     steps:
-      - name: Checkout commit
-        uses: actions/checkout@v2
-      - name: Sanity check for tag and version
-        run: |
-          export VERSION=${{ needs.info.outputs.version }}
-          if [ "${{ github.ref }}" != "refs/tags/$VERSION" ]
-          then
-            echo "Git tag '${{ github.ref }}' differs from hard-coded package version '$VERSION'"
-            exit 1
-          else
-            echo "OK, git tag matches hard-coded package version: '$VERSION'"
-          fi
-      - name: Install python
-        uses: actions/setup-python@v2
-        with:
-          python-version: "3.7"
-      - name: Install dependencies
-        run: |
-          python -m pip install twine wheel
-          make setup
-      - name: Make dists
-        run: |
-          python setup.py sdist bdist_wheel
-      - name: PyPI upload
-        env:
-          TWINE_USERNAME: __token__
-          TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
-        run: |
-          twine upload dist/*
+    - name: Checkout commit
+      uses: actions/checkout@v2
+    - name: Sanity check for tag and version
+      run: |
+        export VERSION=${{ needs.info.outputs.version }}
+        if [ "${{ github.ref }}" != "refs/tags/$VERSION" ]
+        then
+          echo "Git tag '${{ github.ref }}' differs from hard-coded package version '$VERSION'"
+          exit 1
+        else
+          echo "OK, git tag matches hard-coded package version: '$VERSION'"
+        fi
+    - name: Install python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.7'
+    - name: Install dependencies
+      run: |
+        python -m pip install twine wheel
+        make setup
+    - name: Make dists
+      run: |
+        python setup.py sdist bdist_wheel
+    - name: PyPI upload
+      env:
+        TWINE_USERNAME: __token__
+        TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
+      run: |
+        twine upload dist/*
 
   dockerhub_deploy:
     name: Release image if needed
@@ -85,69 +85,69 @@ jobs:
       DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
       DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
     steps:
-      - name: Checkout commit
-        uses: actions/checkout@v2
-      - name: Install python
-        uses: actions/setup-python@v2
-        with:
-          python-version: "3.7"
-      - name: Install dependencies
-        run: |
-          python -m pip install pip
-          make setup
-      - name: Wait until package becomes available on PyPI
-        timeout-minutes: 5
-        run: |
-          PYPIVERSION=$(python setup.py --version)
-          PYPIPACKAGE=neuro-extras==$PYPIVERSION
-          until python -m pip install $PYPIPACKAGE
-          do
-              echo "Waiting for the pypi package $PYPIPACKAGE ..."
-              sleep 1
-          done
-      - name: Build release image
-        run: |
-          export PACKAGE="neuro-extras==${{ needs.info.outputs.version }}"
-          docker build -t neuromation/neuro-extras:latest \
-            --build-arg NEURO_EXTRAS_PACKAGE=$PACKAGE .
-      - name: Push release release image
-        id: push
-        run: |
-          export IMAGE=neuromation/neuro-extras
-          export TAG=${{ needs.info.outputs.version }}
+    - name: Checkout commit
+      uses: actions/checkout@v2
+    - name: Install python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.7'
+    - name: Install dependencies
+      run: |
+        python -m pip install pip
+        make setup
+    - name: Wait until package becomes available on PyPI
+      timeout-minutes: 5
+      run: |
+        PYPIVERSION=$(python setup.py --version)
+        PYPIPACKAGE=neuro-extras==$PYPIVERSION
+        until python -m pip install $PYPIPACKAGE
+        do
+            echo "Waiting for the pypi package $PYPIPACKAGE ..."
+            sleep 1
+        done
+    - name: Build release image
+      run: |
+        export PACKAGE="neuro-extras==${{ needs.info.outputs.version }}"
+        docker build -t neuromation/neuro-extras:latest \
+          --build-arg NEURO_EXTRAS_PACKAGE=$PACKAGE .
+    - name: Push release release image
+      id: push
+      run: |
+        export IMAGE=neuromation/neuro-extras
+        export TAG=${{ needs.info.outputs.version }}
 
-          echo "::set-output name=image::$IMAGE"
-          echo "::set-output name=tag::$TAG"
+        echo "::set-output name=image::$IMAGE"
+        echo "::set-output name=tag::$TAG"
 
-          docker login $DOCKER_SERVER --username $DOCKER_USERNAME --password $DOCKER_PASSWORD
-          docker tag neuromation/neuro-extras:latest neuromation/neuro-extras:$TAG
-          docker push neuromation/neuro-extras:$TAG
-          # Push latest if it's not an alpha release:
-          #   not alpha: TAG="20.9.29"
-          #       alpha: TAG="20.9.29a1"
-          if [[ ! "$TAG" =~ ^.*a[0-9]*$ ]]; then
-            docker push neuromation/neuro-extras:latest
-          fi
-      - name: Wait until image becomes available on DockerHub
-        timeout-minutes: 10
-        run: |
-          export IMAGE=${{ steps.push.outputs.image }}
-          export TAG=${{ steps.push.outputs.tag }}
+        docker login $DOCKER_SERVER --username $DOCKER_USERNAME --password $DOCKER_PASSWORD
+        docker tag neuromation/neuro-extras:latest neuromation/neuro-extras:$TAG
+        docker push neuromation/neuro-extras:$TAG
+        # Push latest if it's not an alpha release:
+        #   not alpha: TAG="20.9.29"
+        #       alpha: TAG="20.9.29a1"
+        if [[ ! "$TAG" =~ ^.*a[0-9]*$ ]]; then
+          docker push neuromation/neuro-extras:latest
+        fi
+    - name: Wait until image becomes available on DockerHub
+      timeout-minutes: 10
+      run: |
+        export IMAGE=${{ steps.push.outputs.image }}
+        export TAG=${{ steps.push.outputs.tag }}
 
-          docker_tag_exists () {
-              CT="Content-Type: application/json"
-              U=$DOCKER_USERNAME
-              P=$DOCKER_PASSWORD
-              URL=https://hub.docker.com
-              TOKEN=$(curl -s -H "$CT" -X POST -d '{"username": "'$U'", "password": "'$P'"}' $URL/v2/users/login/ | jq -r .token)
-              curl --silent -f --head -lL $URL/v2/repositories/$1/tags/$2/ > /dev/null
-          }
+        docker_tag_exists () {
+            CT="Content-Type: application/json"
+            U=$DOCKER_USERNAME
+            P=$DOCKER_PASSWORD
+            URL=https://hub.docker.com
+            TOKEN=$(curl -s -H "$CT" -X POST -d '{"username": "'$U'", "password": "'$P'"}' $URL/v2/users/login/ | jq -r .token)
+            curl --silent -f --head -lL $URL/v2/repositories/$1/tags/$2/ > /dev/null
+        }
 
-          until docker_tag_exists $IMAGE $TAG
-          do
-              echo "Waiting for the dockerhub image $IMAGE:$TAG ..."
-              sleep 1
-          done
+        until docker_tag_exists $IMAGE $TAG
+        do
+            echo "Waiting for the dockerhub image $IMAGE:$TAG ..."
+            sleep 1
+        done
 
   test:
     name: Run e2e tests against release image
@@ -168,62 +168,63 @@ jobs:
       DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
       DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
     steps:
-      - name: Checkout commit
-        uses: actions/checkout@v2
-      - name: Install python ${{ matrix.python-version }}
-        uses: actions/setup-python@v2
-        with:
-          python-version: ${{ matrix.python-version }}
-      - name: Get pip cache dir
-        id: pip-cache
-        run: |
-          echo "::set-output name=dir::$(pip cache dir)"    # - name: dir
-      - name: Cache PyPI
-        uses: actions/cache@v2
-        with:
-          key: pip-ci-${{ runner.os }}-${{ matrix.python-version }}-${{ hashFiles('setup.py', 'requirements/*.txt') }}
-          path: ${{ steps.pip-cache.outputs.dir }}
-          restore-keys: |
-              pip-ci-${{ runner.os }}-${{ matrix.python-version }}-
-      - name: Install libraries on Linux
-        if: matrix.os == 'ubuntu'
-        shell: bash
-        run: |
-          curl https://rclone.org/install.sh | sudo bash
-      - name: Install libraries on macOS
-        if: matrix.os == 'macos'
-        shell: bash
-        run: |
-          curl https://rclone.org/install.sh | sudo bash
-      - name: Install python dependencies
-        run: |
-          make setup
-      - name: Configure neuro
-        run: |
-          neuro config login-with-token ${{ env.NEURO_TOKEN }} ${{ env.NEURO_STAGING_URL }}
-          neuro config switch-cluster ${{ env.NEURO_CLUSTER }}
-          neuro config show
-      - name: Configure GCP access
-        uses: GoogleCloudPlatform/github-actions/setup-gcloud@master
-        with:
-          project_id: ${{ secrets.E2E_COOKIECUTTER_GCP_PROJECT_ID }}
-          service_account_key: ${{ secrets.E2E_COOKIECUTTER_GCP_SA_KEY }}
-          export_default_credentials: true
-      - name: Configure AWS access
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          aws-access-key-id: ${{ secrets.E2E_COOKIECUTTER_AWS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.E2E_COOKIECUTTER_AWS_ACCESS_KEY }}
-          aws-region: us-east-1
-      - name: Run e2e tests on MacOS and Linux
-        if: matrix.os != 'windows'
-        run: |
-            unset NEURO_EXTRAS_IMAGE  # clear this env var to test it in real
-            make test_e2e
-      - name: Run e2e tests on Windows
-        if: matrix.os == 'windows'
-        run: |
-          if (Test-Path 'Env:NEURO_EXTRAS_IMAGE') { # clear this env var to test it in real
-            Remove-Item 'Env:NEURO_EXTRAS_IMAGE'
-          }
-          make test_e2e
+    - name: Checkout commit
+      uses: actions/checkout@v2
+    - name: Install python ${{ matrix.python-version }}
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Get pip cache dir
+      id: pip-cache
+      run: |
+        echo "::set-output name=dir::$(pip cache dir)"    # - name: dir
+    - name: Cache PyPI
+      uses: actions/cache@v2
+      with:
+        key: pip-ci-${{ runner.os }}-${{ matrix.python-version }}-${{ hashFiles('setup.py',
+          'requirements/*.txt') }}
+        path: ${{ steps.pip-cache.outputs.dir }}
+        restore-keys: |
+          pip-ci-${{ runner.os }}-${{ matrix.python-version }}-
+    - name: Install libraries on Linux
+      if: matrix.os == 'ubuntu'
+      shell: bash
+      run: |
+        curl https://rclone.org/install.sh | sudo bash
+    - name: Install libraries on macOS
+      if: matrix.os == 'macos'
+      shell: bash
+      run: |
+        curl https://rclone.org/install.sh | sudo bash
+    - name: Install python dependencies
+      run: |
+        make setup
+    - name: Configure neuro
+      run: |
+        neuro config login-with-token ${{ env.NEURO_TOKEN }} ${{ env.NEURO_STAGING_URL }}
+        neuro config switch-cluster ${{ env.NEURO_CLUSTER }}
+        neuro config show
+    - name: Configure GCP access
+      uses: GoogleCloudPlatform/github-actions/setup-gcloud@master
+      with:
+        project_id: ${{ secrets.E2E_COOKIECUTTER_GCP_PROJECT_ID }}
+        service_account_key: ${{ secrets.E2E_COOKIECUTTER_GCP_SA_KEY }}
+        export_default_credentials: true
+    - name: Configure AWS access
+      uses: aws-actions/configure-aws-credentials@v1
+      with:
+        aws-access-key-id: ${{ secrets.E2E_COOKIECUTTER_AWS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.E2E_COOKIECUTTER_AWS_ACCESS_KEY }}
+        aws-region: us-east-1
+    - name: Run e2e tests on MacOS and Linux
+      if: matrix.os != 'windows'
+      run: |
+        unset NEURO_EXTRAS_IMAGE  # clear this env var to test it in real
+        make test_e2e
+    - name: Run e2e tests on Windows
+      if: matrix.os == 'windows'
+      run: |
+        if (Test-Path 'Env:NEURO_EXTRAS_IMAGE') { # clear this env var to test it in real
+          Remove-Item 'Env:NEURO_EXTRAS_IMAGE'
+        }
+        make test_e2e
