@@ -101,11 +101,18 @@ def image() -> None:
 @image.command("transfer")
 @click.argument("source")
 @click.argument("destination")
-def image_transfer(source: str, destination: str) -> None:
+@click.option(
+    "-F",
+    "--force-overwrite",
+    default=False,
+    is_flag=True,
+    help="Transfer even if the destination image already exists.",
+)
+def image_transfer(source: str, destination: str, force_overwrite: bool) -> None:
     """
     Copy images between clusters.
     """
-    exit_code = run_async(_image_transfer(source, destination))
+    exit_code = run_async(_image_transfer(source, destination, force_overwrite))
     sys.exit(exit_code)
 
 
@@ -128,6 +135,7 @@ def init_aliases() -> None:
             "--build-arg build arguments for Docker",
             "-e, --env environment variables for container",
             "-v, --volume list of volumes for container",
+            "-F, --force-overwrite enforce destination image overwrite",
         ],
         "args": "CONTEXT IMAGE_URI",
     }
@@ -138,6 +146,9 @@ def init_aliases() -> None:
     config["alias"]["image-transfer"] = {
         "exec": "neuro-extras image transfer",
         "args": "SOURCE DESTINATION",
+        "options": [
+            "-F, --force-overwrite enforce destination image overwrite",
+        ],
     }
     config["alias"]["data-transfer"] = {
         "exec": "neuro-extras data transfer",
@@ -150,6 +161,7 @@ def init_aliases() -> None:
             "-x, --extract Extract downloaded files",
             "-e, --env environment variables for container",
             "-v, --volume list of volumes for container",
+            "-t, --use-temp-dir store intermediate data in TMP directory",
         ],
         "args": "SOURCE DESTINATION",
     }
@@ -651,7 +663,7 @@ def _get_cluster_from_uri(image_uri: str, *, scheme: str) -> Optional[str]:
     return uri.host
 
 
-async def _image_transfer(src_uri: str, dst_uri: str) -> int:
+async def _image_transfer(src_uri: str, dst_uri: str, force_overwrite: bool) -> int:
     src_cluster: Optional[str] = _get_cluster_from_uri(src_uri, scheme="image")
     dst_cluster: Optional[str] = _get_cluster_from_uri(dst_uri, scheme="image")
     if not dst_cluster:
@@ -678,6 +690,7 @@ async def _image_transfer(src_uri: str, dst_uri: str) -> int:
             build_args=[],
             volume=[],
             env=[],
+            force_overwrite=force_overwrite,
             other_client_configs=[src_client_config],
         )
 
@@ -719,6 +732,7 @@ async def _build_image(
     build_args: Sequence[str],
     volume: Sequence[str],
     env: Sequence[str],
+    force_overwrite: bool,
     other_client_configs: Sequence[neuro_api.Config] = (),
 ) -> int:
     cluster = _get_cluster_from_uri(image_uri, scheme="image")
@@ -729,6 +743,25 @@ async def _build_image(
             client.cluster_name,
             allowed_schemes=("file", "storage"),
         )
+        target_image = await _parse_neuro_image(image_uri)
+        existing_images = await client.images.tags(
+            neuro_api.RemoteImage(
+                name=target_image.name,
+                owner=target_image.owner,
+                cluster_name=target_image.cluster_name,
+                registry=target_image.registry,
+                tag=None,
+            )
+        )
+        if target_image in existing_images and force_overwrite:
+            logger.warning(
+                f"Target image '{target_image}' already exists and will be overwritten."
+            )
+        elif target_image in existing_images and not force_overwrite:
+            raise click.ClickException(
+                f"Target image '{target_image}' already exists. "
+                f"Use -F/--force-overwrite flag to enforce overwriting."
+            )
         builder = ImageBuilder(client, other_clients_configs=other_client_configs)
         job = await builder.launch(
             dockerfile_path, context_uri, image_uri, build_args, volume, env
@@ -767,6 +800,13 @@ async def _build_image(
         "Use multiple options to define more than one variable"
     ),
 )
+@click.option(
+    "-F",
+    "--force-overwrite",
+    default=False,
+    is_flag=True,
+    help="Build even if the destination image already exists.",
+)
 @click.argument("path")
 @click.argument("image_uri")
 def image_build(
@@ -776,9 +816,16 @@ def image_build(
     image_uri: str,
     volume: Sequence[str],
     env: Sequence[str],
+    force_overwrite: bool,
 ) -> None:
     try:
-        sys.exit(run_async(_build_image(file, path, image_uri, build_arg, volume, env)))
+        sys.exit(
+            run_async(
+                _build_image(
+                    file, path, image_uri, build_arg, volume, env, force_overwrite
+                )
+            )
+        )
     except (ValueError, click.ClickException) as e:
         logger.error(f"Failed to build image: {e}")
         sys.exit(EX_PLATFORMERROR)
