@@ -50,7 +50,7 @@ SUPPORTED_ARCHIVE_TYPES = (
 SUPPORTED_OBJECT_STORAGE_SCHEMES = {
     "AWS": "s3://",
     "GCS": "gs://",
-    "AZURE": "https://",
+    "AZURE": "azure+https://",
 }
 
 
@@ -300,7 +300,7 @@ class UrlType(Enum):
             return UrlType.STORAGE
         if url.scheme == "":
             return UrlType.LOCAL
-        if url.scheme in ("s3", "gs", "https"):
+        if url.scheme in ("s3", "gs", "azure+https"):
             return UrlType.CLOUD
         if url.scheme == "disk":
             return UrlType.DISK
@@ -426,6 +426,14 @@ async def _data_cp(
             await _nonstorage_cp(source_url, destination_url, remove_source=True)
 
 
+def _patch_azure_url(url: URL) -> URL:
+    if url.scheme == "azure+https":
+        sas_token = os.getenv("AZURE_SAS_TOKEN")
+        return url.with_scheme("https").with_query(sas_token)
+    else:
+        return url
+
+
 async def _nonstorage_cp(
     source_url: URL, destination_url: URL, remove_source: bool = False
 ) -> None:
@@ -438,15 +446,14 @@ async def _nonstorage_cp(
         command = "gsutil"
         # gsutil service credentials are activated in entrypoint.sh
         args = ["-m", "cp", "-r", str(source_url), str(destination_url)]
-    elif "https" in (source_url.scheme, destination_url.scheme):
-        # Azure Blob Storage URLs look like "https://account.blob.core.windows.net/..."
-        if "core.windows.net" in (source_url.path, destination_url.path):
-            command = "azcopy"
-            # azure credentials are activated in entrypoint.sh
-            args = ["cp", "-r", str(source_url), str(destination_url)]
-        else:
-            # TODO: Implement regular HTTPS
-            raise NotImplementedError("HTTPS protocol is not supported yet")
+    elif "azure+https" in (source_url.scheme, destination_url.scheme):
+        command = "azcopy"
+        args = [
+            "cp",
+            "--recursive",
+            str(_patch_azure_url(source_url)),
+            str(_patch_azure_url(destination_url)),
+        ]
     elif source_url.scheme == "" and destination_url.scheme == "":
         command = "rclone"
         args = [
