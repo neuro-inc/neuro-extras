@@ -44,6 +44,16 @@ Features
 
 [comment]: # (towncrier release notes start)
 
+Neuro_Extras 20.11.1 (2020-11-01)
+=================================
+
+Features
+--------
+
+
+- Bump neuromation to >=20.10.30 ([#141](https://github.com/neuromation/neuro-extras/issues/141))
+
+
 Neuro_Extras v20.10.16 (2020-10-16)
 ===================================
 
