@@ -18,11 +18,12 @@ import click
 import toml
 import yaml
 from neuromation import api as neuro_api
-from neuromation.api import ConfigError, find_project_root
+from neuromation.api import ConfigError, Preset, Resources, find_project_root
 from neuromation.api.config import load_user_config
 from neuromation.api.parsing_utils import _as_repo_str
 from neuromation.api.url_utils import normalize_storage_path_uri, uri_from_cli
 from neuromation.cli.asyncio_utils import run as run_async
+from neuromation.cli.click_types import PresetType
 from neuromation.cli.const import EX_OK, EX_PLATFORMERROR
 from yarl import URL
 
@@ -128,6 +129,7 @@ def init_aliases() -> None:
             "--build-arg build arguments for Docker",
             "-e, --env environment variables for container",
             "-v, --volume list of volumes for container",
+            "-s, --preset specify preset for builder container",
         ],
         "args": "CONTEXT IMAGE_URI",
     }
@@ -719,10 +721,14 @@ async def _build_image(
     build_args: Sequence[str],
     volume: Sequence[str],
     env: Sequence[str],
+    preset: Optional[str] = None,
     other_client_configs: Sequence[neuro_api.Config] = (),
 ) -> int:
     cluster = _get_cluster_from_uri(image_uri, scheme="image")
     async with _get_client(cluster=cluster) as client:
+        if not preset:
+            preset = next(iter(client.config.presets.keys()))
+        job_preset = client.config.presets[preset]
         context_uri = uri_from_cli(
             context,
             client.username,
@@ -731,7 +737,7 @@ async def _build_image(
         )
         builder = ImageBuilder(client, other_clients_configs=other_client_configs)
         job = await builder.launch(
-            dockerfile_path, context_uri, image_uri, build_args, volume, env
+            dockerfile_path, context_uri, image_uri, build_args, volume, env, job_preset
         )
         exit_code = await _attach_job_stdout(job, client, name="builder")
         if exit_code == EX_OK:
@@ -739,6 +745,9 @@ async def _build_image(
             return EX_OK
         else:
             raise click.ClickException(f"Failed to build image: {exit_code}")
+
+
+PRESET = PresetType()
 
 
 @image.command(
@@ -767,18 +776,32 @@ async def _build_image(
         "Use multiple options to define more than one variable"
     ),
 )
+@click.option(
+    "-s",
+    "--preset",
+    metavar="PRESET",
+    help=(
+        "Predefined resource configuration (to see available values, "
+        "run `neuro config show`)"
+    ),
+)
 @click.argument("path")
 @click.argument("image_uri")
 def image_build(
     file: str,
     build_arg: Sequence[str],
+    preset: str,
     path: str,
     image_uri: str,
     volume: Sequence[str],
     env: Sequence[str],
 ) -> None:
     try:
-        sys.exit(run_async(_build_image(file, path, image_uri, build_arg, volume, env)))
+        sys.exit(
+            run_async(
+                _build_image(file, path, image_uri, build_arg, volume, env, preset)
+            )
+        )
     except (ValueError, click.ClickException) as e:
         logger.error(f"Failed to build image: {e}")
         sys.exit(EX_PLATFORMERROR)
@@ -859,6 +882,7 @@ class ImageBuilder:
         build_args: Sequence[str] = (),
         volume: Sequence[str],
         env: Sequence[str],
+        job_preset: Preset,
     ) -> neuro_api.Container:
 
         cache_image = neuro_api.RemoteImage(
@@ -903,12 +927,20 @@ class ImageBuilder:
 
         volumes.extend(default_volumes)
 
+        resources = Resources(
+            memory_mb=job_preset.memory_mb,
+            cpu=job_preset.cpu,
+            gpu=job_preset.gpu,
+            gpu_model=job_preset.gpu_model,
+            tpu_type=job_preset.tpu_type,
+            tpu_software_version=job_preset.tpu_software_version,
+        )
         return neuro_api.Container(
             image=neuro_api.RemoteImage(
                 name="gcr.io/kaniko-project/executor",
                 tag="latest",
             ),
-            resources=neuro_api.Resources(cpu=1.0, memory_mb=4096),
+            resources=resources,
             command=command,
             volumes=volumes,
             disk_volumes=disk_volumes,
@@ -929,6 +961,7 @@ class ImageBuilder:
         build_args: Sequence[str],
         volume: Sequence[str],
         env: Sequence[str],
+        job_preset: Preset,
     ) -> neuro_api.JobDescription:
         # TODO: check if Dockerfile exists
 
@@ -961,6 +994,7 @@ class ImageBuilder:
             build_args=build_args,
             volume=volume,
             env=env,
+            job_preset=job_preset,
         )
         # TODO: set proper tags
         job = await self._client.jobs.run(builder_container, life_span=4 * 60 * 60)
