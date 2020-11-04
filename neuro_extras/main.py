@@ -132,14 +132,18 @@ def init_aliases() -> None:
     config["alias"]["image-build"] = {
         "exec": "neuro-extras image build",
         "options": [
-            "-f, --file path to the Dockerfile within CONTEXT",
-            "--build-arg build arguments for Docker",
-            "-e, --env environment variables for container",
-            "-v, --volume list of volumes for container",
-            "-s, --preset specify preset for builder container",
-            "-F, --force-overwrite enforce destination image overwrite",
+            "-f, --file=PATH  path to the Dockerfile within CONTEXT",
+            "--build-arg=LIST  build arguments for Docker",
+            "-e, --env=LIST  environment variables for container",
+            "-v, --volume=LIST  list of volumes for container",
+            "-s, --preset=STR  specify  preset for builder container",
+            "-F, --force-overwrite  enforce destination image overwrite",
         ],
         "args": "CONTEXT IMAGE_URI",
+        "help": (
+            "Build docker image on the platform. "
+            "Hit `neuro-extras image build --help` for more info."
+        ),
     }
     config["alias"]["seldon-init-package"] = {
         "exec": "neuro-extras seldon init-package",
@@ -149,8 +153,12 @@ def init_aliases() -> None:
         "exec": "neuro-extras image transfer",
         "args": "SOURCE DESTINATION",
         "options": [
-            "-F, --force-overwrite enforce destination image overwrite",
+            "-F, --force-overwrite  enforce destination image overwrite",
         ],
+        "help": (
+            "Transfer images between the cluster within the platform. "
+            "Hit `neuro-extras image transfer --help` for more info."
+        ),
     }
     config["alias"]["data-transfer"] = {
         "exec": "neuro-extras data transfer",
@@ -838,6 +846,16 @@ def image_build(
     force_overwrite: bool,
 ) -> None:
     try:
+        logger.warning(
+            f"ARGS: file: {file}, "
+            f"build_arg: {build_arg}, "
+            f"path: {path}, "
+            f"image_uri: {image_uri}, "
+            f"volume: {volume}, "
+            f"env: {env}, "
+            f"preset: {preset}, "
+            f"force_overwrite: {force_overwrite}."
+        )
         sys.exit(
             run_async(
                 _build_image(

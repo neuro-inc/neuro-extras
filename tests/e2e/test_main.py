@@ -282,13 +282,17 @@ def test_image_build_overwrite(
         img_uri_str,
     ]
     if overwrite:
-        build_command.append("-F")
+        build_command.insert(2, "-F")
 
     result = cli_runner(build_command)
     if overwrite:
         assert result.returncode == 0, result
     else:
         assert result.returncode == EX_PLATFORMERROR, result
+    sleep(10)
+
+    result = repeat_until_success(["neuro", "image", "tags", img_name])
+    assert "latest" in result.stdout
 
 
 @pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
