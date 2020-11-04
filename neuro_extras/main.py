@@ -758,24 +758,30 @@ async def _build_image(
             allowed_schemes=("file", "storage"),
         )
         target_image = await _parse_neuro_image(image_uri)
-        existing_images = await client.images.tags(
-            neuro_api.RemoteImage(
-                name=target_image.name,
-                owner=target_image.owner,
-                cluster_name=target_image.cluster_name,
-                registry=target_image.registry,
-                tag=None,
+        try:
+            existing_images = await client.images.tags(
+                neuro_api.RemoteImage(
+                    name=target_image.name,
+                    owner=target_image.owner,
+                    cluster_name=target_image.cluster_name,
+                    registry=target_image.registry,
+                    tag=None,
+                )
             )
-        )
-        if target_image in existing_images and force_overwrite:
-            logger.warning(
-                f"Target image '{target_image}' already exists and will be overwritten."
-            )
-        elif target_image in existing_images and not force_overwrite:
-            raise click.ClickException(
-                f"Target image '{target_image}' already exists. "
-                f"Use -F/--force-overwrite flag to enforce overwriting."
-            )
+        except neuro_api.errors.ResourceNotFound:
+            # target_image does not exists on platform registry, skip else block
+            pass
+        else:
+            if target_image in existing_images and force_overwrite:
+                logger.warning(
+                    f"Target image '{target_image}' exists and will be overwritten."
+                )
+            elif target_image in existing_images and not force_overwrite:
+                raise click.ClickException(
+                    f"Target image '{target_image}' exists. "
+                    f"Use -F/--force-overwrite flag to enforce overwriting."
+                )
+
         builder = ImageBuilder(client, other_clients_configs=other_client_configs)
         job = await builder.launch(
             dockerfile_path, context_uri, image_uri, build_args, volume, env, job_preset
@@ -846,16 +852,6 @@ def image_build(
     force_overwrite: bool,
 ) -> None:
     try:
-        logger.warning(
-            f"ARGS: file: {file}, "
-            f"build_arg: {build_arg}, "
-            f"path: {path}, "
-            f"image_uri: {image_uri}, "
-            f"volume: {volume}, "
-            f"env: {env}, "
-            f"preset: {preset}, "
-            f"force_overwrite: {force_overwrite}."
-        )
         sys.exit(
             run_async(
                 _build_image(
