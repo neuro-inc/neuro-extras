@@ -745,6 +745,7 @@ async def _build_image(
     force_overwrite: bool,
     preset: Optional[str] = None,
     other_client_configs: Sequence[neuro_api.Config] = (),
+    verbose: bool = False,
 ) -> int:
     cluster = _get_cluster_from_uri(image_uri, scheme="image")
     async with _get_client(cluster=cluster) as client:
@@ -782,7 +783,9 @@ async def _build_image(
                     f"Use -F/--force-overwrite flag to enforce overwriting."
                 )
 
-        builder = ImageBuilder(client, other_clients_configs=other_client_configs)
+        builder = ImageBuilder(
+            client, other_clients_configs=other_client_configs, verbose=verbose
+        )
         job = await builder.launch(
             dockerfile_path, context_uri, image_uri, build_args, volume, env, job_preset
         )
@@ -841,6 +844,7 @@ PRESET = PresetType()
 )
 @click.argument("path")
 @click.argument("image_uri")
+@click.option("--verbose", type=bool, default=False)
 def image_build(
     file: str,
     build_arg: Sequence[str],
@@ -850,6 +854,7 @@ def image_build(
     env: Sequence[str],
     preset: str,
     force_overwrite: bool,
+    verbose: bool,
 ) -> None:
     try:
         sys.exit(
@@ -863,6 +868,7 @@ def image_build(
                     env=env,
                     preset=preset,
                     force_overwrite=force_overwrite,
+                    verbose=verbose,
                 )
             )
         )
@@ -897,9 +903,11 @@ class ImageBuilder:
         self,
         client: neuro_api.Client,
         other_clients_configs: Sequence[neuro_api.Config] = (),
+        verbose: bool = False,
     ) -> None:
         self._client = client
         self._other_clients_configs = list(other_clients_configs)
+        self._verbose = verbose
 
     @property
     def _all_configs(self) -> Sequence[neuro_api.Config]:
@@ -957,28 +965,28 @@ class ImageBuilder:
         )
         cache_repo = self.parse_image_ref(str(cache_image))
         cache_repo = re.sub(r":.*$", "", cache_repo)
-        command = (
-            f"--dockerfile={dockerfile_path} --destination={image_ref} "
-            f"--cache=true --cache-repo={cache_repo}"
-            " --snapshotMode=redo --verbosity=debug"
-        )
+        verbosity = "debug" if self._verbose else "info"
+        args = [
+            f"--dockerfile={dockerfile_path}",
+            f"--destination={image_ref}",
+            f"--cache=true",
+            f"--cache-repo={cache_repo}",
+            f"--snapshotMode=redo",
+            f" --verbosity={verbosity}",
+        ]
 
-        if build_args:
-            command += "".join([f" --build-arg {arg}" for arg in build_args])
+        for arg in build_args:
+            args.append(f" --build-arg {arg}")
 
-        env_parse_result = self._client.parse.envs(env)
+        env_parsed = self._client.parse.envs(env)
+        for arg in list(env_parsed.env) + list(env_parsed.secret_env):
+            args.append(f"--build-arg {arg}")
+
         vol = self._client.parse.volumes(volume)
         volumes, secret_files, disk_volumes = (
             list(vol.volumes),
             list(vol.secret_files),
             list(vol.disk_volumes),
-        )
-
-        command += "".join(
-            [f" --build-arg {arg}" for arg in env_parse_result.env.keys()]
-        )
-        command += "".join(
-            [f" --build-arg {arg}" for arg in env_parse_result.secret_env.keys()]
         )
 
         default_volumes = [
@@ -1005,12 +1013,12 @@ class ImageBuilder:
                 tag="latest",
             ),
             resources=resources,
-            command=command,
+            command=" ".join(args),
             volumes=volumes,
             disk_volumes=disk_volumes,
             secret_files=secret_files,
-            env=env_parse_result.env,
-            secret_env=env_parse_result.secret_env,
+            env=env_parsed.env,
+            secret_env=env_parsed.secret_env,
         )
 
     def parse_image_ref(self, image_uri_str: str) -> str:
