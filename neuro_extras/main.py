@@ -745,7 +745,7 @@ async def _build_image(
     force_overwrite: bool,
     preset: Optional[str] = None,
     other_client_configs: Sequence[neuro_api.Config] = (),
-    debug: bool = False,
+    verbose: bool = False,
 ) -> int:
     cluster = _get_cluster_from_uri(image_uri, scheme="image")
     async with _get_client(cluster=cluster) as client:
@@ -784,7 +784,7 @@ async def _build_image(
                 )
 
         builder = ImageBuilder(
-            client, other_clients_configs=other_client_configs, debug=debug
+            client, other_clients_configs=other_client_configs, verbose=verbose
         )
         job = await builder.launch(
             dockerfile_path, context_uri, image_uri, build_args, volume, env, job_preset
@@ -844,7 +844,7 @@ PRESET = PresetType()
 )
 @click.argument("path")
 @click.argument("image_uri")
-@click.option("--debug", type=bool, default=False)
+@click.option("--verbose", type=bool, default=False)
 def image_build(
     file: str,
     build_arg: Sequence[str],
@@ -854,7 +854,7 @@ def image_build(
     env: Sequence[str],
     preset: str,
     force_overwrite: bool,
-    debug: bool,
+    verbose: bool,
 ) -> None:
     try:
         sys.exit(
@@ -868,7 +868,7 @@ def image_build(
                     env=env,
                     preset=preset,
                     force_overwrite=force_overwrite,
-                    debug=debug,
+                    verbose=verbose,
                 )
             )
         )
@@ -903,11 +903,11 @@ class ImageBuilder:
         self,
         client: neuro_api.Client,
         other_clients_configs: Sequence[neuro_api.Config] = (),
-        debug: bool = False,
+        verbose: bool = False,
     ) -> None:
         self._client = client
         self._other_clients_configs = list(other_clients_configs)
-        self._debug = debug
+        self._verbose = verbose
 
     @property
     def _all_configs(self) -> Sequence[neuro_api.Config]:
@@ -965,7 +965,7 @@ class ImageBuilder:
         )
         cache_repo = self.parse_image_ref(str(cache_image))
         cache_repo = re.sub(r":.*$", "", cache_repo)
-        verbosity = "debug" if self._debug else "info"
+        verbosity = "debug" if self._verbose else "info"
         args = [
             f"--dockerfile={dockerfile_path}",
             f"--destination={image_ref}",
