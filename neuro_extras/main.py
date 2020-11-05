@@ -783,7 +783,9 @@ async def _build_image(
                     f"Use -F/--force-overwrite flag to enforce overwriting."
                 )
 
-        builder = ImageBuilder(client, other_clients_configs=other_client_configs, debug=debug)
+        builder = ImageBuilder(
+            client, other_clients_configs=other_client_configs, debug=debug
+        )
         job = await builder.launch(
             dockerfile_path, context_uri, image_uri, build_args, volume, env, job_preset
         )
