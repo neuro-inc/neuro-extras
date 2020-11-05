@@ -245,6 +245,56 @@ def test_image_build_custom_dockerfile(
     assert tag in result.stdout
 
 
+@pytest.mark.serial  # first we build the image, then we are trying to overwrite it
+@pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
+@pytest.mark.parametrize("overwrite", [True, False])
+def test_image_build_overwrite(
+    cli_runner: CLIRunner,
+    repeat_until_success: Callable[..., "CompletedProcess[str]"],
+    overwrite: bool,
+) -> None:
+    result = cli_runner(["neuro-extras", "init-aliases"])
+    assert result.returncode == 0, result
+
+    dockerfile_path = Path("nested/custom.Dockerfile")
+    dockerfile_path.parent.mkdir(parents=True)
+
+    random_file_to_disable_layer_caching = gen_random_file(dockerfile_path.parent)
+    with open(dockerfile_path, "w") as f:
+        f.write(
+            textwrap.dedent(
+                f"""\
+                FROM alpine:latest
+                ADD {random_file_to_disable_layer_caching} /tmp
+                RUN echo !
+                """
+            )
+        )
+
+    img_name = "image:extras-e2e-overwrite"
+    img_uri_str = f"{img_name}:latest"
+    build_command = [
+        "neuro",
+        "image-build",
+        "-f",
+        str(dockerfile_path),
+        ".",
+        img_uri_str,
+    ]
+    if overwrite:
+        build_command.insert(2, "-F")
+
+    result = cli_runner(build_command)
+    if overwrite:
+        assert result.returncode == 0, result
+    else:
+        assert result.returncode == EX_PLATFORMERROR, result
+    sleep(10)
+
+    result = repeat_until_success(["neuro", "image", "tags", img_name])
+    assert "latest" in result.stdout
+
+
 @pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
 def test_ignored_files_are_not_copied(
     cli_runner: CLIRunner,
