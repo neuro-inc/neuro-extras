@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
-async def neuro_client(
+async def get_neuro_client(
     cluster: Optional[str] = None,
 ) -> AsyncIterator[neuro_api.Client]:
     client: neuro_api.Client = await neuro_api.get()

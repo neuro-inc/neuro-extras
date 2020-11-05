@@ -27,7 +27,7 @@ from neuromation.cli.click_types import PresetType
 from neuromation.cli.const import EX_OK, EX_PLATFORMERROR
 from yarl import URL
 
-from neuro_extras.utils import neuro_client
+from neuro_extras.utils import get_neuro_client
 
 from .version import __version__
 
@@ -186,7 +186,7 @@ class ClickLogHandler(logging.Handler):
 
 
 async def _save_docker_json(path: str) -> None:
-    async with neuro_client() as client:
+    async with get_neuro_client() as client:
         uri = uri_from_cli(
             path,
             client.username,
@@ -224,7 +224,7 @@ TEMP_UNPACK_DIR = Path.home() / ".neuro-tmp"
 
 
 async def _parse_neuro_image(image: str) -> neuro_api.RemoteImage:
-    async with neuro_client() as client:
+    async with get_neuro_client() as client:
         return client.parse.remote_image(image)
 
 
@@ -363,7 +363,7 @@ async def _data_cp(
         else:
             container_dst_uri = destination_url
 
-        async with neuro_client() as client:
+        async with get_neuro_client() as client:
             data_copier = DataCopier(client)
             job = await data_copier.launch(
                 src_uri=container_src_uri,
@@ -652,7 +652,7 @@ async def _image_transfer(src_uri: str, dst_uri: str, force_overwrite: bool) -> 
         raise ValueError(f"Invalid destination image {dst_uri}: missing cluster name")
 
     with tempfile.TemporaryDirectory() as tmpdir:
-        async with neuro_client(cluster=src_cluster) as src_client:
+        async with get_neuro_client(cluster=src_cluster) as src_client:
             src_image = src_client.parse.remote_image(image=src_uri)
             src_client_config = src_client.config
 
@@ -720,7 +720,7 @@ async def _build_image(
     verbose: bool = False,
 ) -> int:
     cluster = _get_cluster_from_uri(image_uri, scheme="image")
-    async with neuro_client(cluster=cluster) as client:
+    async with get_neuro_client(cluster=cluster) as client:
         if not preset:
             preset = next(iter(client.config.presets.keys()))
         job_preset = client.config.presets[preset]
@@ -1047,7 +1047,7 @@ class ImageBuilder:
 
 
 async def _create_k8s_secret(name: str) -> Dict[str, Any]:
-    async with neuro_client() as client:
+    async with get_neuro_client() as client:
         payload: Dict[str, Any] = {
             "apiVersion": "v1",
             "kind": "Secret",
@@ -1064,7 +1064,7 @@ async def _create_k8s_secret(name: str) -> Dict[str, Any]:
 
 
 async def _create_k8s_registry_secret(name: str) -> Dict[str, Any]:
-    async with neuro_client() as client:
+    async with get_neuro_client() as client:
         builder = ImageBuilder(client)
         docker_config = await builder.create_docker_config()
         return {
@@ -1106,7 +1106,7 @@ logger = logging.getLogger(__name__)
 
 
 async def _init_seldon_package(path: str) -> None:
-    async with neuro_client() as client:
+    async with get_neuro_client() as client:
         uri = uri_from_cli(
             path,
             client.username,
@@ -1129,7 +1129,7 @@ async def _create_seldon_deployment(
     model_image_uri: str,
     model_storage_uri: str,
 ) -> Dict[str, Any]:
-    async with neuro_client() as client:
+    async with get_neuro_client() as client:
         builder = ImageBuilder(client)
         model_image_ref = builder.parse_image_ref(model_image_uri)
 
@@ -1235,7 +1235,7 @@ async def _data_transfer(src_uri: str, dst_uri: str) -> None:
     dst_cluster = _get_cluster_from_uri(dst_uri, scheme="storage")
 
     if not src_cluster_or_null:
-        async with neuro_client() as src_client:
+        async with get_neuro_client() as src_client:
             src_cluster = src_client.cluster_name
     else:
         src_cluster = src_cluster_or_null
@@ -1243,7 +1243,7 @@ async def _data_transfer(src_uri: str, dst_uri: str) -> None:
     if not dst_cluster:
         raise ValueError(f"Invalid destination path {dst_uri}: missing cluster name")
 
-    async with neuro_client(cluster=dst_cluster) as client:
+    async with get_neuro_client(cluster=dst_cluster) as client:
         await client.storage.mkdir(URL("storage:"), parents=True, exist_ok=True)
         await _run_copy_container(src_cluster, src_uri, dst_uri)
 
