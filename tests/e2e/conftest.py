@@ -70,7 +70,7 @@ def _neuro_client() -> Iterator[neuro_api.Client]:
     # therefore this fixture is private
     client = run_async(_async_get_bare_client())
     try:
-        yield client
+        yield run_async(client.__aenter__())
     finally:
         run_async(client.__aexit__())  # it doesn't use arguments
 
