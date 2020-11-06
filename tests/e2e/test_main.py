@@ -989,8 +989,10 @@ def test_data_cp_from_cloud_to_local_compress(
 ) -> None:
     # TODO: retry because of: https://github.com/neuro-inc/neuro-extras/issues/124
     N = 3
+    FLAKY_ERROR_MESSAGES = ["file changed as we read it", "directory not found"]
     for attempt in range(1, N + 1):
         try:
+            logger.info(f"Trying attempt {attempt}/{N}")
             _run_test_data_cp_from_cloud_to_local_compress(
                 cli_runner,
                 args_data_cp_from_cloud,
@@ -999,12 +1001,12 @@ def test_data_cp_from_cloud_to_local_compress(
                 to_extension,
                 use_temp_dir,
             )
+            return
         except AssertionError as e:
-            if "directory not found" in str(e):
-                logger.info(f"Attempt {attempt}/{N} failed")
-            else:
-                raise
-        return
+            if any(s in str(e) for s in FLAKY_ERROR_MESSAGES):
+                logger.warning(f"Failed attempt {attempt}/{N}: {e}")
+                continue
+            raise
 
 
 def _run_test_data_cp_from_cloud_to_local_compress(
