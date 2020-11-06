@@ -451,8 +451,8 @@ async def _nonstorage_cp(
         args = [
             "cp",
             "--recursive",
-            str(_patch_azure_url(source_url)),
-            str(_patch_azure_url(destination_url)),
+            f"'{str(_patch_azure_url(source_url))}'",
+            f"'{str(_patch_azure_url(destination_url))}'",
         ]
     elif source_url.scheme == "" and destination_url.scheme == "":
         command = "rclone"
