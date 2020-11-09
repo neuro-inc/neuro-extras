@@ -153,6 +153,12 @@ jobs:
         aws-access-key-id: ${{ secrets.E2E_COOKIECUTTER_AWS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.E2E_COOKIECUTTER_AWS_ACCESS_KEY }}
         aws-region: us-east-1
+    - name: Debug azcopy
+      run: |
+        azcopy --version
+        which azcopy
+        azcopy --version
+        find / -name azcopy
     - name: Run e2e tests
       run: |
         echo "NEURO_EXTRAS_IMAGE=${{ env.NEURO_EXTRAS_IMAGE }}"
