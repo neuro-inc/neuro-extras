@@ -156,9 +156,9 @@ jobs:
     - name: Debug azcopy
       run: |
         echo $PATH
-        ls -l /opt/hostedtoolcache/azcopy_v10/v10/x64
-        /usr/bin/azcopy --version
+        ls -l /opt/hostedtoolcache/azcopy_v10/v10/x64/azcopy_v10 --version
         file /usr/lib/azcopy/azcopy
+        ls -l /usr/bin/azcopy
 #    - name: Run e2e tests
 #      run: |
 #        echo "NEURO_EXTRAS_IMAGE=${{ env.NEURO_EXTRAS_IMAGE }}"
