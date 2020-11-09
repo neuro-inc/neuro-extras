@@ -80,11 +80,11 @@ jobs:
 
   test:
     name: Run e2e tests
-    needs: [pretest]
+#    needs: [pretest]
     strategy:
       matrix:
-        python-version: [3.6, 3.7]
-        os: [ubuntu, macos, windows]
+        python-version: [3.6]
+        os: [ubuntu]
       fail-fast: false
     runs-on: ${{ matrix.os }}-latest
     timeout-minutes: 30
@@ -119,19 +119,19 @@ jobs:
         path: ${{ steps.pip-cache.outputs.dir }}
         restore-keys: |
           pip-ci-${{ runner.os }}-${{ matrix.python-version }}-
-    - name: Install libraries on Linux
-      if: matrix.os == 'ubuntu'
-      shell: bash
-      run: |
-        curl https://rclone.org/install.sh | sudo bash
-    - name: Install libraries on macOS
-      if: matrix.os == 'macos'
-      shell: bash
-      run: |
-        curl https://rclone.org/install.sh | sudo bash
-    - name: Install python dependencies
-      run: |
-        make setup
+#    - name: Install libraries on Linux
+#      if: matrix.os == 'ubuntu'
+#      shell: bash
+#      run: |
+#        curl https://rclone.org/install.sh | sudo bash
+#    - name: Install libraries on macOS
+#      if: matrix.os == 'macos'
+#      shell: bash
+#      run: |
+#        curl https://rclone.org/install.sh | sudo bash
+#    - name: Install python dependencies
+#      run: |
+#        make setup
     - name: Install azcopy
       uses: kheiakiyama/install-azcopy-action@v1
       with:
@@ -156,12 +156,13 @@ jobs:
     - name: Debug azcopy
       run: |
         echo $PATH
+        ls -l /opt/hostedtoolcache/azcopy_v10/v10/x64
         /usr/bin/azcopy --version
-        /usr/lib/azcopy/azcopy --version
-    - name: Run e2e tests
-      run: |
-        echo "NEURO_EXTRAS_IMAGE=${{ env.NEURO_EXTRAS_IMAGE }}"
-        make test_e2e
+        file /usr/lib/azcopy/azcopy
+#    - name: Run e2e tests
+#      run: |
+#        echo "NEURO_EXTRAS_IMAGE=${{ env.NEURO_EXTRAS_IMAGE }}"
+#        make test_e2e
 
 
 # TODO (yartem) Uncomment this step when neuro-image-delete is implemented
