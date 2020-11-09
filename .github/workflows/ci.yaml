@@ -155,9 +155,8 @@ jobs:
         aws-region: us-east-1
     - name: Debug azcopy
       run: |
-        azcopy --version
         find / -name azcopy
-        azcopy --version
+        which azcopy
     - name: Run e2e tests
       run: |
         echo "NEURO_EXTRAS_IMAGE=${{ env.NEURO_EXTRAS_IMAGE }}"
