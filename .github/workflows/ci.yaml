@@ -156,9 +156,8 @@ jobs:
     - name: Debug azcopy
       run: |
         azcopy --version
-        which azcopy
-        azcopy --version
         find / -name azcopy
+        azcopy --version
     - name: Run e2e tests
       run: |
         echo "NEURO_EXTRAS_IMAGE=${{ env.NEURO_EXTRAS_IMAGE }}"
