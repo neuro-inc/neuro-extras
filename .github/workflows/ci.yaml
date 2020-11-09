@@ -155,7 +155,7 @@ jobs:
         aws-region: us-east-1
     - name: Debug azcopy
       run: |
-        find / -name azcopy -type f
+#        find / -name azcopy -type f
         echo $PATH
         /usr/bin/azcopy --version
         /usr/lib/azcopy/azcopy --version
