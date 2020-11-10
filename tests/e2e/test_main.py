@@ -57,6 +57,8 @@ AWS_BUCKET = "s3://cookiecutter-e2e"
 AZURE_BUCKET = (
     "azure+https://st4006d4f97475ef17167b.blob.core.windows.net/cookiecutter-e2e"
 )
+HTTP_BUCKET = "http://s3.amazonaws.com/data.neu.ro/cookiecutter-e2e"
+HTTPS_BUCKET = "https://s3.amazonaws.com/data.neu.ro/cookiecutter-e2e"
 
 
 @pytest.fixture()
@@ -932,6 +934,9 @@ def args_data_cp_from_cloud(cli_runner: CLIRunner) -> Callable[..., List[str]]:
                         "AZURE_SAS_TOKEN=secret:AZURE_SAS_TOKEN",
                     ]
                 )
+            elif bucket.startswith("https://"):
+                # No additional arguments required
+                pass
             else:
                 raise NotImplementedError(bucket)
         if extract:
@@ -945,7 +950,9 @@ def args_data_cp_from_cloud(cli_runner: CLIRunner) -> Callable[..., List[str]]:
     return _f
 
 
-@pytest.mark.parametrize("bucket", [GCP_BUCKET, AWS_BUCKET, AZURE_BUCKET])
+@pytest.mark.parametrize(
+    "bucket", [AWS_BUCKET, GCP_BUCKET, AZURE_BUCKET, HTTP_BUCKET, HTTPS_BUCKET]
+)
 @pytest.mark.parametrize("archive_extension", TESTED_ARCHIVE_TYPES)
 @pytest.mark.parametrize("extract", [True, False])
 @pytest.mark.parametrize("use_temp_dir", [True, False])
