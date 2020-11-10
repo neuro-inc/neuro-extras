@@ -13,9 +13,6 @@ RUN echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] http://packages.c
 
 RUN apt-get install -y --no-install-recommends google-cloud-sdk gcc python3-dev python3-setuptools && \
     curl https://rclone.org/install.sh | bash && \
-    wget https://aka.ms/downloadazcopy-v10-linux && \
-    tar -xvf downloadazcopy-v10-linux && \
-    cp ./azcopy_linux_amd64_*/azcopy /usr/bin/ && \
     apt-get clean -y -qq && \
     apt-get autoremove -y -qq && \
     rm -rf /var/lib/apt/lists/*

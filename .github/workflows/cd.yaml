@@ -201,10 +201,6 @@ jobs:
     - name: Install python dependencies
       run: |
         make setup
-    - name: Install azcopy
-      uses: kheiakiyama/install-azcopy-action@v1
-      with:
-        version: 'v10'
     - name: Configure neuro
       run: |
         neuro config login-with-token ${{ env.NEURO_TOKEN }} ${{ env.NEURO_STAGING_URL }}
