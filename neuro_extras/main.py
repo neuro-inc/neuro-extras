@@ -906,7 +906,7 @@ class ImageBuilder:
         return neuro_api.Container(
             image=neuro_api.RemoteImage(
                 name="gcr.io/kaniko-project/executor",
-                tag="latest",
+                tag="v1.1.0",
             ),
             resources=neuro_api.Resources(cpu=1.0, memory_mb=4096),
             command=command,
