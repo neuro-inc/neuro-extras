@@ -869,10 +869,13 @@ class ImageBuilder:
         )
         cache_repo = self.parse_image_ref(str(cache_image))
         cache_repo = re.sub(r":.*$", "", cache_repo)
+        container_context_path = "/kaniko_context"
         command = (
-            f"--dockerfile={dockerfile_path} --destination={image_ref} "
-            f"--cache=true --cache-repo={cache_repo}"
+            f"--dockerfile={container_context_path}/{dockerfile_path}"
+            f" --destination={image_ref}"
+            f" --cache=true --cache-repo={cache_repo}"
             " --snapshotMode=redo --verbosity=debug"
+            f" --context={container_context_path}"
         )
 
         if build_args:
@@ -898,7 +901,9 @@ class ImageBuilder:
                 docker_config_uri, "/kaniko/.docker/config.json", read_only=True
             ),
             # TODO: try read only
-            neuro_api.Volume(context_uri, "/workspace"),
+            neuro_api.Volume(
+                context_uri, container_context_path, read_only=True
+            ),
         ]
 
         volumes.extend(default_volumes)
