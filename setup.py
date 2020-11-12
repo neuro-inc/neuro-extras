@@ -11,21 +11,19 @@ with open("neuro_extras/version.py") as f:
         raise RuntimeError("Unable to determine version.")
 
 
-install_requires = [
-    "neuromation>=20.10.30",
-    "click",
-    "toml",
-    "pyyaml",
-    'dataclasses>=0.5; python_version<"3.7"',
-]
-
 setup(
     name="neuro-extras",
     version=version,
     python_requires=">=3.6.0",
     url="https://github.com/neuromation/neuro-extras",
     packages=find_packages(),
-    install_requires=install_requires,
+    install_requires=[
+        "neuromation>=20.11.10",
+        'dataclasses>=0.7; python_version<"3.7"',
+        "click>=7.0",
+        "toml>=0.10.0",
+        "pyyaml>=3.0",
+    ],
     entry_points={
         "console_scripts": ["neuro-extras=neuro_extras:main"],
         "neuro_api": ["neuro-extras=neuro_extras:setup_plugin"],
