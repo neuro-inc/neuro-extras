@@ -34,8 +34,8 @@ UUID4_PATTERN = r"[0-9a-f]{8}-[0-9a-f]{4}-[4][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a
 DISK_ID_PATTERN = fr"disk-{UUID4_PATTERN}"
 DISK_URI_PATTERN = fr"disk:([^\s]+)?disk-{UUID4_PATTERN}"
 
-DISK_ID_REGEX = re.compile(fr"(?P<disk_id>{DISK_ID_PATTERN})")
-DISK_URI_REGEX = re.compile(fr"(?P<disk_uri>{DISK_URI_PATTERN})")
+DISK_ID_REGEX = re.compile(DISK_ID_PATTERN)
+DISK_URI_REGEX = re.compile(DISK_URI_PATTERN)
 
 
 TERM_WIDTH = 80
@@ -1104,24 +1104,14 @@ def disk(cli_runner: CLIRunner) -> Iterator[str]:
     res = cli_runner(["neuro", "disk", "create", "100M"])
     assert res.returncode == 0, res
     disk_id = None
-    disk_uri = None
     try:
-        for line in res.stdout.splitlines():
-            if not disk_id:
-                disk_id_search = DISK_ID_REGEX.search(line)
-                if disk_id_search:
-                    disk_id = disk_id_search.group("disk_id")
-            if not disk_uri:
-                disk_uri_search = DISK_URI_REGEX.search(line)
-                if disk_uri_search:
-                    disk_id = disk_uri_search.group("disk_uri")
-            if disk_id and disk_uri:
-                break
-
-        if not disk_id or not disk_uri:
-            raise Exception(
-                "Unable to locate disk id/uri in neuro output: \n" + res.stdout
-            )
+        output_lines = "\n".join(res.stdout.splitlines())
+        disk_id = DISK_ID_REGEX.search(output_lines)
+        if not disk_id:
+            raise Exception("Can't find disk ID in neuro output: \n" + res.stdout)
+        disk_uri = DISK_URI_REGEX.search(output_lines)
+        if not disk_uri:
+            raise Exception("Can't find disk URI in neuro output: \n" + res.stdout)
 
         wait_started = time.time()
         wait_delta = 10.0
