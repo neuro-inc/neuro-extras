@@ -201,6 +201,7 @@ jobs:
         make setup
     - name: Configure neuro
       run: |
+        alias neuro="neuro --color=no"
         neuro config login-with-token ${{ env.NEURO_TOKEN }} ${{ env.NEURO_STAGING_URL }}
         neuro config switch-cluster ${{ env.NEURO_CLUSTER }}
         neuro config show

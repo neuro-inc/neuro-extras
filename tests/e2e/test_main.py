@@ -3,6 +3,7 @@ import base64
 import json
 import logging
 import os
+import re
 import sys
 import textwrap
 import time
@@ -27,6 +28,15 @@ from .conftest import TESTED_ARCHIVE_TYPES, CLIRunner, Secret, gen_random_file
 
 
 logger = logging.getLogger(__name__)
+
+
+UUID4_PATTERN = r"[0-9a-f]{8}-[0-9a-f]{4}-[4][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}"
+DISK_ID_PATTERN = fr"disk-{UUID4_PATTERN}"
+DISK_URI_PATTERN = fr"disk:([^\w]+)?disk-{UUID4_PATTERN}"
+
+DISK_ID_REGEX = re.compile(fr"(?P<disk_id>{DISK_ID_PATTERN})")
+DISK_URI_REGEX = re.compile(fr"(?P<disk_uri>{DISK_URI_PATTERN})")
+
 
 TERM_WIDTH = 80
 SEP_BEGIN = "=" * TERM_WIDTH
@@ -1094,16 +1104,24 @@ def disk(cli_runner: CLIRunner) -> Iterator[str]:
     res = cli_runner(["neuro", "disk", "create", "100M"])
     assert res.returncode == 0, res
     disk_id = None
+    disk_uri = None
     try:
         for line in res.stdout.splitlines():
-            elements = line.split()
-            if len(elements) >= 3:
-                disk_id, storage, uri, *_ = elements
-                if disk_id.startswith("disk") and uri.startswith("disk:"):
-                    break
+            if not disk_id:
+                disk_id_search = DISK_ID_REGEX.search(line)
+                if disk_id_search:
+                    disk_id = disk_id_search.group("disk_id")
+            if not disk_uri:
+                disk_uri_search = DISK_URI_REGEX.search(line)
+                if disk_uri_search:
+                    disk_id = disk_uri_search.group("disk_uri")
+            if disk_id and disk_uri:
+                break
 
-        if disk_id is None:
-            raise Exception("Unable to locate disk id in neuro output: \n" + res.stdout)
+        if not disk_id or not disk_uri:
+            raise Exception(
+                "Unable to locate disk id/uri in neuro output: \n" + res.stdout
+            )
 
         wait_started = time.time()
         wait_delta = 10.0
@@ -1117,7 +1135,7 @@ def disk(cli_runner: CLIRunner) -> Iterator[str]:
             wait_delta *= 1.5
             time.sleep(wait_delta)
 
-        yield f"disk:{disk_id}"
+        yield disk_uri
 
     finally:
         try:
