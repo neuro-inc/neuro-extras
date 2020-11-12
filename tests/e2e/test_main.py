@@ -1122,7 +1122,7 @@ def disk(cli_runner: CLIRunner) -> Iterator[str]:
             wait_delta *= 1.5
             time.sleep(wait_delta)
 
-        yield f"disk-{disk_id}"
+        yield f"disk:{disk_id}"
 
     finally:
         try:

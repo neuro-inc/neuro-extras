@@ -41,6 +41,7 @@ jobs:
     needs: [lint]
     runs-on: ubuntu-latest
     env:
+      PYTHONIOENCODING: utf-8
       NEURO_STAGING_URL: ${{ secrets.NEURO_STAGING_URL }}
       NEURO_TOKEN: ${{ secrets.NEURO_TOKEN }}
       NEURO_CLUSTER: neuro-compute
@@ -59,8 +60,8 @@ jobs:
     - name: Install and configure neuro
       run: |
         python -m pip install neuromation
-        neuro --color=no config login-with-token ${{ env.NEURO_TOKEN }} ${{ env.NEURO_STAGING_URL }}
-        neuro --color=no config switch-cluster ${{ env.NEURO_CLUSTER }}
+        neuro config login-with-token ${{ env.NEURO_TOKEN }} ${{ env.NEURO_STAGING_URL }}
+        neuro config switch-cluster ${{ env.NEURO_CLUSTER }}
         neuro --color=no config show
     - name: Configure docker
       run: |
@@ -88,6 +89,7 @@ jobs:
     runs-on: ${{ matrix.os }}-latest
     timeout-minutes: 30
     env:
+      PYTHONIOENCODING: utf-8
       NEURO_STAGING_URL: ${{ secrets.NEURO_STAGING_URL }}
       NEURO_TOKEN: ${{ secrets.NEURO_TOKEN }}
       NEURO_CLUSTER: neuro-compute
@@ -131,8 +133,8 @@ jobs:
         make setup
     - name: Configure neuro
       run: |
-        neuro --color=no config login-with-token ${{ env.NEURO_TOKEN }} ${{ env.NEURO_STAGING_URL }}
-        neuro --color=no config switch-cluster ${{ env.NEURO_CLUSTER }}
+        neuro config login-with-token ${{ env.NEURO_TOKEN }} ${{ env.NEURO_STAGING_URL }}
+        neuro config switch-cluster ${{ env.NEURO_CLUSTER }}
         neuro --color=no config show
     - name: Configure GCP access
       uses: GoogleCloudPlatform/github-actions/setup-gcloud@master
@@ -158,6 +160,7 @@ jobs:
 #    needs: [test]
 #    runs-on: ubuntu-latest
 #    env:
+#      PYTHONIOENCODING: utf-8
 #      NEURO_STAGING_URL: ${{ secrets.NEURO_STAGING_URL }}
 #      NEURO_TOKEN: ${{ secrets.NEURO_TOKEN }}
 #      NEURO_CLUSTER: neuro-compute
@@ -171,8 +174,8 @@ jobs:
 #      - name: Install and configure neuro
 #        run: |
 #          python -m pip install neuromation
-#          neuro --color=no config login-with-token ${{ env.NEURO_TOKEN }} ${{ env.NEURO_STAGING_URL }}
-#          neuro --color=no config switch-cluster ${{ env.NEURO_CLUSTER }}
+#          neuro config login-with-token ${{ env.NEURO_TOKEN }} ${{ env.NEURO_STAGING_URL }}
+#          neuro config switch-cluster ${{ env.NEURO_CLUSTER }}
 #          neuro --color=no config show
 #      - name: Delete test image
 #        run: |
