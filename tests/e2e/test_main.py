@@ -3,6 +3,7 @@ import base64
 import json
 import logging
 import os
+import re
 import sys
 import textwrap
 import time
@@ -27,6 +28,12 @@ from .conftest import TESTED_ARCHIVE_TYPES, CLIRunner, Secret, gen_random_file
 
 
 logger = logging.getLogger(__name__)
+
+
+UUID4_PATTERN = r"[0-9a-f]{8}-[0-9a-f]{4}-[4][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}"
+DISK_ID_PATTERN = fr"disk-{UUID4_PATTERN}"
+DISK_ID_REGEX = re.compile(DISK_ID_PATTERN)
+
 
 TERM_WIDTH = 80
 SEP_BEGIN = "=" * TERM_WIDTH
@@ -1095,15 +1102,13 @@ def disk(cli_runner: CLIRunner) -> Iterator[str]:
     assert res.returncode == 0, res
     disk_id = None
     try:
-        for line in res.stdout.splitlines():
-            elements = line.split()
-            if len(elements) >= 3:
-                disk_id, storage, uri, *_ = elements
-                if disk_id.startswith("disk") and uri.startswith("disk:"):
-                    break
+        output_lines = "\n".join(res.stdout.splitlines())
 
-        if disk_id is None:
-            raise Exception("Unable to locate disk id in neuro output: \n" + res.stdout)
+        search = DISK_ID_REGEX.search(output_lines)
+        if search:
+            disk_id = search.group()
+        else:
+            raise Exception("Can't find disk ID in neuro output: \n" + res.stdout)
 
         wait_started = time.time()
         wait_delta = 10.0
@@ -1132,6 +1137,9 @@ def disk(cli_runner: CLIRunner) -> Iterator[str]:
 @pytest.mark.skipif(
     sys.platform == "win32",
     reason="Windows path are not supported yet + no utilities on windows",
+)
+@pytest.mark.skip(
+    reason="We have issues with disks in Azure",
 )
 def test_data_cp_from_cloud_to_disk(
     project_dir: Path,
