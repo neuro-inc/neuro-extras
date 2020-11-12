@@ -50,6 +50,7 @@ SUPPORTED_ARCHIVE_TYPES = (
 SUPPORTED_OBJECT_STORAGE_SCHEMES = {
     "AWS": "s3://",
     "GCS": "gs://",
+    "AZURE": "azure+https://",
 }
 
 
@@ -299,7 +300,7 @@ class UrlType(Enum):
             return UrlType.STORAGE
         if url.scheme == "":
             return UrlType.LOCAL
-        if url.scheme in ("s3", "gs"):
+        if url.scheme in ("s3", "gs", "azure+https"):
             return UrlType.CLOUD
         if url.scheme == "disk":
             return UrlType.DISK
@@ -425,6 +426,28 @@ async def _data_cp(
             await _nonstorage_cp(source_url, destination_url, remove_source=True)
 
 
+def _patch_azure_url_for_rclone(url: URL) -> str:
+    if url.scheme == "azure+https":
+        return f":azureblob:{url.path}"
+    else:
+        return str(url)
+
+
+def _build_sas_url(source_url: URL, destination_url: URL) -> URL:
+    """
+    In order to build SAS URL we replace original URL scheme with HTTPS,
+    remove everything from path except bucket name and append SAS token
+    """
+    azure_url = source_url if source_url.scheme == "azure+https" else destination_url
+    sas_token = os.getenv("AZURE_SAS_TOKEN")
+    azure_url = (
+        azure_url.with_scheme("https")
+        .with_path("/".join(azure_url.path.split("/")[:2]))
+        .with_query(sas_token)
+    )
+    return azure_url
+
+
 async def _nonstorage_cp(
     source_url: URL, destination_url: URL, remove_source: bool = False
 ) -> None:
@@ -437,6 +460,16 @@ async def _nonstorage_cp(
         command = "gsutil"
         # gsutil service credentials are activated in entrypoint.sh
         args = ["-m", "cp", "-r", str(source_url), str(destination_url)]
+    elif "azure+https" in (source_url.scheme, destination_url.scheme):
+        sas_url = _build_sas_url(source_url, destination_url)
+        command = "rclone"
+        args = [
+            "copyto",
+            "--azureblob-sas-url",
+            str(sas_url),
+            _patch_azure_url_for_rclone(source_url),
+            _patch_azure_url_for_rclone(destination_url),
+        ]
     elif source_url.scheme == "" and destination_url.scheme == "":
         command = "rclone"
         args = [

@@ -168,6 +168,7 @@ jobs:
       DOCKER_SERVER: docker.io
       DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
       DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+      AZURE_SAS_TOKEN: ${{ secrets.AZURE_SAS_TOKEN }}
     steps:
     - name: Checkout commit
       uses: actions/checkout@v2

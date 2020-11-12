@@ -54,6 +54,9 @@ def project_dir() -> Iterator[Path]:
 
 GCP_BUCKET = "gs://cookiecutter-e2e"
 AWS_BUCKET = "s3://cookiecutter-e2e"
+AZURE_BUCKET = (
+    "azure+https://st4006d4f97475ef17167b.blob.core.windows.net/cookiecutter-e2e"
+)
 
 
 @pytest.fixture()
@@ -922,6 +925,13 @@ def args_data_cp_from_cloud(cli_runner: CLIRunner) -> Callable[..., List[str]]:
                         "AWS_CONFIG_FILE=/aws-creds.txt",
                     ]
                 )
+            elif bucket.startswith("azure+https://"):
+                args.extend(
+                    [
+                        "-e",
+                        "AZURE_SAS_TOKEN=secret:AZURE_SAS_TOKEN",
+                    ]
+                )
             else:
                 raise NotImplementedError(bucket)
         if extract:
@@ -935,7 +945,7 @@ def args_data_cp_from_cloud(cli_runner: CLIRunner) -> Callable[..., List[str]]:
     return _f
 
 
-@pytest.mark.parametrize("bucket", [GCP_BUCKET, AWS_BUCKET])
+@pytest.mark.parametrize("bucket", [GCP_BUCKET, AWS_BUCKET, AZURE_BUCKET])
 @pytest.mark.parametrize("archive_extension", TESTED_ARCHIVE_TYPES)
 @pytest.mark.parametrize("extract", [True, False])
 @pytest.mark.parametrize("use_temp_dir", [True, False])
@@ -973,7 +983,7 @@ def test_data_cp_from_cloud_to_local(
             assert expected_archive.is_file()
 
 
-@pytest.mark.parametrize("bucket", [GCP_BUCKET, AWS_BUCKET])
+@pytest.mark.parametrize("bucket", [GCP_BUCKET, AWS_BUCKET, GCP_BUCKET])
 @pytest.mark.parametrize("use_temp_dir", [True, False])
 @pytest.mark.parametrize(
     "from_extension, to_extension",
@@ -1046,7 +1056,7 @@ def _run_test_data_cp_from_cloud_to_local_compress(
         assert expected_file.exists()
 
 
-@pytest.mark.parametrize("bucket", [GCP_BUCKET, AWS_BUCKET])
+@pytest.mark.parametrize("bucket", [GCP_BUCKET, AWS_BUCKET, GCP_BUCKET])
 @pytest.mark.parametrize("archive_extension", ["tar.gz"])
 @pytest.mark.parametrize("extract", [True, False])
 @pytest.mark.skipif(
