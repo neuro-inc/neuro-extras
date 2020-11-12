@@ -1106,11 +1106,17 @@ def disk(cli_runner: CLIRunner) -> Iterator[str]:
     disk_id = None
     try:
         output_lines = "\n".join(res.stdout.splitlines())
-        disk_id = DISK_ID_REGEX.search(output_lines)
-        if not disk_id:
+
+        search = DISK_ID_REGEX.search(output_lines)
+        if search:
+            disk_id = search.group()
+        else:
             raise Exception("Can't find disk ID in neuro output: \n" + res.stdout)
-        disk_uri = DISK_URI_REGEX.search(output_lines)
-        if not disk_uri:
+
+        search = DISK_URI_REGEX.search(output_lines)
+        if search:
+            disk_uri = search.group()
+        else:
             raise Exception("Can't find disk URI in neuro output: \n" + res.stdout)
 
         wait_started = time.time()
