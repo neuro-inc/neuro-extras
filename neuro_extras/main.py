@@ -669,6 +669,7 @@ async def _image_transfer(src_uri: str, dst_uri: str, force_overwrite: bool) -> 
             dockerfile_path=dockerfile.name,
             context=tmpdir,
             image_uri=dst_uri,
+            use_cache=True,
             build_args=[],
             volume=[],
             env=[],
@@ -711,6 +712,7 @@ async def _build_image(
     dockerfile_path: str,
     context: str,
     image_uri: str,
+    use_cache: bool,
     build_args: Sequence[str],
     volume: Sequence[str],
     env: Sequence[str],
@@ -759,7 +761,14 @@ async def _build_image(
             client, other_clients_configs=other_client_configs, verbose=verbose
         )
         job = await builder.launch(
-            dockerfile_path, context_uri, image_uri, build_args, volume, env, job_preset
+            dockerfile_path=dockerfile_path,
+            context_uri=context_uri,
+            image_uri_str=image_uri,
+            use_cache=use_cache,
+            build_args=build_args,
+            volume=volume,
+            env=env,
+            job_preset=job_preset,
         )
         exit_code = await _attach_job_stdout(job, client, name="builder")
         if exit_code == EX_OK:
@@ -814,6 +823,12 @@ PRESET = PresetType()
     is_flag=True,
     help="Build even if the destination image already exists.",
 )
+@click.option(
+    "--cache/--no-cache",
+    default=True,
+    show_default=True,
+    help="Use kaniko cache while building image",
+)
 @click.argument("path")
 @click.argument("image_uri")
 @click.option("--verbose", type=bool, default=False)
@@ -826,6 +841,7 @@ def image_build(
     env: Sequence[str],
     preset: str,
     force_overwrite: bool,
+    cache: bool,
     verbose: bool,
 ) -> None:
     try:
@@ -835,6 +851,7 @@ def image_build(
                     dockerfile_path=file,
                     context=path,
                     image_uri=image_uri,
+                    use_cache=cache,
                     build_args=build_arg,
                     volume=volume,
                     env=env,
@@ -923,6 +940,7 @@ class ImageBuilder:
         context_uri: URL,
         dockerfile_path: str,
         image_ref: str,
+        use_cache: bool = True,
         build_args: Sequence[str] = (),
         volume: Sequence[str],
         env: Sequence[str],
@@ -938,10 +956,11 @@ class ImageBuilder:
         cache_repo = self.parse_image_ref(str(cache_image))
         cache_repo = re.sub(r":.*$", "", cache_repo)
         verbosity = "debug" if self._verbose else "info"
+        cache = "true" if use_cache else "false"
         args = [
             f"--dockerfile={dockerfile_path}",
             f"--destination={image_ref}",
-            f"--cache=true",
+            f"--cache={cache}",
             f"--cache-repo={cache_repo}",
             f"--snapshotMode=redo",
             f" --verbosity={verbosity}",
@@ -1002,6 +1021,7 @@ class ImageBuilder:
         dockerfile_path: str,
         context_uri: URL,
         image_uri_str: str,
+        use_cache: bool,
         build_args: Sequence[str],
         volume: Sequence[str],
         env: Sequence[str],
@@ -1035,6 +1055,7 @@ class ImageBuilder:
             context_uri=context_uri,
             dockerfile_path=dockerfile_path,
             image_ref=image_ref,
+            use_cache=use_cache,
             build_args=build_args,
             volume=volume,
             env=env,
