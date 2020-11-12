@@ -32,10 +32,7 @@ logger = logging.getLogger(__name__)
 
 UUID4_PATTERN = r"[0-9a-f]{8}-[0-9a-f]{4}-[4][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}"
 DISK_ID_PATTERN = fr"disk-{UUID4_PATTERN}"
-DISK_URI_PATTERN = fr"disk:([^\s]+)?disk-{UUID4_PATTERN}"
-
 DISK_ID_REGEX = re.compile(DISK_ID_PATTERN)
-DISK_URI_REGEX = re.compile(DISK_URI_PATTERN)
 
 
 TERM_WIDTH = 80
@@ -1113,12 +1110,6 @@ def disk(cli_runner: CLIRunner) -> Iterator[str]:
         else:
             raise Exception("Can't find disk ID in neuro output: \n" + res.stdout)
 
-        search = DISK_URI_REGEX.search(output_lines)
-        if search:
-            disk_uri = search.group()
-        else:
-            raise Exception("Can't find disk URI in neuro output: \n" + res.stdout)
-
         wait_started = time.time()
         wait_delta = 10.0
         while True:
@@ -1131,7 +1122,7 @@ def disk(cli_runner: CLIRunner) -> Iterator[str]:
             wait_delta *= 1.5
             time.sleep(wait_delta)
 
-        yield disk_uri
+        yield f"disk-{disk_id}"
 
     finally:
         try:
