@@ -32,7 +32,7 @@ logger = logging.getLogger(__name__)
 
 UUID4_PATTERN = r"[0-9a-f]{8}-[0-9a-f]{4}-[4][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}"
 DISK_ID_PATTERN = fr"disk-{UUID4_PATTERN}"
-DISK_URI_PATTERN = fr"disk:([^\w]+)?disk-{UUID4_PATTERN}"
+DISK_URI_PATTERN = fr"disk:([^\s]+)?disk-{UUID4_PATTERN}"
 
 DISK_ID_REGEX = re.compile(fr"(?P<disk_id>{DISK_ID_PATTERN})")
 DISK_URI_REGEX = re.compile(fr"(?P<disk_uri>{DISK_URI_PATTERN})")
