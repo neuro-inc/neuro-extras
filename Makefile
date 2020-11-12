@@ -1,4 +1,5 @@
-PYTEST_FLAGS=
+PYTEST_FLAGS = -vv
+PYTEST_PARALLEL = 1
 
 .PHONY: setup
 setup:
@@ -15,8 +16,8 @@ format:
 
 .PHONY: test_e2e
 test_e2e:
-	pytest -vv -n 5 ${PYTEST_FLAGS} tests/e2e -m "not serial"
-	pytest -vv -n 0 ${PYTEST_FLAGS} tests/e2e -m "serial"
+	pytest -n ${PYTEST_PARALLEL} ${PYTEST_FLAGS} -m "not serial" tests/e2e
+	pytest -n 0                  ${PYTEST_FLAGS} -m "serial"     tests/e2e
 
 .PHONY: test
 test: lint test_e2e
