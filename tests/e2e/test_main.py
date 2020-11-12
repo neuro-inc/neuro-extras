@@ -990,7 +990,9 @@ def test_data_cp_from_cloud_to_local(
             assert expected_archive.is_file()
 
 
-@pytest.mark.parametrize("bucket", [GCP_BUCKET, AWS_BUCKET, GCP_BUCKET])
+@pytest.mark.parametrize(
+    "bucket", [GCP_BUCKET, AWS_BUCKET, AZURE_BUCKET, HTTP_BUCKET, HTTPS_BUCKET]
+)
 @pytest.mark.parametrize("use_temp_dir", [True, False])
 @pytest.mark.parametrize(
     "from_extension, to_extension",
@@ -1063,7 +1065,9 @@ def _run_test_data_cp_from_cloud_to_local_compress(
         assert expected_file.exists()
 
 
-@pytest.mark.parametrize("bucket", [GCP_BUCKET, AWS_BUCKET, GCP_BUCKET])
+@pytest.mark.parametrize(
+    "bucket", [GCP_BUCKET, AWS_BUCKET, AZURE_BUCKET, HTTP_BUCKET, HTTPS_BUCKET]
+)
 @pytest.mark.parametrize("archive_extension", ["tar.gz"])
 @pytest.mark.parametrize("extract", [True, False])
 @pytest.mark.skipif(
