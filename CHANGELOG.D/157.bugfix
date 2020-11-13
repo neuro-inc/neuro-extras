@@ -1,1 +1,0 @@
-Speedup image build by Kaniko downgrade to v1.1.0 (COPY layers caching), replace /workspace context dir to /kaniko_context.

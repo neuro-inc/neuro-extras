@@ -1,3 +1,24 @@
+Neuro_Extras 20.11.1 (2020-11-13)
+=================================
+
+Features
+--------
+
+
+- Reduce verbosity for image building (to turn it back on: `neuro-extras image build --verbose ...`). ([#84](https://github.com/neuromation/neuro-extras/issues/84))
+
+- Add `--preset` parameter to `neuro-extras image build` subcommand in order to specify preset ([#136](https://github.com/neuromation/neuro-extras/issues/136))
+
+- Add support for HTTP(S) data ingestion ([#150](https://github.com/neuromation/neuro-extras/issues/150))
+
+
+Bugfixes
+--------
+
+
+- Speedup image build by Kaniko downgrade to v1.1.0 (COPY layers caching), replace /workspace context dir to /kaniko_context. ([#157](https://github.com/neuromation/neuro-extras/issues/157))
+
+
 Neuro_Extras 20.10.28 (2020-10-28)
 ==================================
 
