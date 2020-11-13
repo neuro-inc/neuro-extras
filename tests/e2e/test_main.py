@@ -567,7 +567,7 @@ def test_image_build_volume(cli_runner: CLIRunner, temp_random_secret: Secret) -
             "-f",
             str(dockerfile_path),
             "-v",
-            f"secret:{sec.name}:/workspace/secret.txt",
+            f"secret:{sec.name}:/kaniko_context/secret.txt",
             ".",
             img_uri_str,
         ]

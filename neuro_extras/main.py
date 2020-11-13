@@ -1002,15 +1002,17 @@ class ImageBuilder:
         )
         cache_repo = self.parse_image_ref(str(cache_image))
         cache_repo = re.sub(r":.*$", "", cache_repo)
+        container_context_path = "/kaniko_context"
         verbosity = "debug" if self._verbose else "info"
         cache = "true" if use_cache else "false"
         args = [
-            f"--dockerfile={dockerfile_path}",
+            f"--dockerfile={container_context_path}/{dockerfile_path}",
             f"--destination={image_ref}",
             f"--cache={cache}",
             f"--cache-repo={cache_repo}",
             f"--snapshotMode=redo",
             f" --verbosity={verbosity}",
+            f" --context={container_context_path}",
         ]
 
         for arg in build_args:
@@ -1031,8 +1033,8 @@ class ImageBuilder:
             neuro_api.Volume(
                 docker_config_uri, "/kaniko/.docker/config.json", read_only=True
             ),
-            # TODO: try read only
-            neuro_api.Volume(context_uri, "/workspace"),
+            # context dir cannot be R/O if we want to mount secrets there
+            neuro_api.Volume(context_uri, container_context_path, read_only=False),
         ]
 
         volumes.extend(default_volumes)
@@ -1048,7 +1050,7 @@ class ImageBuilder:
         return neuro_api.Container(
             image=neuro_api.RemoteImage(
                 name="gcr.io/kaniko-project/executor",
-                tag="latest",
+                tag="v1.1.0",
             ),
             resources=resources,
             command=" ".join(args),
