@@ -51,6 +51,8 @@ SUPPORTED_OBJECT_STORAGE_SCHEMES = {
     "AWS": "s3://",
     "GCS": "gs://",
     "AZURE": "azure+https://",
+    "HTTP": "http://",
+    "HTTPS": "https://",
 }
 
 
@@ -300,7 +302,7 @@ class UrlType(Enum):
             return UrlType.STORAGE
         if url.scheme == "":
             return UrlType.LOCAL
-        if url.scheme in ("s3", "gs", "azure+https"):
+        if url.scheme in ("s3", "gs", "azure+https", "http", "https"):
             return UrlType.CLOUD
         if url.scheme == "disk":
             return UrlType.DISK
@@ -339,6 +341,8 @@ async def _data_cp(
         raise ValueError(
             "This command can't be used to copy data between two persistent disks"
         )
+    if destination_url.scheme in ("http", "https"):
+        raise ValueError("This command can't be used to upload data over HTTP(S)")
 
     # Persistent disk and storage locations must be mounted as folders to a job
     if UrlType.STORAGE in (source_url_type, destination_url_type) or UrlType.DISK in (
@@ -469,6 +473,16 @@ async def _nonstorage_cp(
             str(sas_url),
             _patch_azure_url_for_rclone(source_url),
             _patch_azure_url_for_rclone(destination_url),
+        ]
+    elif source_url.scheme in ("http", "https"):
+        command = "rclone"
+        args = [
+            "copyto",
+            "--http-url",
+            # HTTP URL parameter for rclone is just scheme + host name
+            str(source_url.with_path("").with_query("")),
+            f":http:{source_url.path}",
+            str(destination_url),
         ]
     elif source_url.scheme == "" and destination_url.scheme == "":
         command = "rclone"
