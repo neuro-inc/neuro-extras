@@ -50,6 +50,9 @@ SUPPORTED_ARCHIVE_TYPES = (
 SUPPORTED_OBJECT_STORAGE_SCHEMES = {
     "AWS": "s3://",
     "GCS": "gs://",
+    "AZURE": "azure+https://",
+    "HTTP": "http://",
+    "HTTPS": "https://",
 }
 
 
@@ -299,7 +302,7 @@ class UrlType(Enum):
             return UrlType.STORAGE
         if url.scheme == "":
             return UrlType.LOCAL
-        if url.scheme in ("s3", "gs"):
+        if url.scheme in ("s3", "gs", "azure+https", "http", "https"):
             return UrlType.CLOUD
         if url.scheme == "disk":
             return UrlType.DISK
@@ -338,6 +341,8 @@ async def _data_cp(
         raise ValueError(
             "This command can't be used to copy data between two persistent disks"
         )
+    if destination_url.scheme in ("http", "https"):
+        raise ValueError("This command can't be used to upload data over HTTP(S)")
 
     # Persistent disk and storage locations must be mounted as folders to a job
     if UrlType.STORAGE in (source_url_type, destination_url_type) or UrlType.DISK in (
@@ -425,6 +430,28 @@ async def _data_cp(
             await _nonstorage_cp(source_url, destination_url, remove_source=True)
 
 
+def _patch_azure_url_for_rclone(url: URL) -> str:
+    if url.scheme == "azure+https":
+        return f":azureblob:{url.path}"
+    else:
+        return str(url)
+
+
+def _build_sas_url(source_url: URL, destination_url: URL) -> URL:
+    """
+    In order to build SAS URL we replace original URL scheme with HTTPS,
+    remove everything from path except bucket name and append SAS token
+    """
+    azure_url = source_url if source_url.scheme == "azure+https" else destination_url
+    sas_token = os.getenv("AZURE_SAS_TOKEN")
+    azure_url = (
+        azure_url.with_scheme("https")
+        .with_path("/".join(azure_url.path.split("/")[:2]))
+        .with_query(sas_token)
+    )
+    return azure_url
+
+
 async def _nonstorage_cp(
     source_url: URL, destination_url: URL, remove_source: bool = False
 ) -> None:
@@ -437,6 +464,26 @@ async def _nonstorage_cp(
         command = "gsutil"
         # gsutil service credentials are activated in entrypoint.sh
         args = ["-m", "cp", "-r", str(source_url), str(destination_url)]
+    elif "azure+https" in (source_url.scheme, destination_url.scheme):
+        sas_url = _build_sas_url(source_url, destination_url)
+        command = "rclone"
+        args = [
+            "copyto",
+            "--azureblob-sas-url",
+            str(sas_url),
+            _patch_azure_url_for_rclone(source_url),
+            _patch_azure_url_for_rclone(destination_url),
+        ]
+    elif source_url.scheme in ("http", "https"):
+        command = "rclone"
+        args = [
+            "copyto",
+            "--http-url",
+            # HTTP URL parameter for rclone is just scheme + host name
+            str(source_url.with_path("").with_query("")),
+            f":http:{source_url.path}",
+            str(destination_url),
+        ]
     elif source_url.scheme == "" and destination_url.scheme == "":
         command = "rclone"
         args = [
@@ -669,6 +716,7 @@ async def _image_transfer(src_uri: str, dst_uri: str, force_overwrite: bool) -> 
             dockerfile_path=dockerfile.name,
             context=tmpdir,
             image_uri=dst_uri,
+            use_cache=True,
             build_args=[],
             volume=[],
             env=[],
@@ -711,6 +759,7 @@ async def _build_image(
     dockerfile_path: str,
     context: str,
     image_uri: str,
+    use_cache: bool,
     build_args: Sequence[str],
     volume: Sequence[str],
     env: Sequence[str],
@@ -759,7 +808,14 @@ async def _build_image(
             client, other_clients_configs=other_client_configs, verbose=verbose
         )
         job = await builder.launch(
-            dockerfile_path, context_uri, image_uri, build_args, volume, env, job_preset
+            dockerfile_path=dockerfile_path,
+            context_uri=context_uri,
+            image_uri_str=image_uri,
+            use_cache=use_cache,
+            build_args=build_args,
+            volume=volume,
+            env=env,
+            job_preset=job_preset,
         )
         exit_code = await _attach_job_stdout(job, client, name="builder")
         if exit_code == EX_OK:
@@ -814,6 +870,12 @@ PRESET = PresetType()
     is_flag=True,
     help="Build even if the destination image already exists.",
 )
+@click.option(
+    "--cache/--no-cache",
+    default=True,
+    show_default=True,
+    help="Use kaniko cache while building image",
+)
 @click.argument("path")
 @click.argument("image_uri")
 @click.option("--verbose", type=bool, default=False)
@@ -826,6 +888,7 @@ def image_build(
     env: Sequence[str],
     preset: str,
     force_overwrite: bool,
+    cache: bool,
     verbose: bool,
 ) -> None:
     try:
@@ -835,6 +898,7 @@ def image_build(
                     dockerfile_path=file,
                     context=path,
                     image_uri=image_uri,
+                    use_cache=cache,
                     build_args=build_arg,
                     volume=volume,
                     env=env,
@@ -923,6 +987,7 @@ class ImageBuilder:
         context_uri: URL,
         dockerfile_path: str,
         image_ref: str,
+        use_cache: bool = True,
         build_args: Sequence[str] = (),
         volume: Sequence[str],
         env: Sequence[str],
@@ -939,10 +1004,11 @@ class ImageBuilder:
         cache_repo = re.sub(r":.*$", "", cache_repo)
         container_context_path = "/kaniko_context"
         verbosity = "debug" if self._verbose else "info"
+        cache = "true" if use_cache else "false"
         args = [
             f"--dockerfile={container_context_path}/{dockerfile_path}",
             f"--destination={image_ref}",
-            f"--cache=true",
+            f"--cache={cache}",
             f"--cache-repo={cache_repo}",
             f"--snapshotMode=redo",
             f" --verbosity={verbosity}",
@@ -1003,6 +1069,7 @@ class ImageBuilder:
         dockerfile_path: str,
         context_uri: URL,
         image_uri_str: str,
+        use_cache: bool,
         build_args: Sequence[str],
         volume: Sequence[str],
         env: Sequence[str],
@@ -1036,6 +1103,7 @@ class ImageBuilder:
             context_uri=context_uri,
             dockerfile_path=dockerfile_path,
             image_ref=image_ref,
+            use_cache=use_cache,
             build_args=build_args,
             volume=volume,
             env=env,
