@@ -934,7 +934,7 @@ def args_data_cp_from_cloud(cli_runner: CLIRunner) -> Callable[..., List[str]]:
                         "AZURE_SAS_TOKEN=secret:AZURE_SAS_TOKEN",
                     ]
                 )
-            elif bucket.startswith("https://"):
+            elif bucket.startswith("https://") or bucket.startswith("http://"):
                 # No additional arguments required
                 pass
             else:
