@@ -1033,7 +1033,8 @@ class ImageBuilder:
             neuro_api.Volume(
                 docker_config_uri, "/kaniko/.docker/config.json", read_only=True
             ),
-            neuro_api.Volume(context_uri, container_context_path, read_only=True),
+            # context dir cannot be R/O if we want to mount secrets there
+            neuro_api.Volume(context_uri, container_context_path, read_only=False),
         ]
 
         volumes.extend(default_volumes)
