@@ -198,23 +198,26 @@ def test_image_build_custom_preset(
     img_name = f"image:extras-e2e-custom-preset-{rnd}"
     img_uri_str = f"{img_name}:{tag}"
 
-    result = cli_runner(
-        [
-            "neuro",
-            "image-build",
-            "--preset",
-            custom_preset,
-            "-f",
-            str(dockerfile_path),
-            ".",
-            img_uri_str,
-        ]
-    )
-    assert result.returncode == 0, result
-    sleep(10)
+    try:
+        result = cli_runner(
+            [
+                "neuro",
+                "image-build",
+                "--preset",
+                custom_preset,
+                "-f",
+                str(dockerfile_path),
+                ".",
+                img_uri_str,
+            ]
+        )
+        assert result.returncode == 0, result
+        sleep(10)
 
-    result = repeat_until_success(["neuro", "image", "tags", img_name])
-    assert tag in result.stdout
+        result = repeat_until_success(["neuro", "image", "tags", img_name])
+        assert tag in result.stdout
+    finally:
+        cli_runner(["neuro", "image", "rm", img_uri_str])
 
 
 @pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
@@ -247,14 +250,17 @@ def test_image_build_custom_dockerfile(
     img_name = f"image:extras-e2e-custom-dockerfile-{rnd}"
     img_uri_str = f"{img_name}:{tag}"
 
-    result = cli_runner(
-        ["neuro", "image-build", "-f", str(dockerfile_path), ".", img_uri_str]
-    )
-    assert result.returncode == 0, result
-    sleep(10)
+    try:
+        result = cli_runner(
+            ["neuro", "image-build", "-f", str(dockerfile_path), ".", img_uri_str]
+        )
+        assert result.returncode == 0, result
+        sleep(10)
 
-    result = repeat_until_success(["neuro", "image", "tags", img_name])
-    assert tag in result.stdout
+        result = repeat_until_success(["neuro", "image", "tags", img_name])
+        assert tag in result.stdout
+    finally:
+        cli_runner(["neuro", "image", "rm", img_uri_str])
 
 
 @pytest.mark.serial  # first we build the image, then we are trying to overwrite it
@@ -296,15 +302,18 @@ def test_image_build_overwrite(
     if overwrite:
         build_command.insert(2, "-F")
 
-    result = cli_runner(build_command)
-    if overwrite:
-        assert result.returncode == 0, result
-    else:
-        assert result.returncode == EX_PLATFORMERROR, result
-    sleep(10)
+    try:
+        result = cli_runner(build_command)
+        if overwrite:
+            assert result.returncode == 0, result
+        else:
+            assert result.returncode == EX_PLATFORMERROR, result
+        sleep(10)
 
-    result = repeat_until_success(["neuro", "image", "tags", img_name])
-    assert "latest" in result.stdout
+        result = repeat_until_success(["neuro", "image", "tags", img_name])
+        assert "latest" in result.stdout
+    finally:
+        cli_runner(["neuro", "image", "rm", img_uri_str])
 
 
 @pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
@@ -336,11 +345,14 @@ def test_ignored_files_are_not_copied(
 
     img_uri_str = f"image:extras-e2e:{uuid.uuid4()}"
 
-    result = cli_runner(
-        ["neuro", "image-build", "-f", str(dockerfile_path), ".", img_uri_str]
-    )
+    try:
+        result = cli_runner(
+            ["neuro", "image-build", "-f", str(dockerfile_path), ".", img_uri_str]
+        )
 
-    assert ignored_file_content not in result.stdout
+        assert ignored_file_content not in result.stdout
+    finally:
+        cli_runner(["neuro", "image", "rm", img_uri_str])
 
 
 @pytest.mark.serial
@@ -407,6 +419,7 @@ def test_image_transfer(
         img_name = f"extras-e2e-image-copy-{rnd}"
 
         tag = str(uuid.uuid4())
+        img_uri_str = f"image:{img_name}:tag"
         from_img = f"image:{img_name}:{tag}"  # also, full src uri is supported
         to_img = f"image://{src_cluster}/{current_user}/{img_name}:{tag}"
 
@@ -425,17 +438,22 @@ def test_image_transfer(
                 )
             )
 
-        result = cli_runner(
-            ["neuro", "image-build", "-f", str(dockerfile_path), ".", from_img]
-        )
-        assert result.returncode == 0, result
+        try:
+            result = cli_runner(
+                ["neuro", "image-build", "-f", str(dockerfile_path), ".", from_img]
+            )
+            assert result.returncode == 0, result
 
-        result = repeat_until_success(["neuro", "image", "tags", f"image:{img_name}"])
-        assert tag in result.stdout
+            result = repeat_until_success(
+                ["neuro", "image", "tags", f"image:{img_name}"]
+            )
+            assert tag in result.stdout
 
-        # Note: this command switches cluster to 'to_cluster'
-        result = cli_runner(["neuro", "image-transfer", from_img, to_img])
-        assert result.returncode == 0, result
+            # Note: this command switches cluster to 'to_cluster'
+            result = cli_runner(["neuro", "image-transfer", from_img, to_img])
+            assert result.returncode == 0, result
+        finally:
+            cli_runner(["neuro", "image", "rm", img_uri_str])
 
     with switch_cluster(src_cluster):
         result = repeat_until_success(["neuro", "image", "tags", f"image:{img_name}"])
@@ -468,23 +486,26 @@ def test_image_build_custom_build_args(cli_runner: CLIRunner) -> None:
     tag = str(uuid.uuid4())
     img_uri_str = f"image:extras-e2e:{tag}"
 
-    result = cli_runner(
-        [
-            "neuro",
-            "image-build",
-            "-f",
-            str(dockerfile_path),
-            "--build-arg",
-            f"TEST_ARG=arg-{tag}",
-            "--build-arg",
-            f"ANOTHER_TEST_ARG=arg-another-{tag}",
-            ".",
-            img_uri_str,
-        ]
-    )
-    assert result.returncode == 0, result
-    assert f"arg-{tag}" in result.stdout
-    assert f"arg-another-{tag}" in result.stdout
+    try:
+        result = cli_runner(
+            [
+                "neuro",
+                "image-build",
+                "-f",
+                str(dockerfile_path),
+                "--build-arg",
+                f"TEST_ARG=arg-{tag}",
+                "--build-arg",
+                f"ANOTHER_TEST_ARG=arg-another-{tag}",
+                ".",
+                img_uri_str,
+            ]
+        )
+        assert result.returncode == 0, result
+        assert f"arg-{tag}" in result.stdout
+        assert f"arg-another-{tag}" in result.stdout
+    finally:
+        cli_runner(["neuro", "image", "rm", img_uri_str])
 
 
 @pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
@@ -517,20 +538,23 @@ def test_image_build_env(cli_runner: CLIRunner, temp_random_secret: Secret) -> N
     tag = str(uuid.uuid4())
     img_uri_str = f"image:extras-e2e:{tag}"
 
-    result = cli_runner(
-        [
-            "neuro",
-            "image-build",
-            "-f",
-            str(dockerfile_path),
-            "-e",
-            f"GIT_TOKEN=secret:{sec.name}",
-            ".",
-            img_uri_str,
-        ]
-    )
-    assert result.returncode == 0, result
-    assert f"git_token={sec.value}" in result.stdout
+    try:
+        result = cli_runner(
+            [
+                "neuro",
+                "image-build",
+                "-f",
+                str(dockerfile_path),
+                "-e",
+                f"GIT_TOKEN=secret:{sec.name}",
+                ".",
+                img_uri_str,
+            ]
+        )
+        assert result.returncode == 0, result
+        assert f"git_token={sec.value}" in result.stdout
+    finally:
+        cli_runner(["neuro", "image", "rm", img_uri_str])
 
 
 @pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
@@ -567,20 +591,23 @@ def test_image_build_volume(cli_runner: CLIRunner, temp_random_secret: Secret) -
     tag = str(uuid.uuid4())
     img_uri_str = f"{image}:{tag}"
 
-    result = cli_runner(
-        [
-            "neuro",
-            "image-build",
-            "-f",
-            str(dockerfile_path),
-            "-v",
-            f"secret:{sec.name}:/kaniko_context/secret.txt",
-            ".",
-            img_uri_str,
-        ]
-    )
-    assert result.returncode == 0, result
-    assert f"git_token={sec.value}" in result.stdout
+    try:
+        result = cli_runner(
+            [
+                "neuro",
+                "image-build",
+                "-f",
+                str(dockerfile_path),
+                "-v",
+                f"secret:{sec.name}:/kaniko_context/secret.txt",
+                ".",
+                img_uri_str,
+            ]
+        )
+        assert result.returncode == 0, result
+        assert f"git_token={sec.value}" in result.stdout
+    finally:
+        cli_runner(["neuro", "image", "rm", img_uri_str])
 
 
 @pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
