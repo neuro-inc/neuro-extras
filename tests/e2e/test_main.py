@@ -352,7 +352,11 @@ def test_ignored_files_are_not_copied(
 
         assert ignored_file_content not in result.stdout
     finally:
-        cli_runner(["neuro", "image", "rm", img_uri_str])
+        try:
+            cli_runner(["neuro", "image", "rm", img_uri_str])
+        except Exception as e:
+            # Log and ignore exception
+            logger.exception(e)
 
 
 @pytest.mark.serial
