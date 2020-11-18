@@ -313,7 +313,9 @@ def test_image_build_overwrite(
         result = repeat_until_success(["neuro", "image", "tags", img_name])
         assert "latest" in result.stdout
     finally:
-        cli_runner(["neuro", "image", "rm", img_uri_str])
+        # Only delete image after second run of the test
+        if overwrite is False:
+            cli_runner(["neuro", "image", "rm", img_uri_str])
 
 
 @pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
