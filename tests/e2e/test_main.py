@@ -349,11 +349,12 @@ def test_data_transfer(
     current_user: str,
     switch_cluster: Callable[[str], ContextManager[None]],
 ) -> None:
-    # Note: we pushed test image to `neuro-compute`, so it should be a target cluster
-    src_cluster = "neuro-compute"
-    dst_cluster = "onprem-poc"  # can be any other cluster
+    # Note: data-transfer runs copying job on dst_cluster and
+    # we pushed test image to `neuro-compute`, so it should be a target cluster
+    src_cluster = "onprem-poc"  # can be any other cluster
+    dst_cluster = "neuro-compute"
 
-    with switch_cluster(dst_cluster):
+    with switch_cluster(src_cluster):
         result = cli_runner(["neuro-extras", "init-aliases"])
         assert result.returncode == 0, result
 
@@ -368,14 +369,20 @@ def test_data_transfer(
                 "neuro",
                 "data-transfer",
                 f"storage:{src_path}",  # also, full src uri is supported
-                f"storage://{src_cluster}/{current_user}/{dst_path}",
+                f"storage://{dst_cluster}/{current_user}/{dst_path}",
             ]
         )
         assert result.returncode == 0, result
 
-    with switch_cluster(src_cluster):
+        del_result = cli_runner(["neuro", "rm", "-r", f"storage:{src_path}"])
+        assert del_result.returncode == 0, result
+
+    with switch_cluster(dst_cluster):
         result = cli_runner(["neuro", "ls", f"storage:{dst_path}"])
         assert result.returncode == 0, result
+
+        del_result = cli_runner(["neuro", "rm", "-r", f"storage:{dst_path}"])
+        assert del_result.returncode == 0, result
 
 
 @pytest.mark.serial
