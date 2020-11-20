@@ -207,7 +207,7 @@ jobs:
         neuro config switch-cluster ${{ env.NEURO_CLUSTER }}
         neuro --color=no config show
     - name: Configure GCP access
-      uses: GoogleCloudPlatform/github-actions/setup-gcloud@master
+      uses: google-github-actions/setup-gcloud@master
       with:
         project_id: ${{ secrets.E2E_COOKIECUTTER_GCP_PROJECT_ID }}
         service_account_key: ${{ secrets.E2E_COOKIECUTTER_GCP_SA_KEY }}
