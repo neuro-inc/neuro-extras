@@ -1389,7 +1389,7 @@ def _get_project_root() -> Path:
 
 
 async def _get_remote_project_root() -> Path:
-    config = load_user_config(Path("~/.neuro"))
+    config = await load_user_config(Path("~/.neuro"))
     try:
         return Path(config["extra"]["remote-project-dir"])
     except KeyError:

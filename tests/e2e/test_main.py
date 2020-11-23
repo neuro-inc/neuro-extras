@@ -290,7 +290,8 @@ def test_image_build_overwrite(
         )
 
     img_name = "image:extras-e2e-overwrite"
-    img_uri_str = f"{img_name}:latest"
+    python_version = f"{sys.version_info[0]}.{sys.version_info[1]}"
+    img_uri_str = f"{img_name}:{sys.platform}-{python_version}-latest"
     build_command = [
         "neuro",
         "image-build",
