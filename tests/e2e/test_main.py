@@ -11,7 +11,6 @@ import uuid
 from pathlib import Path
 from subprocess import CompletedProcess
 from tempfile import TemporaryDirectory
-from time import sleep
 from typing import Callable, ContextManager, Iterator, List
 from unittest import mock
 
@@ -315,7 +314,6 @@ def test_image_build_overwrite(
             assert result.returncode == 0, result
         else:
             assert result.returncode == EX_PLATFORMERROR, result
-        sleep(10)
 
         result = repeat_until_success(["neuro", "image", "tags", img_name])
         assert "latest" in result.stdout
