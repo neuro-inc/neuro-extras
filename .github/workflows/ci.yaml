@@ -157,7 +157,11 @@ jobs:
 
   posttest:
     name: Cleanup after successful e2e tests
-    needs: [test]
+    on:
+      workflow_run:
+        workflows: ["Run e2e tests"]
+      types:
+        - completed
     runs-on: ubuntu-latest
     env:
       PYTHONIOENCODING: utf-8

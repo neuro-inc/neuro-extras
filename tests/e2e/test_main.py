@@ -212,12 +212,15 @@ def test_image_build_custom_preset(
             ]
         )
         assert result.returncode == 0, result
-        sleep(10)
 
         result = repeat_until_success(["neuro", "image", "tags", img_name])
         assert tag in result.stdout
     finally:
-        cli_runner(["neuro", "image", "rm", img_uri_str])
+        try:
+            cli_runner(["neuro", "image", "rm", img_uri_str])
+        except Exception:
+            # Ignore exception
+            pass
 
 
 @pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
@@ -255,12 +258,15 @@ def test_image_build_custom_dockerfile(
             ["neuro", "image-build", "-f", str(dockerfile_path), ".", img_uri_str]
         )
         assert result.returncode == 0, result
-        sleep(10)
 
         result = repeat_until_success(["neuro", "image", "tags", img_name])
         assert tag in result.stdout
     finally:
-        cli_runner(["neuro", "image", "rm", img_uri_str])
+        try:
+            cli_runner(["neuro", "image", "rm", img_uri_str])
+        except Exception:
+            # Ignore exception
+            pass
 
 
 @pytest.mark.serial  # first we build the image, then we are trying to overwrite it
@@ -316,7 +322,11 @@ def test_image_build_overwrite(
     finally:
         # Only delete image after second run of the test
         if overwrite is False:
-            cli_runner(["neuro", "image", "rm", img_uri_str])
+            try:
+                cli_runner(["neuro", "image", "rm", img_uri_str])
+            except Exception:
+                # Ignore exception
+                pass
 
 
 @pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
@@ -357,9 +367,9 @@ def test_ignored_files_are_not_copied(
     finally:
         try:
             cli_runner(["neuro", "image", "rm", img_uri_str])
-        except Exception as e:
-            # Log and ignore exception
-            logger.exception(e)
+        except Exception:
+            # Ignore exception
+            pass
 
 
 @pytest.mark.serial
@@ -461,11 +471,25 @@ def test_image_transfer(
             assert result.returncode == 0, result
         finally:
             with switch_cluster(src_cluster):
-                cli_runner(["neuro", "image", "rm", from_img])
+                try:
+                    cli_runner(["neuro", "image", "rm", from_img])
+                except Exception:
+                    # Ignore exception
+                    pass
 
-    with switch_cluster(dst_cluster):
-        result = repeat_until_success(["neuro", "image", "tags", f"image:{img_name}"])
-        assert tag in result.stdout
+    try:
+        with switch_cluster(dst_cluster):
+            result = repeat_until_success(
+                ["neuro", "image", "tags", f"image:{img_name}"]
+            )
+            assert tag in result.stdout
+    finally:
+        with switch_cluster(dst_cluster):
+            try:
+                cli_runner(["neuro", "image", "rm", to_img])
+            except Exception:
+                # Ignore exception
+                pass
 
 
 @pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
@@ -513,7 +537,11 @@ def test_image_build_custom_build_args(cli_runner: CLIRunner) -> None:
         assert f"arg-{tag}" in result.stdout
         assert f"arg-another-{tag}" in result.stdout
     finally:
-        cli_runner(["neuro", "image", "rm", img_uri_str])
+        try:
+            cli_runner(["neuro", "image", "rm", img_uri_str])
+        except Exception:
+            # Ignore exception
+            pass
 
 
 @pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
@@ -562,7 +590,11 @@ def test_image_build_env(cli_runner: CLIRunner, temp_random_secret: Secret) -> N
         assert result.returncode == 0, result
         assert f"git_token={sec.value}" in result.stdout
     finally:
-        cli_runner(["neuro", "image", "rm", img_uri_str])
+        try:
+            cli_runner(["neuro", "image", "rm", img_uri_str])
+        except Exception:
+            # Ignore exception
+            pass
 
 
 @pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
@@ -615,7 +647,11 @@ def test_image_build_volume(cli_runner: CLIRunner, temp_random_secret: Secret) -
         assert result.returncode == 0, result
         assert f"git_token={sec.value}" in result.stdout
     finally:
-        cli_runner(["neuro", "image", "rm", img_uri_str])
+        try:
+            cli_runner(["neuro", "image", "rm", img_uri_str])
+        except Exception:
+            # Ignore exception
+            pass
 
 
 @pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
