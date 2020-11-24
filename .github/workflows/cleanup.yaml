@@ -2,9 +2,8 @@ name: Cleanup
 
 on:
   workflow_run:
-    workflows: ["CI"]
-  types:
-    - completed
+    workflows: [CI]
+    types: [completed]
 jobs:
   posttest:
     name: Cleanup after e2e tests
