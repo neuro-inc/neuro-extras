@@ -153,34 +153,3 @@ jobs:
       run: |
         echo "NEURO_EXTRAS_IMAGE=${{ env.NEURO_EXTRAS_IMAGE }}"
         make test_e2e
-
-
-  posttest:
-    name: Cleanup after successful e2e tests
-    on:
-      workflow_run:
-        workflows: ["Run e2e tests"]
-      types:
-        - completed
-    runs-on: ubuntu-latest
-    env:
-      PYTHONIOENCODING: utf-8
-      NEURO_STAGING_URL: ${{ secrets.NEURO_STAGING_URL }}
-      NEURO_TOKEN: ${{ secrets.NEURO_TOKEN }}
-      NEURO_CLUSTER: neuro-compute
-      # Note: ${{ github.sha }} not working, see https://github.com/actions/checkout/issues/299
-      NEURO_EXTRAS_IMAGE: image:neuromation/neuro-extras:${{ github.event.pull_request.head.sha || github.sha }}
-    steps:
-      - name: Setup Python 3.7
-        uses: actions/setup-python@v2
-        with:
-          python-version: "3.7"
-      - name: Install and configure neuro
-        run: |
-          python -m pip install neuromation
-          neuro config login-with-token ${{ env.NEURO_TOKEN }} ${{ env.NEURO_STAGING_URL }}
-          neuro config switch-cluster ${{ env.NEURO_CLUSTER }}
-          neuro --color=no config show
-      - name: Delete test image
-        run: |
-          neuro image rm $NEURO_EXTRAS_IMAGE
