@@ -10,7 +10,7 @@ import neuromation.api as neuro_api  # NOTE: don't use async test functions (iss
 import pytest
 from neuromation.cli.asyncio_utils import run as run_async
 
-from neuro_extras.main import NEURO_EXTRAS_IMAGE
+from neuro_extras.common import NEURO_EXTRAS_IMAGE
 
 
 CLIRunner = Callable[[List[str]], CompletedProcess]
