@@ -1,6 +1,6 @@
 from neuromation.api import PluginManager
 
-from .cli import main  # noqa
+from .main import main  # noqa
 from .version import __version__  # noqa
 
 

@@ -6,6 +6,12 @@ import toml
 from neuromation.cli.click_types import PresetType
 
 from .cli import main
+from .config import config_save_docker_json  # noqa
+from .data import data_cp, data_transfer  # noqa
+from .image import image_build, image_transfer  # noqa
+from .k8s import generate_k8s_registry_secret, generate_k8s_secret  # noqa
+from .seldon import generate_seldon_deployment, seldon_init_package  # noqa
+from .upload_download import download, upload  # noqa
 
 
 @main.command("init-aliases")
