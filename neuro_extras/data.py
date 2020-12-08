@@ -14,8 +14,8 @@ from neuromation.cli.const import EX_OK
 from yarl import URL
 
 from .cli import main
-from .common import NEURO_EXTRAS_IMAGE
-from .image import _attach_job_stdout, _get_cluster_from_uri, _parse_neuro_image
+from .common import NEURO_EXTRAS_IMAGE, _attach_job_stdout
+from .image import _get_cluster_from_uri, _parse_neuro_image
 from .utils import get_neuro_client
 
 
