@@ -3,7 +3,6 @@ from pathlib import Path
 from typing import Any, MutableMapping
 
 import toml
-from neuromation.cli.click_types import PresetType
 
 from .cli import main
 from .config import config_save_docker_json  # noqa
@@ -12,6 +11,9 @@ from .image import image_build, image_transfer  # noqa
 from .k8s import generate_k8s_registry_secret, generate_k8s_secret  # noqa
 from .seldon import generate_seldon_deployment, seldon_init_package  # noqa
 from .upload_download import download, upload  # noqa
+
+
+logger = logging.getLogger(__name__)
 
 
 @main.command("init-aliases")
@@ -75,8 +77,3 @@ def init_aliases() -> None:
     with toml_path.open("w") as f:
         toml.dump(config, f)
     logger.info(f"Added aliases to {toml_path}")
-
-
-PRESET = PresetType()
-
-logger = logging.getLogger(__name__)
