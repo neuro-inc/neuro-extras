@@ -18,8 +18,8 @@ setup(
     url="https://github.com/neuromation/neuro-extras",
     packages=find_packages(),
     install_requires=[
-        "neuro-cli==20.12.11b6",
-        "neuro-sdk==20.12.11b6",
+        "neuro-cli==20.12.14",
+        "neuro-sdk==20.12.14",
         'dataclasses>=0.7; python_version<"3.7"',
         "click>=7.0",
         "toml>=0.10.0",
