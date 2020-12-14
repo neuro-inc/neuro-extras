@@ -1,8 +1,12 @@
 import logging
 
 import click
+from neuro_cli.asyncio_utils import setup_child_watcher
 
 from .version import __version__
+
+
+setup_child_watcher()
 
 
 class ClickLogHandler(logging.Handler):
