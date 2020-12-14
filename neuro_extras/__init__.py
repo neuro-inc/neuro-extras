@@ -1,4 +1,4 @@
-from neuromation.api import PluginManager
+from neuro_sdk import PluginManager
 
 from .main import main  # noqa
 from .version import __version__  # noqa

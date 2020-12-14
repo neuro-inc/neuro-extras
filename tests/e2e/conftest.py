@@ -6,9 +6,9 @@ from pathlib import Path
 from subprocess import CompletedProcess
 from typing import Callable, ContextManager, Iterator, List, Optional, Union
 
-import neuromation.api as neuro_api  # NOTE: don't use async test functions (issue #129)
+import neuro_sdk as neuro_api  # NOTE: don't use async test functions (issue #129)
 import pytest
-from neuromation.cli.asyncio_utils import run as run_async
+from neuro_cli.asyncio_utils import run as run_async
 
 from neuro_extras.common import NEURO_EXTRAS_IMAGE
 

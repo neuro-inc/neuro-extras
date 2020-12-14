@@ -3,8 +3,8 @@ import logging
 import os
 
 import click
-from neuromation import api as neuro_api
-from neuromation.cli.const import EX_OK, EX_PLATFORMERROR
+import neuro_sdk as neuro_api
+from neuro_cli.const import EX_OK, EX_PLATFORMERROR
 
 from .version import __version__
 

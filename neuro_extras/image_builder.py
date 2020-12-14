@@ -8,9 +8,9 @@ from dataclasses import dataclass, field
 from typing import Any, AsyncIterator, Dict, Sequence
 
 import click
-from neuromation import api as neuro_api
-from neuromation.api import Preset, Resources
-from neuromation.api.url_utils import normalize_storage_path_uri
+import neuro_sdk as neuro_api
+from neuro_sdk import Preset, Resources
+from neuro_sdk.url_utils import normalize_storage_path_uri
 from yarl import URL
 
 
