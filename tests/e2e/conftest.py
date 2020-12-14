@@ -8,7 +8,7 @@ from typing import Callable, ContextManager, Iterator, List, Optional, Union
 
 import neuro_sdk as neuro_api  # NOTE: don't use async test functions (issue #129)
 import pytest
-from neuro_cli.asyncio_utils import run as run_async
+from neuro_cli.asyncio_utils import run as run_async, setup_child_watcher
 
 from neuro_extras.common import NEURO_EXTRAS_IMAGE
 
@@ -18,6 +18,8 @@ CLIRunner = Callable[[List[str]], CompletedProcess]
 logger = logging.getLogger(__name__)
 
 TESTED_ARCHIVE_TYPES = ["tar.gz", "tgz", "zip", "tar"]
+
+setup_child_watcher()
 
 
 @dataclass
