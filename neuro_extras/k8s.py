@@ -5,7 +5,7 @@ from typing import Any, Dict
 
 import click
 import yaml
-from neuromation.cli.asyncio_utils import run as run_async
+from neuro_cli.asyncio_utils import run as run_async
 
 from .cli import main
 from .image_builder import ImageBuilder

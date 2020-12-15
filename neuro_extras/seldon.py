@@ -4,8 +4,8 @@ from typing import Any, Dict
 
 import click
 import yaml
-from neuromation.api.url_utils import uri_from_cli
-from neuromation.cli.asyncio_utils import run as run_async
+from neuro_cli.asyncio_utils import run as run_async
+from neuro_sdk.url_utils import uri_from_cli
 from yarl import URL
 
 from .cli import main

@@ -6,11 +6,11 @@ from pathlib import Path
 from typing import Optional, Sequence
 
 import click
-from neuromation import api as neuro_api
-from neuromation.api.parsing_utils import _as_repo_str
-from neuromation.api.url_utils import uri_from_cli
-from neuromation.cli.asyncio_utils import run as run_async
-from neuromation.cli.const import EX_OK, EX_PLATFORMERROR
+import neuro_sdk as neuro_api
+from neuro_cli.asyncio_utils import run as run_async
+from neuro_cli.const import EX_OK, EX_PLATFORMERROR
+from neuro_sdk.parsing_utils import _as_repo_str
+from neuro_sdk.url_utils import uri_from_cli
 
 from .cli import main
 from .common import _attach_job_stdout

@@ -1,8 +1,8 @@
 import json
 
 import click
-from neuromation.api.url_utils import uri_from_cli
-from neuromation.cli.asyncio_utils import run as run_async
+from neuro_cli.asyncio_utils import run as run_async
+from neuro_sdk.url_utils import uri_from_cli
 
 from .cli import main
 from .image_builder import ImageBuilder

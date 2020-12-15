@@ -18,8 +18,8 @@ import pytest
 import toml
 import yaml
 from _pytest.capture import CaptureFixture
-from neuromation.cli.const import EX_OK, EX_PLATFORMERROR
-from neuromation.cli.main import cli as neuro_main
+from neuro_cli.const import EX_OK, EX_PLATFORMERROR
+from neuro_cli.main import cli as neuro_main
 
 from neuro_extras import main as extras_main
 from neuro_extras.common import NEURO_EXTRAS_IMAGE

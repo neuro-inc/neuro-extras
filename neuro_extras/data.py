@@ -8,9 +8,9 @@ from pathlib import Path
 from typing import List, Sequence
 
 import click
-from neuromation import api as neuro_api
-from neuromation.cli.asyncio_utils import run as run_async
-from neuromation.cli.const import EX_OK
+import neuro_sdk as neuro_api
+from neuro_cli.asyncio_utils import run as run_async
+from neuro_cli.const import EX_OK
 from yarl import URL
 
 from .cli import main

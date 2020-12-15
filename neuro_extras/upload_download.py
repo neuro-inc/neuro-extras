@@ -2,9 +2,9 @@ import asyncio
 from pathlib import Path
 
 import click
-from neuromation.api import ConfigError, find_project_root
-from neuromation.api.config import load_user_config
-from neuromation.cli.asyncio_utils import run as run_async
+from neuro_cli.asyncio_utils import run as run_async
+from neuro_sdk import ConfigError, find_project_root
+from neuro_sdk.config import load_user_config
 
 from .cli import main
 

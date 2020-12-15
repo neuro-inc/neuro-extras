@@ -3,7 +3,7 @@ import logging
 import sys
 from typing import AsyncIterator, Optional
 
-from neuromation import api as neuro_api
+import neuro_sdk as neuro_api
 
 
 if sys.version_info >= (3, 7):  # pragma: no cover
