@@ -85,8 +85,6 @@ jobs:
       matrix:
         python-version: [3.6, 3.7]
         os: [ubuntu, macos, windows]
-        exclude:
-        - os: macos
       fail-fast: false
     runs-on: ${{ matrix.os }}-latest
     timeout-minutes: 30
