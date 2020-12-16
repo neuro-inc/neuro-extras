@@ -18,9 +18,9 @@ Suppose, today is October 15, 2020, and we want to update both neuro-extras pip 
     - wait for green build in [Actions](https://github.com/neuro-inc/neuro-extras/actions);
 
 2. Submit a release on GitHub.
-    - go to [Releases](https://github.com/neuro-inc/neuro-extras/releases/), `Draft a new release`, tag: `20.10.15` (note: no postfixes);
+    - go to [Releases](https://github.com/neuro-inc/neuro-extras/releases/), `Draft a new release`, tag: `v20.10.15` (note: no postfixes);
     - wait for green build in [Actions](https://github.com/neuro-inc/neuro-extras/actions);
-    - if the build failed, fix the errors and repeat from step 1. with version postfix: `20.10.15-1`.
+    - if the build failed, fix the errors and repeat from step 1. with version postfix: `v20.10.15-1`.
     - verify that `pip install -U neuro-extras` does install `neuro-extras==20.10.15`
 
 

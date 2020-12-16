@@ -50,12 +50,12 @@ jobs:
     - name: Sanity check for tag and version
       run: |
         export VERSION=${{ needs.info.outputs.version }}
-        if [ "${{ github.ref }}" != "refs/tags/$VERSION" ]
+        if [ "${{ github.ref }}" != "refs/tags/v$VERSION" ]
         then
-          echo "Git tag '${{ github.ref }}' differs from hard-coded package version '$VERSION'"
+          echo "Git tag '${{ github.ref }}' differs from hard-coded package version 'v$VERSION'"
           exit 1
         else
-          echo "OK, git tag matches hard-coded package version: '$VERSION'"
+          echo "OK, git tag matches hard-coded package version: 'v$VERSION'"
         fi
     - name: Install python
       uses: actions/setup-python@v2
