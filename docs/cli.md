@@ -98,7 +98,7 @@ neuro-extras data [OPTIONS] COMMAND [ARGS]...
 
 #### neuro-extras data cp
 
-Copy data between external object storage and cluster. Supported external object storage systems: {'GCS', 'AWS', 'HTTP', 'AZURE', 'HTTPS'}
+Copy data between external object storage and cluster. Supported external object storage systems: ['AWS', 'GCS', 'AZURE', 'HTTP', 'HTTPS']
 
 **Usage:**
 
@@ -360,3 +360,5 @@ neuro-extras upload [OPTIONS] PATH
 | Name | Description |
 | :--- | :--- |
 | _--help_ | Show this message and exit. |
+
+

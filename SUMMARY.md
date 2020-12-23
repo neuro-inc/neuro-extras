@@ -1,3 +1,3 @@
 # Table of contents
 
-* [CLI Reference](reference/cli.md)
+* [CLI Reference](docs/cli.md)
