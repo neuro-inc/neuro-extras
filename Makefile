@@ -29,3 +29,7 @@ changelog-draft:
 .PHONY: changelog
 changelog:
 	towncrier
+
+.PHONY: docs
+docs:
+	build-tools/cli-help-generator.py CLI.in.md docs/cli.md
