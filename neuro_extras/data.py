@@ -143,7 +143,7 @@ def data_transfer(source: str, destination: str) -> None:
     help=(
         "Copy data between external object storage and cluster. "
         "Supported external object storage systems: "
-        f"{set(SUPPORTED_OBJECT_STORAGE_SCHEMES.keys())}"
+        f"{list(SUPPORTED_OBJECT_STORAGE_SCHEMES.keys())}"
     ),
 )
 @click.argument("source")
