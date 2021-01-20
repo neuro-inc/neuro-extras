@@ -1,0 +1,1 @@
+Minor fixes: fix `neuro-extras data transfer` job lifespan (set to 10 days), add usage hints, fix seldon init container user ID
