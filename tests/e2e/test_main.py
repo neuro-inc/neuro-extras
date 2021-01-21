@@ -783,6 +783,7 @@ def test_seldon_generate_deployment(cli_runner: CLIRunner) -> None:
                 "name": "neuro-download",
                 "image": NEURO_EXTRAS_IMAGE,
                 "imagePullPolicy": "Always",
+                "securityContext": {"runAsUser": 0},
                 "command": ["bash", "-c"],
                 "args": [
                     "cp -L -r /var/run/neuro/config /root/.neuro;"
@@ -856,6 +857,7 @@ def test_seldon_generate_deployment_custom(cli_runner: CLIRunner) -> None:
                 "name": "neuro-download",
                 "image": NEURO_EXTRAS_IMAGE,
                 "imagePullPolicy": "Always",
+                "securityContext": {"runAsUser": 0},
                 "command": ["bash", "-c"],
                 "args": [
                     "cp -L -r /var/run/neuro/config /root/.neuro;"

@@ -133,7 +133,9 @@ def data() -> None:
 @click.argument("destination")
 def data_transfer(source: str, destination: str) -> None:
     """
-    Copy data between storages on different clusters.
+    Copy data between storages on different clusters. \n
+    Consider archiving dataset first for the sake of performance,
+    if the dataset contains a lot (100k+) of small (< 100Kb each) files.
     """
     run_async(_data_transfer(source, destination))
 
@@ -545,8 +547,9 @@ async def _run_copy_container(src_cluster: str, src_uri: str, dst_uri: str) -> N
         f"{dst_uri}:/storage:rw",
         "-e",
         f"NEURO_CLUSTER={src_cluster}",  # inside the job, switch neuro to 'src_cluster'
+        "--life-span 10d",
         NEURO_EXTRAS_IMAGE,
-        f"neuro cp --progress -r -u -T {src_uri} /storage",
+        f"neuro --show-traceback cp --progress -r -u -T {src_uri} /storage",
     ]
     cmd = " ".join(args)
     click.echo(f"Running '{cmd}'")
