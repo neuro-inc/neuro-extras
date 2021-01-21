@@ -121,6 +121,8 @@ neuro-extras data cp [OPTIONS] SOURCE DESTINATION
 
 Copy data between storages on different clusters.
 
+Consider archiving dataset first for the sake of performance, if the dataset contains a lot (100k+) of small (< 100Kb each) files.
+
 **Usage:**
 
 ```bash

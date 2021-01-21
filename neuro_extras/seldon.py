@@ -96,6 +96,7 @@ async def _create_seldon_deployment(
                 "name": "neuro-download",
                 "image": NEURO_EXTRAS_IMAGE,
                 "imagePullPolicy": "Always",
+                "securityContext": {"runAsUser": 0},
                 "command": ["bash", "-c"],
                 "args": [
                     "cp -L -r /var/run/neuro/config /root/.neuro;"
