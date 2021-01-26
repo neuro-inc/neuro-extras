@@ -1,5 +1,5 @@
 -e .
 -r syntax.txt
-pytest==6.2.1
+pytest==6.2.2
 pytest-xdist==2.2.0
 towncrier==19.2.0
