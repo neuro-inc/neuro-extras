@@ -196,8 +196,8 @@ async def _image_transfer(src_uri: str, dst_uri: str, force_overwrite: bool) -> 
             )
         )
         migration_job_tags = (
-            f"image-migrate-from={src_uri}",
-            f"image-migrate-to={dst_uri}",
+            f"src-img:{src_uri}",
+            f"dst-img:{dst_uri}",
         )
         return await _build_image(
             dockerfile_path=Path(dockerfile.name),

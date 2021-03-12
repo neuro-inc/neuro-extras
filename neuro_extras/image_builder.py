@@ -185,7 +185,7 @@ class ImageBuilder:
         build_command.append(" ".join(kaniko_args))
 
         self.logger.info("Submitting a builder job")
-        self.logger.info(build_command)
+        self.logger.debug(build_command)
         subprocess = await asyncio.create_subprocess_exec(*build_command)
         # TODO: remove context after the build is finished?
         return await subprocess.wait()
