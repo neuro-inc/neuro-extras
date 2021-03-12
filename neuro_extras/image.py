@@ -3,7 +3,7 @@ import sys
 import tempfile
 import textwrap
 from pathlib import Path
-from typing import Optional, Sequence
+from typing import Optional, Sequence, Tuple
 
 import click
 import neuro_sdk as neuro_api
@@ -13,7 +13,6 @@ from neuro_sdk.parsing_utils import _as_repo_str
 from neuro_sdk.url_utils import uri_from_cli
 
 from .cli import main
-from .common import _attach_job_stdout
 from .image_builder import ImageBuilder
 from .utils import get_neuro_client
 
@@ -50,8 +49,27 @@ def image_transfer(source: str, destination: str, force_overwrite: bool) -> None
 @image.command(
     "build", help="Build Job container image remotely on cluster using Kaniko."
 )
-@click.option("-f", "--file", default="Dockerfile")
-@click.option("--build-arg", multiple=True)
+@click.argument("path", metavar="CONTEXT_PATH")
+@click.argument("image_uri")
+@click.option(
+    "-f",
+    "--file",
+    default="Dockerfile",
+    show_default=True,
+    help=(
+        "Relative (w.r.t. context) path to the dockerfile. "
+        "The dockerfile should be within the context directory."
+    ),
+)
+@click.option(
+    "--build-arg",
+    multiple=True,
+    metavar="VAR=VAL",
+    help=(
+        "Buid-time variables passed in ARG values, similarly to Docker. "
+        "Could be used multiple times for multiple arguments."
+    ),
+)
 @click.option(
     "-v",
     "--volume",
@@ -86,35 +104,49 @@ def image_transfer(source: str, destination: str, force_overwrite: bool) -> None
     "-F",
     "--force-overwrite",
     default=False,
+    show_default=True,
     is_flag=True,
-    help="Build even if the destination image already exists.",
+    help="Overwrite if the destination image already exists.",
 )
 @click.option(
     "--cache/--no-cache",
     default=True,
     show_default=True,
-    help="Use kaniko cache while building image",
+    help="Use Kaniko cache while building image.",
 )
-@click.argument("path")
-@click.argument("image_uri")
-@click.option("--verbose", type=bool, default=False)
+@click.option(
+    "--verbose",
+    type=bool,
+    default=False,
+    help="If specified, run Kaniko with 'debug' verbosity, otherwise 'info' (default).",
+)
+@click.option(
+    "--build-tag",
+    multiple=True,
+    metavar="VAR=VAL",
+    help=(
+        "Set tag(s) for image builder job. "
+        "We will add tag 'kaniko-builds:{image-name}' authomatically."
+    ),
+)
 def image_build(
-    file: str,
-    build_arg: Sequence[str],
     path: str,
     image_uri: str,
-    volume: Sequence[str],
-    env: Sequence[str],
+    file: str,
+    build_arg: Tuple[str],
+    volume: Tuple[str],
+    env: Tuple[str],
     preset: str,
     force_overwrite: bool,
     cache: bool,
     verbose: bool,
+    build_tag: Tuple[str],
 ) -> None:
     try:
         sys.exit(
             run_async(
                 _build_image(
-                    dockerfile_path=file,
+                    dockerfile_path=Path(file),
                     context=path,
                     image_uri=image_uri,
                     use_cache=cache,
@@ -124,6 +156,7 @@ def image_build(
                     preset=preset,
                     force_overwrite=force_overwrite,
                     verbose=verbose,
+                    build_tags=build_tag,
                 )
             )
         )
@@ -162,27 +195,33 @@ async def _image_transfer(src_uri: str, dst_uri: str, force_overwrite: bool) -> 
                 """
             )
         )
+        migration_job_tags = (
+            f"image-migrate-from={src_uri}",
+            f"image-migrate-to={dst_uri}",
+        )
         return await _build_image(
-            dockerfile_path=dockerfile.name,
+            dockerfile_path=Path(dockerfile.name),
             context=tmpdir,
             image_uri=dst_uri,
             use_cache=True,
-            build_args=[],
-            volume=[],
-            env=[],
+            build_args=(),
+            volume=(),
+            env=(),
+            build_tags=migration_job_tags,
             force_overwrite=force_overwrite,
             other_client_configs=[src_client_config],
         )
 
 
 async def _build_image(
-    dockerfile_path: str,
+    dockerfile_path: Path,
     context: str,
     image_uri: str,
     use_cache: bool,
-    build_args: Sequence[str],
-    volume: Sequence[str],
-    env: Sequence[str],
+    build_args: Tuple[str, ...],
+    volume: Tuple[str, ...],
+    env: Tuple[str, ...],
+    build_tags: Tuple[str, ...],
     force_overwrite: bool,
     preset: Optional[str] = None,
     other_client_configs: Sequence[neuro_api.Config] = (),
@@ -190,9 +229,6 @@ async def _build_image(
 ) -> int:
     cluster = _get_cluster_from_uri(image_uri, scheme="image")
     async with get_neuro_client(cluster=cluster) as client:
-        if not preset:
-            preset = next(iter(client.config.presets.keys()))
-        job_preset = client.config.presets[preset]
         context_uri = uri_from_cli(
             context,
             client.username,
@@ -227,17 +263,17 @@ async def _build_image(
         builder = ImageBuilder(
             client, other_clients_configs=other_client_configs, verbose=verbose
         )
-        job = await builder.launch(
+        exit_code = await builder.build(
             dockerfile_path=dockerfile_path,
             context_uri=context_uri,
             image_uri_str=image_uri,
             use_cache=use_cache,
             build_args=build_args,
-            volume=volume,
-            env=env,
-            job_preset=job_preset,
+            volumes=volume,
+            envs=env,
+            job_preset=preset,
+            build_tags=build_tags,
         )
-        exit_code = await _attach_job_stdout(job, client, name="builder")
         if exit_code == EX_OK:
             logger.info(f"Successfully built {image_uri}")
             return EX_OK

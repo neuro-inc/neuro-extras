@@ -33,12 +33,13 @@ def init_aliases() -> None:
         "options": [
             "-f, --file=PATH  path to the Dockerfile within CONTEXT",
             "--build-arg=LIST  build arguments for Docker",
+            "--build-tag=LIST  tag(s) for image builder job.",
             "-e, --env=LIST  environment variables for container",
             "-v, --volume=LIST  list of volumes for container",
             "-s, --preset=STR  specify  preset for builder container",
             "-F, --force-overwrite  enforce destination image overwrite",
         ],
-        "args": "CONTEXT IMAGE_URI",
+        "args": "CONTEXT_PATH IMAGE_URI",
         "help": (
             "Build docker image on the platform. "
             "Hit `neuro-extras image build --help` for more info."

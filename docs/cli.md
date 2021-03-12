@@ -165,21 +165,22 @@ Build Job container image remotely on cluster using Kaniko.
 **Usage:**
 
 ```bash
-neuro-extras image build [OPTIONS] PATH IMAGE_URI
+neuro-extras image build [OPTIONS] CONTEXT_PATH IMAGE_URI
 ```
 
 **Options:**
 
 | Name | Description |
 | :--- | :--- |
-| _-f, --file TEXT_ |  |
-| _--build-arg TEXT_ |  |
+| _-f, --file TEXT_ | Relative \(w.r.t. context\) path to the dockerfile. The dockerfile should be within the context directory.  \[default: Dockerfile\] |
+| _--build-arg VAR=VAL_ | Buid-time variables passed in ARG values, similarly to Docker. Could be used multiple times for multiple arguments. |
 | _-v, --volume MOUNT_ | Mounts directory from vault into container. Use multiple options to mount more than one volume. Use --volume=ALL to mount all accessible storage directories. |
 | _-e, --env VAR=VAL_ | Set environment variable in container Use multiple options to define more than one variable |
 | _-s, --preset PRESET_ | Predefined resource configuration \(to see available values, run `neuro config show`\) |
-| _-F, --force-overwrite_ | Build even if the destination image already exists. |
-| _--cache / --no-cache_ | Use kaniko cache while building image  \[default: True\] |
-| _--verbose BOOLEAN_ |  |
+| _-F, --force-overwrite_ | Overwrite if the destination image already exists.  \[default: False\] |
+| _--cache / --no-cache_ | Use Kaniko cache while building image.  \[default: True\] |
+| _--verbose BOOLEAN_ | If specified, run Kaniko with 'debug' verbosity, otherwise 'info' \(default\). |
+| _--build-tag VAR=VAL_ | Set tag\(s\) for image builder job. We will add tag 'kaniko-builds:{image-name}' authomatically. |
 | _--help_ | Show this message and exit. |
 
 #### neuro-extras image transfer
