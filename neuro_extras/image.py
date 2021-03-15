@@ -9,7 +9,6 @@ import click
 import neuro_sdk as neuro_api
 from neuro_cli.asyncio_utils import run as run_async
 from neuro_cli.const import EX_OK, EX_PLATFORMERROR
-from neuro_sdk.parsing_utils import _as_repo_str
 from neuro_sdk.url_utils import uri_from_cli
 
 from .cli import main
@@ -184,20 +183,23 @@ async def _image_transfer(src_uri: str, dst_uri: str, force_overwrite: bool) -> 
     with tempfile.TemporaryDirectory() as tmpdir:
         async with get_neuro_client(cluster=src_cluster) as src_client:
             src_image = src_client.parse.remote_image(image=src_uri)
+            dst_image = src_client.parse.remote_image(image=dst_uri)
             src_client_config = src_client.config
 
         dockerfile = Path(f"{tmpdir}/Dockerfile")
         dockerfile.write_text(
             textwrap.dedent(
                 f"""\
-                FROM {_as_repo_str(src_image)}
+                FROM {src_image.as_docker_url()}
                 LABEL neu.ro/source-image-uri={src_uri}
                 """
             )
         )
         migration_job_tags = (
-            f"src-img:{src_uri}",
-            f"dst-img:{dst_uri}",
+            f"src-cluster:{src_image.cluster_name}",
+            f"dst-cluster:{dst_image.cluster_name}",
+            f"src-image:{src_image.owner}/{src_image.name}:{src_image.tag}",
+            f"dst-image:{dst_image.owner}/{dst_image.name}:{dst_image.tag}",
         )
         return await _build_image(
             dockerfile_path=Path(dockerfile.name),

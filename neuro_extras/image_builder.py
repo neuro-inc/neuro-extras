@@ -20,6 +20,8 @@ KANIKO_CONTEXT_PATH = "/kaniko_context"
 BUILDER_JOB_LIFESPAN = "4h"
 BUILDER_JOB_SHEDULE_TIMEOUT = "20m"
 
+logger = logging.getLogger(__name__)
+
 
 @dataclass
 class DockerConfigAuth:
@@ -52,7 +54,6 @@ class ImageBuilder:
         self._client = client
         self._other_clients_configs = list(other_clients_configs)
         self._verbose = verbose
-        self.logger = logging.getLogger(__name__)
 
     @property
     def _all_configs(self) -> Sequence[neuro_api.Config]:
@@ -106,15 +107,15 @@ class ImageBuilder:
         build_tags: Tuple[str, ...],
     ) -> int:
         # TODO: check if Dockerfile exists
-        self.logger.info(f"Building the image {image_uri_str}")
-        self.logger.info(f"Using {context_uri} as the build context")
+        logger.info(f"Building the image {image_uri_str}")
+        logger.info(f"Using {context_uri} as the build context")
 
         # upload (if needed) build context and platform registry auth info
         build_uri = self._generate_build_uri()
         await self._client.storage.mkdir(build_uri, parents=True)
         if context_uri.scheme == "file":
             local_context_uri, context_uri = context_uri, build_uri / "context"
-            self.logger.info(f"Uploading {local_context_uri} to {context_uri}")
+            logger.info(f"Uploading {local_context_uri} to {context_uri}")
             subprocess = await asyncio.create_subprocess_exec(
                 "neuro",
                 "--disable-pypi-version-check",
@@ -129,7 +130,7 @@ class ImageBuilder:
 
         docker_config = await self.create_docker_config()
         docker_config_uri = build_uri / ".docker.config.json"
-        self.logger.debug(f"Uploading {docker_config_uri}")
+        logger.debug(f"Uploading {docker_config_uri}")
         await self.save_docker_config(docker_config, docker_config_uri)
 
         cache_image = neuro_api.RemoteImage(
@@ -147,7 +148,10 @@ class ImageBuilder:
             # context dir cannot be R/O if we want to mount secrets there
             f"{context_uri}:{KANIKO_CONTEXT_PATH}:rw",
         )
-        build_tags += (f"kaniko-builds:{image_uri_str}",)
+        dst_image = self._client.parse.remote_image(image_uri_str)
+        build_tags += (
+            f"kaniko-builds-image:{dst_image.owner}/{dst_image.name}:{dst_image.tag}",
+        )
         kaniko_args = [
             f"--dockerfile={KANIKO_CONTEXT_PATH}/{dockerfile_path}",
             f"--destination={self.parse_image_ref(image_uri_str)}",
@@ -184,8 +188,8 @@ class ImageBuilder:
         build_command.append(f"{KANIKO_IMAGE_REF}:{KANIKO_IMAGE_TAG}")
         build_command.append(" ".join(kaniko_args))
 
-        self.logger.info("Submitting a builder job")
-        self.logger.debug(build_command)
+        logger.info("Submitting a builder job")
+        logger.debug(build_command)
         subprocess = await asyncio.create_subprocess_exec(*build_command)
         # TODO: remove context after the build is finished?
         return await subprocess.wait()
