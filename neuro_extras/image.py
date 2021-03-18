@@ -183,7 +183,6 @@ async def _image_transfer(src_uri: str, dst_uri: str, force_overwrite: bool) -> 
     with tempfile.TemporaryDirectory() as tmpdir:
         async with get_neuro_client(cluster=src_cluster) as src_client:
             src_image = src_client.parse.remote_image(image=src_uri)
-            dst_image = src_client.parse.remote_image(image=dst_uri)
             src_client_config = src_client.config
 
         dockerfile = Path(f"{tmpdir}/Dockerfile")
@@ -196,10 +195,8 @@ async def _image_transfer(src_uri: str, dst_uri: str, force_overwrite: bool) -> 
             )
         )
         migration_job_tags = (
-            f"src-cluster:{src_image.cluster_name}",
-            f"dst-cluster:{dst_image.cluster_name}",
-            f"src-image:{src_image.owner}/{src_image.name}:{src_image.tag}",
-            f"dst-image:{dst_image.owner}/{dst_image.name}:{dst_image.tag}",
+            f"src-image:{str(src_image)}",
+            f"neuro-extras:image-transfer",
         )
         return await _build_image(
             dockerfile_path=Path(dockerfile.name),
