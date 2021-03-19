@@ -195,7 +195,7 @@ async def _image_transfer(src_uri: str, dst_uri: str, force_overwrite: bool) -> 
             )
         )
         migration_job_tags = (
-            f"src-image:{str(src_image)}",
+            f"src-image:{src_image}",
             f"neuro-extras:image-transfer",
         )
         return await _build_image(

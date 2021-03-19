@@ -149,7 +149,7 @@ class ImageBuilder:
             f"{context_uri}:{KANIKO_CONTEXT_PATH}:rw",
         )
         dst_image = self._client.parse.remote_image(image_uri_str)
-        build_tags += (f"kaniko-builds-image:{str(dst_image)}",)
+        build_tags += (f"kaniko-builds-image:{dst_image}",)
         kaniko_args = [
             f"--dockerfile={KANIKO_CONTEXT_PATH}/{dockerfile_path}",
             f"--destination={self.parse_image_ref(image_uri_str)}",
