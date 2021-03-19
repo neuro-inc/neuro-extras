@@ -15,7 +15,7 @@ from yarl import URL
 
 
 KANIKO_IMAGE_REF = "gcr.io/kaniko-project/executor"
-KANIKO_IMAGE_TAG = "v1.1.0"
+KANIKO_IMAGE_TAG = "v1.5.1"
 KANIKO_CONTEXT_PATH = "/kaniko_context"
 BUILDER_JOB_LIFESPAN = "4h"
 BUILDER_JOB_SHEDULE_TIMEOUT = "20m"
@@ -154,6 +154,7 @@ class ImageBuilder:
             f"--dockerfile={KANIKO_CONTEXT_PATH}/{dockerfile_path}",
             f"--destination={self.parse_image_ref(image_uri_str)}",
             f"--cache={'true' if use_cache else 'false'}",
+            f"--cache-copy-layers",
             f"--cache-repo={cache_repo}",
             f"--snapshotMode=redo",
             f"--verbosity={'debug' if self._verbose else 'info'}",
