@@ -1,1 +1,0 @@
-Fix connection issues in image build jobs by relying on neuro-cli instead of neuro-sdk.

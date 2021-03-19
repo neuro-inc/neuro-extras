@@ -1,10 +1,46 @@
+[comment]: # (Please do not modify this file)
+[comment]: # (Put your comments to changelog.d and it will be moved to changelog in next release)
+[comment]: # (Clear the text on make release for canceling the release)
+
+[comment]: # (towncrier release notes start)
+
+Neuro_Extras 21.3.19 (2021-03-19)
+=================================
+
+Bugfixes
+--------
+
+
+- Fix `neuro-extras data transfer` job lifespan (set to 10 days), add usage hints, fix seldon init container user ID ([#187](https://github.com/neuromation/neuro-extras/issues/187))
+
+- Fix connection issues in image build jobs by relying on neuro-cli instead of neuro-sdk, add support of job tags for image build jobs. ([#205](https://github.com/neuromation/neuro-extras/issues/205))
+
+
+Misc
+----
+
+- [#211](https://github.com/neuromation/neuro-extras/issues/211)
+
+
+Neuro_Extras 20.12.16 (2020-12-16)
+==================================
+
+No significant changes.
+
+
+Neuro_Extras 20.12.15 (2020-12-15)
+==================================
+
+No significant changes.
+
+
 Neuro_Extras 20.11.20 (2020-11-20)
 ==================================
 
 No significant changes.
 
 
-Neuro_Extras 20.11.1 (2020-11-13)
+Neuro_Extras 20.11.13 (2020-11-13)
 =================================
 
 Features
@@ -25,6 +61,16 @@ Bugfixes
 - Speedup image build by Kaniko downgrade to v1.1.0 (COPY layers caching), replace /workspace context dir to /kaniko_context. ([#157](https://github.com/neuromation/neuro-extras/issues/157))
 
 
+Neuro_Extras 20.11.1 (2020-11-01)
+=================================
+
+Features
+--------
+
+
+- Bump neuromation to >=20.10.30 ([#141](https://github.com/neuromation/neuro-extras/issues/141))
+
+
 Neuro_Extras 20.10.28 (2020-10-28)
 ==================================
 
@@ -41,6 +87,23 @@ Bugfixes
 - data cp: fix source archive removal if SRC is a local file; add flag for optional TMP folder usage ([#118](https://github.com/neuromation/neuro-extras/issues/118))
 
 - Fix image transfer: switch cluster properly ([#130](https://github.com/neuromation/neuro-extras/issues/130))
+
+
+
+Neuro_Extras v20.10.16 (2020-10-16)
+===================================
+
+Features
+--------
+
+
+- Add `-c` / `--compress` option to `data cp` to support data packing before sending to destination ([#38](https://github.com/neuromation/neuro-extras/issues/38))
+
+
+Neuro_Extras v20.9.30.2 (2020-09-30)
+====================================
+
+No significant changes.
 
 
 Neuro_Extras v20.9.30 (2020-09-30)
@@ -62,48 +125,3 @@ Features
 
 
 - Add `towncrier` for release notes management ([#78](https://github.com/neuromation/neuro-extras/issues/78))
-
-
-[comment]: # (Please do not modify this file)
-[comment]: # (Put you comments to changelog.d and it will be moved to changelog in next release)
-
-[comment]: # (Clear the text on make release for canceling the release)
-
-[comment]: # (towncrier release notes start)
-
-Neuro_Extras 20.12.16 (2020-12-16)
-==================================
-
-No significant changes.
-
-
-Neuro_Extras 20.12.15 (2020-12-15)
-==================================
-
-No significant changes.
-
-
-Neuro_Extras 20.11.1 (2020-11-01)
-=================================
-
-Features
---------
-
-
-- Bump neuromation to >=20.10.30 ([#141](https://github.com/neuromation/neuro-extras/issues/141))
-
-
-Neuro_Extras v20.10.16 (2020-10-16)
-===================================
-
-Features
---------
-
-
-- Add `-c` / `--compress` option to `data cp` to support data packing before sending to destination ([#38](https://github.com/neuromation/neuro-extras/issues/38))
-
-
-Neuro_Extras v20.9.30.2 (2020-09-30)
-====================================
-
-No significant changes.
