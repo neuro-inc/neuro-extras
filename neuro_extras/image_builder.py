@@ -5,14 +5,20 @@ import logging
 import re
 import uuid
 from dataclasses import dataclass, field
-from typing import Any, AsyncIterator, Dict, Sequence
+from pathlib import Path
+from typing import Any, AsyncIterator, Dict, Optional, Sequence, Tuple
 
 import click
 import neuro_sdk as neuro_api
-from neuro_sdk import Preset, Resources
 from neuro_sdk.url_utils import normalize_storage_path_uri
 from yarl import URL
 
+
+KANIKO_IMAGE_REF = "gcr.io/kaniko-project/executor"
+KANIKO_IMAGE_TAG = "v1.1.0"
+KANIKO_CONTEXT_PATH = "/kaniko_context"
+BUILDER_JOB_LIFESPAN = "4h"
+BUILDER_JOB_SHEDULE_TIMEOUT = "20m"
 
 logger = logging.getLogger(__name__)
 
@@ -84,113 +90,39 @@ class ImageBuilder:
 
         await self._client.storage.create(uri, _gen())
 
-    async def _create_builder_container(
-        self,
-        *,
-        docker_config_uri: URL,
-        context_uri: URL,
-        dockerfile_path: str,
-        image_ref: str,
-        use_cache: bool = True,
-        build_args: Sequence[str] = (),
-        volume: Sequence[str],
-        env: Sequence[str],
-        job_preset: Preset,
-    ) -> neuro_api.Container:
-
-        cache_image = neuro_api.RemoteImage(
-            name="layer-cache/cache",
-            owner=self._client.config.username,
-            registry=str(self._client.config.registry_url),
-            cluster_name=self._client.cluster_name,
-        )
-        cache_repo = self.parse_image_ref(str(cache_image))
-        cache_repo = re.sub(r":.*$", "", cache_repo)
-        container_context_path = "/kaniko_context"
-        verbosity = "debug" if self._verbose else "info"
-        cache = "true" if use_cache else "false"
-        args = [
-            f"--dockerfile={container_context_path}/{dockerfile_path}",
-            f"--destination={image_ref}",
-            f"--cache={cache}",
-            f"--cache-repo={cache_repo}",
-            f"--snapshotMode=redo",
-            f" --verbosity={verbosity}",
-            f" --context={container_context_path}",
-        ]
-
-        for arg in build_args:
-            args.append(f" --build-arg {arg}")
-
-        env_parsed = self._client.parse.envs(env)
-        for arg in list(env_parsed.env) + list(env_parsed.secret_env):
-            args.append(f"--build-arg {arg}")
-
-        vol = self._client.parse.volumes(volume)
-        volumes, secret_files, disk_volumes = (
-            list(vol.volumes),
-            list(vol.secret_files),
-            list(vol.disk_volumes),
-        )
-
-        default_volumes = [
-            neuro_api.Volume(
-                docker_config_uri, "/kaniko/.docker/config.json", read_only=True
-            ),
-            # context dir cannot be R/O if we want to mount secrets there
-            neuro_api.Volume(context_uri, container_context_path, read_only=False),
-        ]
-
-        volumes.extend(default_volumes)
-
-        resources = Resources(
-            memory_mb=job_preset.memory_mb,
-            cpu=job_preset.cpu,
-            gpu=job_preset.gpu,
-            gpu_model=job_preset.gpu_model,
-            tpu_type=job_preset.tpu_type,
-            tpu_software_version=job_preset.tpu_software_version,
-        )
-        return neuro_api.Container(
-            image=neuro_api.RemoteImage(
-                name="gcr.io/kaniko-project/executor",
-                tag="v1.1.0",
-            ),
-            resources=resources,
-            command=" ".join(args),
-            volumes=volumes,
-            disk_volumes=disk_volumes,
-            secret_files=secret_files,
-            env=env_parsed.env,
-            secret_env=env_parsed.secret_env,
-        )
-
     def parse_image_ref(self, image_uri_str: str) -> str:
         image = self._client.parse.remote_image(image_uri_str)
         return re.sub(r"^http[s]?://", "", image.as_docker_url())
 
-    async def launch(
+    async def build(
         self,
-        dockerfile_path: str,
+        dockerfile_path: Path,
         context_uri: URL,
         image_uri_str: str,
         use_cache: bool,
-        build_args: Sequence[str],
-        volume: Sequence[str],
-        env: Sequence[str],
-        job_preset: Preset,
-    ) -> neuro_api.JobDescription:
+        build_args: Tuple[str, ...],
+        volumes: Tuple[str, ...],
+        envs: Tuple[str, ...],
+        job_preset: Optional[str],
+        build_tags: Tuple[str, ...],
+    ) -> int:
         # TODO: check if Dockerfile exists
+        logger.info(f"Building the image {image_uri_str}")
+        logger.info(f"Using {context_uri} as the build context")
 
-        logging.info(f"Using {context_uri} as the build context")
-
+        # upload (if needed) build context and platform registry auth info
         build_uri = self._generate_build_uri()
-        await self._client.storage.mkdir(build_uri, parents=True, exist_ok=True)
+        await self._client.storage.mkdir(build_uri, parents=True)
         if context_uri.scheme == "file":
             local_context_uri, context_uri = context_uri, build_uri / "context"
             logger.info(f"Uploading {local_context_uri} to {context_uri}")
             subprocess = await asyncio.create_subprocess_exec(
-                "neuro", "cp", "--recursive", str(local_context_uri), str(context_uri)
+                "neuro",
+                "--disable-pypi-version-check",
+                "cp",
+                "--recursive",
+                str(local_context_uri),
+                str(context_uri),
             )
             return_code = await subprocess.wait()
             if return_code != 0:
@@ -201,20 +133,61 @@ class ImageBuilder:
         logger.debug(f"Uploading {docker_config_uri}")
         await self.save_docker_config(docker_config, docker_config_uri)
 
-        logger.info("Submitting a builder job")
-        image_ref = self.parse_image_ref(image_uri_str)
-        builder_container = await self._create_builder_container(
-            docker_config_uri=docker_config_uri,
-            context_uri=context_uri,
-            dockerfile_path=dockerfile_path,
-            image_ref=image_ref,
-            use_cache=use_cache,
-            build_args=build_args,
-            volume=volume,
-            env=env,
-            job_preset=job_preset,
+        cache_image = neuro_api.RemoteImage(
+            name="layer-cache/cache",
+            owner=self._client.config.username,
+            registry=str(self._client.config.registry_url),
+            cluster_name=self._client.cluster_name,
         )
-        # TODO: set proper tags
-        job = await self._client.jobs.run(builder_container, life_span=4 * 60 * 60)
-        logger.info(f"The builder job ID: {job.id}")
-        return job
+        cache_repo = self.parse_image_ref(str(cache_image))
+        cache_repo = re.sub(r":.*$", "", cache_repo)  # drop tag
+
+        # mount build context and Kaniko auth info
+        volumes += (
+            f"{docker_config_uri}:/kaniko/.docker/config.json:ro",
+            # context dir cannot be R/O if we want to mount secrets there
+            f"{context_uri}:{KANIKO_CONTEXT_PATH}:rw",
+        )
+        dst_image = self._client.parse.remote_image(image_uri_str)
+        build_tags += (f"kaniko-builds-image:{dst_image}",)
+        kaniko_args = [
+            f"--dockerfile={KANIKO_CONTEXT_PATH}/{dockerfile_path}",
+            f"--destination={self.parse_image_ref(image_uri_str)}",
+            f"--cache={'true' if use_cache else 'false'}",
+            f"--cache-repo={cache_repo}",
+            f"--snapshotMode=redo",
+            f"--verbosity={'debug' if self._verbose else 'info'}",
+            f"--context={KANIKO_CONTEXT_PATH}",
+        ]
+
+        for arg in build_args:
+            kaniko_args.append(f"--build-arg {arg}")
+        # env vars (which might be platform secrets too) are passed as build args
+        env_parsed = self._client.parse.envs(envs)
+        for arg in list(env_parsed.env) + list(env_parsed.secret_env):
+            kaniko_args.append(f"--build-arg {arg}")
+
+        build_command = [
+            "neuro",
+            "--disable-pypi-version-check",
+            "job",
+            "run",
+            f"--life-span={BUILDER_JOB_LIFESPAN}",
+            f"--schedule-timeout={BUILDER_JOB_SHEDULE_TIMEOUT}",
+        ]
+        if job_preset:
+            build_command.append(f"--preset={job_preset}")
+        for volume in volumes:
+            build_command.append(f"--volume={volume}")
+        for env in envs:
+            build_command.append(f"--env={env}")
+        for build_tag in build_tags:
+            build_command.append(f"--tag={build_tag}")
+        build_command.append(f"{KANIKO_IMAGE_REF}:{KANIKO_IMAGE_TAG}")
+        build_command.append(" ".join(kaniko_args))
+
+        logger.info("Submitting a builder job")
+        logger.debug(build_command)
+        subprocess = await asyncio.create_subprocess_exec(*build_command)
+        # TODO: remove context after the build is finished?
+        return await subprocess.wait()
