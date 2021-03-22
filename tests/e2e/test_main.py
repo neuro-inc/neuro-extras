@@ -1227,9 +1227,6 @@ def disk(cli_runner: CLIRunner) -> Iterator[str]:
     sys.platform == "win32",
     reason="Windows path are not supported yet + no utilities on windows",
 )
-@pytest.mark.skip(
-    reason="We have issues with disks in Azure",
-)
 def test_data_cp_from_cloud_to_disk(
     project_dir: Path,
     remote_project_dir: Path,
