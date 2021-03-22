@@ -1211,17 +1211,17 @@ def disk(cli_runner: CLIRunner) -> Iterator[str]:
         else:
             raise Exception("Can't find disk ID in neuro output: \n" + res.stdout)
 
-        wait_started = time.time()
-        wait_delta = 10.0
-        while True:
-            if time.time() - wait_started > 5 * 10:
-                raise ValueError(f"Could not get disk {disk_id} ready: {res.stdout}")
-            res = cli_runner(["neuro", "disk", "get", disk_id])
-            assert res.returncode == 0, res
-            if "Ready" in res.stdout:
-                break
-            wait_delta *= 1.5
-            time.sleep(wait_delta)
+        # wait_started = time.time()
+        # wait_delta = 10.0
+        # while True:
+        #     if time.time() - wait_started > 5 * 10:
+        #         raise ValueError(f"Could not get disk {disk_id} ready: {res.stdout}")
+        #     res = cli_runner(["neuro", "disk", "get", disk_id])
+        #     assert res.returncode == 0, res
+        #     if "Ready" in res.stdout:
+        #         break
+        #     wait_delta *= 1.5
+        #     time.sleep(wait_delta)
 
         yield f"disk:{disk_id}"
 
@@ -1239,9 +1239,9 @@ def disk(cli_runner: CLIRunner) -> Iterator[str]:
     sys.platform == "win32",
     reason="Windows path are not supported yet + no utilities on windows",
 )
-@pytest.mark.skip(
-    reason="We have issues with disks in Azure",
-)
+# @pytest.mark.skip(
+#     reason="We have issues with disks in Azure",
+# )
 def test_data_cp_from_cloud_to_disk(
     project_dir: Path,
     remote_project_dir: Path,
