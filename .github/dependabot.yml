@@ -12,6 +12,10 @@ updates:
     interval: daily
     time: "03:00"
   open-pull-requests-limit: 10
+  assignees:
+  - anayden
+  - artemlops
+  - YevheniiSemendiak
   registries:
   - python-index-devpi-dev-neu-ro-testuser-dev
 - package-ecosystem: docker
