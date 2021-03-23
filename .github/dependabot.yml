@@ -16,6 +16,7 @@ updates:
   - anayden
   - artemlops
   - YevheniiSemendiak
+  insecure-external-code-execution: allow
   registries:
   - python-index-devpi-dev-neu-ro-testuser-dev
 - package-ecosystem: docker
