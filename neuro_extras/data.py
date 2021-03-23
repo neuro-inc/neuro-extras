@@ -88,9 +88,12 @@ class DataCopier:
 
         cmd = f"neuro-extras data cp {args}"
         image = await _parse_neuro_image(NEURO_EXTRAS_IMAGE)
+        cpu_small = self._client.config.presets["cpu-small"]
         return neuro_api.Container(
             image=image,
-            resources=neuro_api.Resources(cpu=2.0, memory_mb=4096),
+            resources=neuro_api.Resources(
+                cpu=cpu_small.cpu, memory_mb=cpu_small.memory_mb
+            ),
             volumes=volumes,
             disk_volumes=disk_volumes,
             command=f"bash -c '{cmd} '",
