@@ -56,29 +56,13 @@ class DataCopier:
         use_temp_dir: bool,
     ) -> neuro_api.JobDescription:
         logger.info("Submitting a copy job")
-        copier_container = await self._create_copier_container(
-            extract, src_uri, dst_uri, volume, env, use_temp_dir
-        )
-        job = await self._client.jobs.run(copier_container, life_span=60 * 60)
-        logger.info(f"The copy job ID: {job.id}")
-        return job
 
-    async def _create_copier_container(
-        self,
-        extract: bool,
-        src_uri: URL,
-        dst_uri: URL,
-        volume: Sequence[str],
-        env: Sequence[str],
-        use_temp_dir: bool,
-    ) -> neuro_api.Container:
-        args = f"{str(src_uri)} {str(dst_uri)}"
-        if extract:
-            args = f"-x {args}"
-        if use_temp_dir:
-            args = f"--use-temp-dir {args}"
+        image = await _parse_neuro_image(NEURO_EXTRAS_IMAGE)
+
+        command = self._build_command(dst_uri, src_uri, extract, use_temp_dir)
 
         env_parse_result = self._client.parse.envs(env)
+
         vol = self._client.parse.volumes(volume)
         volumes, secret_files, disk_volumes = (
             list(vol.volumes),
@@ -86,21 +70,30 @@ class DataCopier:
             list(vol.disk_volumes),
         )
 
-        cmd = f"neuro-extras data cp {args}"
-        image = await _parse_neuro_image(NEURO_EXTRAS_IMAGE)
-        cpu_small = self._client.config.presets["cpu-small"]
-        return neuro_api.Container(
+        job = await self._client.jobs.start(
             image=image,
-            resources=neuro_api.Resources(
-                cpu=cpu_small.cpu, memory_mb=cpu_small.memory_mb
-            ),
-            volumes=volumes,
-            disk_volumes=disk_volumes,
-            command=f"bash -c '{cmd} '",
+            preset_name="cpu-small",
+            command=command,
             env=env_parse_result.env,
             secret_env=env_parse_result.secret_env,
+            volumes=volumes,
             secret_files=secret_files,
+            disk_volumes=disk_volumes,
+            life_span=60 * 60,
         )
+
+        logger.info(f"The copy job ID: {job.id}")
+        return job
+
+    def _build_command(
+        self, dst_uri: URL, src_uri: URL, extract: bool, use_temp_dir: bool
+    ) -> str:
+        args = f"{str(src_uri)} {str(dst_uri)}"
+        if extract:
+            args = f"-x {args}"
+        if use_temp_dir:
+            args = f"--use-temp-dir {args}"
+        return f"neuro-extras data cp {args}"
 
 
 class UrlType(Enum):
