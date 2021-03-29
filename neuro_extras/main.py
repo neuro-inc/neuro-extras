@@ -72,6 +72,8 @@ def init_aliases() -> None:
             "-e, --env environment variables for container",
             "-v, --volume list of volumes for container",
             "-t, --use-temp-dir store intermediate data in TMP directory",
+            "-s, --preset=NAME  specify  preset for copy container",
+            "-l, --life_span=MINUTES  specify life span for copy container",
         ],
         "args": "SOURCE DESTINATION",
     }

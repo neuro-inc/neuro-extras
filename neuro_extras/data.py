@@ -5,7 +5,7 @@ import tempfile
 from distutils import dir_util
 from enum import Enum
 from pathlib import Path
-from typing import List, Sequence
+from typing import List, Optional, Sequence
 
 import click
 import neuro_sdk as neuro_api
@@ -54,31 +54,17 @@ class DataCopier:
         volume: Sequence[str],
         env: Sequence[str],
         use_temp_dir: bool,
+        preset: Optional[str] = None,
+        life_span: Optional[int] = None,
     ) -> neuro_api.JobDescription:
         logger.info("Submitting a copy job")
-        copier_container = await self._create_copier_container(
-            extract, src_uri, dst_uri, volume, env, use_temp_dir
-        )
-        job = await self._client.jobs.run(copier_container, life_span=60 * 60)
-        logger.info(f"The copy job ID: {job.id}")
-        return job
 
-    async def _create_copier_container(
-        self,
-        extract: bool,
-        src_uri: URL,
-        dst_uri: URL,
-        volume: Sequence[str],
-        env: Sequence[str],
-        use_temp_dir: bool,
-    ) -> neuro_api.Container:
-        args = f"{str(src_uri)} {str(dst_uri)}"
-        if extract:
-            args = f"-x {args}"
-        if use_temp_dir:
-            args = f"--use-temp-dir {args}"
+        image = await _parse_neuro_image(NEURO_EXTRAS_IMAGE)
+
+        command = self._build_command(dst_uri, src_uri, extract, use_temp_dir)
 
         env_parse_result = self._client.parse.envs(env)
+
         vol = self._client.parse.volumes(volume)
         volumes, secret_files, disk_volumes = (
             list(vol.volumes),
@@ -86,18 +72,30 @@ class DataCopier:
             list(vol.disk_volumes),
         )
 
-        cmd = f"neuro-extras data cp {args}"
-        image = await _parse_neuro_image(NEURO_EXTRAS_IMAGE)
-        return neuro_api.Container(
+        job = await self._client.jobs.start(
             image=image,
-            resources=neuro_api.Resources(cpu=2.0, memory_mb=4096),
-            volumes=volumes,
-            disk_volumes=disk_volumes,
-            command=f"bash -c '{cmd} '",
+            preset_name=preset or list(self._client.presets.keys())[0],
+            command=command,
             env=env_parse_result.env,
             secret_env=env_parse_result.secret_env,
+            volumes=volumes,
             secret_files=secret_files,
+            disk_volumes=disk_volumes,
+            life_span=life_span or 60 * 60,
         )
+
+        logger.info(f"The copy job ID: {job.id}")
+        return job
+
+    def _build_command(
+        self, dst_uri: URL, src_uri: URL, extract: bool, use_temp_dir: bool
+    ) -> str:
+        args = f"{str(src_uri)} {str(dst_uri)}"
+        if extract:
+            args = f"-x {args}"
+        if use_temp_dir:
+            args = f"--use-temp-dir {args}"
+        return f"neuro-extras data cp {args}"
 
 
 class UrlType(Enum):
@@ -205,6 +203,18 @@ def data_transfer(source: str, destination: str) -> None:
         "extraction or compression is performed to speedup the process."
     ),
 )
+@click.option(
+    "-s",
+    "--preset",
+    metavar="PRESET_NAME",
+    help=("Preset name used for copy."),
+)
+@click.option(
+    "-l",
+    "--life_span",
+    metavar="SECONDS",
+    help=("Copy job life span in seconds."),
+)
 def data_cp(
     source: str,
     destination: str,
@@ -213,6 +223,8 @@ def data_cp(
     volume: Sequence[str],
     env: Sequence[str],
     use_temp_dir: bool,
+    preset: Optional[str] = None,
+    life_span: Optional[int] = None,
 ) -> None:
     if extract and compress:
         raise click.ClickException("Extract and compress can't be used together")
@@ -225,6 +237,8 @@ def data_cp(
             list(volume),
             list(env),
             use_temp_dir,
+            preset,
+            life_span,
         )
     )
 
@@ -237,6 +251,8 @@ async def _data_cp(
     volume: List[str],
     env: List[str],
     use_temp_dir: bool,
+    preset: Optional[str] = None,
+    life_span: Optional[int] = None,
 ) -> None:
     source_url = URL(source)
     destination_url = URL(destination)
@@ -297,6 +313,8 @@ async def _data_cp(
                 volume=volume,
                 env=env,
                 use_temp_dir=use_temp_dir,
+                preset=preset,
+                life_span=life_span,
             )
             exit_code = await _attach_job_stdout(job, client, name="copy")
             if exit_code == EX_OK:
