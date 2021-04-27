@@ -62,7 +62,7 @@ def print_neuro_extras_image() -> None:
 
 
 async def _async_get_bare_client() -> neuro_api.Client:
-    """ Return uninitialized neuro client. """
+    """Return uninitialized neuro client."""
     return await neuro_api.get()
 
 
