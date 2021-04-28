@@ -15,7 +15,7 @@ from yarl import URL
 
 
 KANIKO_IMAGE_REF = "gcr.io/kaniko-project/executor"
-KANIKO_IMAGE_TAG = "v1.5.2"
+KANIKO_IMAGE_TAG = "v1.6.0"
 KANIKO_CONTEXT_PATH = "/kaniko_context"
 BUILDER_JOB_LIFESPAN = "4h"
 BUILDER_JOB_SHEDULE_TIMEOUT = "20m"
