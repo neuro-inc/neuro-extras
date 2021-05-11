@@ -11,7 +11,12 @@ RUN echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] http://packages.c
         | apt-key --keyring /usr/share/keyrings/cloud.google.gpg add - && \
     apt-get update -y
 
-RUN apt-get install -y --no-install-recommends google-cloud-sdk gcc python3-dev python3-setuptools && \
+RUN apt-get install -y --no-install-recommends \
+        google-cloud-sdk \
+        gcc \
+        kubectl \
+        python3-dev \
+        python3-setuptools && \
     curl https://rclone.org/install.sh | bash && \
     apt-get clean -y -qq && \
     apt-get autoremove -y -qq && \
