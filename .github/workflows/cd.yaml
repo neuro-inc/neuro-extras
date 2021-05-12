@@ -17,7 +17,7 @@ jobs:
     - name: Checkout commit
       uses: actions/checkout@v2
     - name: Setup Python 3.7
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v2.2.2
       with:
         python-version: '3.7'
     - name: Cache PyPI
@@ -58,7 +58,7 @@ jobs:
           echo "OK, git tag matches hard-coded package version: 'v$VERSION'"
         fi
     - name: Install python
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v2.2.2
       with:
         python-version: '3.7'
     - name: Install dependencies
@@ -88,7 +88,7 @@ jobs:
     - name: Checkout commit
       uses: actions/checkout@v2
     - name: Install python
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v2.2.2
       with:
         python-version: '3.7'
     - name: Install dependencies
@@ -173,7 +173,7 @@ jobs:
     - name: Checkout commit
       uses: actions/checkout@v2
     - name: Install python ${{ matrix.python-version }}
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v2.2.2
       with:
         python-version: ${{ matrix.python-version }}
     - name: Get pip cache dir
