@@ -20,7 +20,7 @@ setup(
     install_requires=[
         "neuro-cli>=21.1.13",
         'dataclasses>=0.7; python_version<"3.7"',
-        "click>=7.0",
+        "click>=7.0<8.0",
         "toml>=0.10.0",
         "pyyaml>=3.0",
         "awscli>=1.19.0",
