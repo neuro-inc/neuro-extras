@@ -22,22 +22,21 @@ jobs:
       with:
         ref: ${{ github.event.pull_request.head.sha }}
 
-    - name: Setup Python 3.7
+    - name: Setup Python 3.9
       uses: actions/setup-python@v2
       with:
-        python-version: '3.7'
-
-    - name: Cache Python and its deps
+        python-version: '3.9'
+    - name: Cache PyPI
       uses: actions/cache@v2.1.6
       with:
-        key: ${{ runner.os }}-py-3.7-${{ hashFiles('requirements/*.txt') }}
+        key: ${{ runner.os }}-py-3.9-${{ hashFiles('requirements/*.txt') }}
         path: ${{ env.pythonLocation }}
 
     - name: Cache pre-commit hooks
       uses: actions/cache@v2.1.6
       with:
         path: ~/.cache/pre-commit
-        key: ${{ runner.os }}-pre-commit-python-3.7-${{ hashFiles('.pre-commit-config.yaml') }}
+        key: ${{ runner.os }}-pre-commit-python-3.9-${{ hashFiles('.pre-commit-config.yaml') }}
 
     - name: Install dependencies
       run: |
@@ -71,15 +70,15 @@ jobs:
       with:
         ref: ${{ github.event.pull_request.head.sha }}
 
-    - name: Setup Python 3.7
+    - name: Setup Python 3.9
       uses: actions/setup-python@v2
       with:
-        python-version: '3.7'
+        python-version: '3.9'
 
     - name: Cache Python and its deps
       uses: actions/cache@v2.1.6
       with:
-        key: ${{ runner.os }}-py-3.7-${{ hashFiles('requirements/base.txt') }}
+        key: ${{ runner.os }}-py-3.9-${{ hashFiles('requirements/base.txt') }}
         path: ${{ env.pythonLocation }}
 
     - name: Install and configure neuro
@@ -111,8 +110,17 @@ jobs:
     needs: [pretest]
     strategy:
       matrix:
-        python-version: [3.6, 3.7]
+        python-version: [3.6, 3.7, 3.8, 3.9]
         os: [ubuntu, macos, windows]
+        exclude:
+          - python-version: 3.7
+            os: macos
+          - python-version: 3.7
+            os: windows
+          - python-version: 3.8
+            os: macos
+          - python-version: 3.8
+            os: windows
       fail-fast: false
     runs-on: ${{ matrix.os }}-latest
     timeout-minutes: 30
@@ -210,15 +218,15 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
 
-      - name: Setup Python 3.7
+      - name: Setup Python 3.9
         uses: actions/setup-python@v2
         with:
-          python-version: "3.7"
+          python-version: "3.9"
 
       - name: Cache Python and its deps
         uses: actions/cache@v2.1.6
         with:
-          key: ${{ runner.os }}-py-3.7-${{ hashFiles('requirements/base.txt') }}
+          key: ${{ runner.os }}-py-3.9-${{ hashFiles('requirements/base.txt') }}
           path: ${{ env.pythonLocation }}
 
       - name: Install and configure neuro
