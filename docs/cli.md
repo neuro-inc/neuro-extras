@@ -180,7 +180,7 @@ neuro-extras image build [OPTIONS] CONTEXT_PATH IMAGE_URI
 | _-e, --env VAR=VAL_ | Set environment variable in container Use multiple options to define more than one variable |
 | _-s, --preset PRESET_ | Predefined resource configuration \(to see available values, run `neuro config show`\) |
 | _-F, --force-overwrite_ | Overwrite if the destination image already exists.  \[default: False\] |
-| _--cache / --no-cache_ | Use Kaniko cache while building image.  \[default: True\] |
+| _--cache / --no-cache_ | Use Kaniko cache while building image.  \[default: cache\] |
 | _--verbose BOOLEAN_ | If specified, run Kaniko with 'debug' verbosity, otherwise 'info' \(default\). |
 | _--build-tag VAR=VAL_ | Set tag\(s\) for image builder job. We will add tag 'kaniko-builds:{image-name}' authomatically. |
 | _--help_ | Show this message and exit. |
