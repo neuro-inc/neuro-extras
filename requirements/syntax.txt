@@ -3,4 +3,4 @@ black==21.5b1
 flake8==3.9.2
 flake8-isort==4.0.0
 mypy==0.812
-pre-commit==2.12.1
+pre-commit==2.13.0
