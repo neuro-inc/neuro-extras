@@ -5,9 +5,10 @@ on:
     branches: [master]
   pull_request:
     branches: [master]
+  pull_request_target:
+    branches: [master]
 
 jobs:
-
   lint:
     name: Linter
     runs-on: ubuntu-latest
@@ -15,28 +16,39 @@ jobs:
     steps:
     - name: Checkout commit
       uses: actions/checkout@v2
+      with:
+        ref: ${{ github.event.pull_request.head.sha }}
+
     - name: Setup Python 3.7
       uses: actions/setup-python@v2
       with:
         python-version: '3.7'
-    - name: Cache PyPI
+
+    - name: Cache Python and its deps
       uses: actions/cache@v2.1.5
       with:
-        key: pip-lint-${{ hashFiles('requirements/*.txt') }}
-        path: ~/.cache/pip
-        restore-keys: |
-          pip-lint-
+        key: ${{ runner.os }}-python-3.7-${{ hashFiles('requirements/*.txt') }}
+        path: ${{ env.pythonLocation }}
+
+    - name: Cache pre-commit hooks
+      uses: actions/cache@v2
+      with:
+        path: ~/.cache/pre-commit
+        key: ${{ runner.os }}-pre-commit-python-3.7-${{ hashFiles('.pre-commit-config.yaml') }}
+
     - name: Install dependencies
       run: |
-        python -m pip install pip
+        python -m pip install -U pip
         make setup
+
     - name: Run linters
       run: |
         make lint
 
-      env:
-        CI_LINT_RUN: 1
   pretest:
+    if: |
+      (github.event_name != 'pull_request_target' && github.actor != 'dependabot[bot]') ||
+      (github.event_name == 'pull_request_target' && github.actor == 'dependabot[bot]')
     name: Prepare for e2e tests
     needs: [lint]
     runs-on: ubuntu-latest
@@ -53,10 +65,20 @@ jobs:
     steps:
     - name: Checkout commit
       uses: actions/checkout@v2
+      with:
+        ref: ${{ github.event.pull_request.head.sha }}
+
     - name: Setup Python 3.7
       uses: actions/setup-python@v2
       with:
         python-version: '3.7'
+
+    - name: Cache Python and its deps
+      uses: actions/cache@v2.1.5
+      with:
+        key: ${{ runner.os }}-python-3.7-${{ hashFiles('requirements/base.txt') }}
+        path: ${{ env.pythonLocation }}
+
     - name: Install and configure neuro
       run: |
         python -m pip install -r requirements/base.txt
@@ -79,6 +101,9 @@ jobs:
         neuro push neuromation/neuro-extras:$SHA image:neuromation/neuro-extras:$SHA
 
   test:
+    if: |
+      (github.event_name != 'pull_request_target' && github.actor != 'dependabot[bot]') ||
+      (github.event_name == 'pull_request_target' && github.actor == 'dependabot[bot]')
     name: Run e2e tests
     needs: [pretest]
     strategy:
@@ -98,27 +123,30 @@ jobs:
       DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
       AZURE_SAS_TOKEN: ${{ secrets.AZURE_SAS_TOKEN }}
       # Note: ${{ github.sha }} not working, see https://github.com/actions/checkout/issues/299
-      NEURO_EXTRAS_IMAGE: image:neuromation/neuro-extras:${{ github.event.pull_request.head.sha
-        || github.sha }}
+      NEURO_EXTRAS_IMAGE: image:neuromation/neuro-extras:${{ github.event.pull_request.head.sha || github.sha }}
     steps:
     - name: Checkout commit
       uses: actions/checkout@v2
+      with:
+        ref: ${{ github.event.pull_request.head.sha }}
+
     - name: Install python ${{ matrix.python-version }}
       uses: actions/setup-python@v2
       with:
         python-version: ${{ matrix.python-version }}
-    - name: Get pip cache dir
-      id: pip-cache
-      run: |
-        echo "::set-output name=dir::$(pip cache dir)"    # - name: dir
-    - name: Cache PyPI
+
+    - name: Cache Python and its deps
       uses: actions/cache@v2.1.5
       with:
-        key: pip-ci-${{ runner.os }}-${{ matrix.python-version }}-${{ hashFiles('setup.py',
-          'requirements/*.txt') }}
-        path: ${{ steps.pip-cache.outputs.dir }}
-        restore-keys: |
-          pip-ci-${{ runner.os }}-${{ matrix.python-version }}-
+        key: ${{ runner.os }}-python-${{ matrix.python-version }}-${{ hashFiles('setup.py', 'requirements/*.txt') }}
+        path: ${{ env.pythonLocation }}
+
+    - name: Cache pre-commit hooks
+      uses: actions/cache@v2
+      with:
+        path: ~/.cache/pre-commit
+        key: ${{ runner.os }}-pre-commit-python-${{ matrix.python-version }}-${{ hashFiles('.pre-commit-config.yaml') }}
+
     - name: Install libraries on Linux
       if: matrix.os == 'ubuntu'
       shell: bash
@@ -129,26 +157,31 @@ jobs:
       shell: bash
       run: |
         curl https://rclone.org/install.sh | sudo bash
+
     - name: Install python dependencies
       run: |
         make setup
+
     - name: Configure neuro
       run: |
         neuro config login-with-token ${{ env.NEURO_TOKEN }} ${{ env.NEURO_STAGING_URL }}
         neuro config switch-cluster ${{ env.NEURO_CLUSTER }}
         neuro --color=no config show
+
     - name: Configure GCP access
       uses: google-github-actions/setup-gcloud@master
       with:
         project_id: ${{ secrets.E2E_COOKIECUTTER_GCP_PROJECT_ID }}
         service_account_key: ${{ secrets.E2E_COOKIECUTTER_GCP_SA_KEY }}
         export_default_credentials: true
+
     - name: Configure AWS access
       uses: aws-actions/configure-aws-credentials@v1
       with:
         aws-access-key-id: ${{ secrets.E2E_COOKIECUTTER_AWS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.E2E_COOKIECUTTER_AWS_ACCESS_KEY }}
         aws-region: us-east-1
+
     - name: Run e2e tests
       run: |
         echo "NEURO_EXTRAS_IMAGE=${{ env.NEURO_EXTRAS_IMAGE }}"
@@ -169,16 +202,27 @@ jobs:
     steps:
       - name: Checkout commit
         uses: actions/checkout@v2
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
       - name: Setup Python 3.7
         uses: actions/setup-python@v2
         with:
           python-version: "3.7"
+
+      - name: Cache Python and its deps
+        uses: actions/cache@v2.1.5
+        with:
+          key: ${{ runner.os }}-python-3.7-${{ hashFiles('requirements/base.txt') }}
+          path: ${{ env.pythonLocation }}
+
       - name: Install and configure neuro
         run: |
           python -m pip install -r requirements/base.txt
           neuro config login-with-token ${{ env.NEURO_TOKEN }} ${{ env.NEURO_STAGING_URL }}
           neuro config switch-cluster ${{ env.NEURO_CLUSTER }}
           neuro --color=no config show
+
       - name: Delete test image
         run: |
           neuro image rm $NEURO_EXTRAS_IMAGE
