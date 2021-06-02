@@ -10,6 +10,9 @@ on:
 
 jobs:
   lint:
+    if: |
+      (github.event_name != 'pull_request_target' && github.actor != 'dependabot[bot]') ||
+      (github.event_name == 'pull_request_target' && github.actor == 'dependabot[bot]')
     name: Linter
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -163,13 +166,9 @@ jobs:
         make setup
 
     - name: Configure neuro
-      env:
-        # GCP_E2E_SECRET: ${{ secrets.E2E_COOKIECUTTER_GCP_SA_KEY }}
-        GCP_E2E_SECRET: ${{ secrets.TEST }}
       run: |
         neuro config login-with-token ${{ env.NEURO_TOKEN }} ${{ env.NEURO_STAGING_URL }}
         neuro config switch-cluster ${{ env.NEURO_CLUSTER }}
-        neuro secret add neuro-extras-gcp $GCP_E2E_SECRET
         neuro --color=no config show
 
     - name: Configure GCP access
