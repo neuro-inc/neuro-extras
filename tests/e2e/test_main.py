@@ -53,7 +53,7 @@ def project_dir() -> Iterator[Path]:
             os.chdir(old_cwd)
 
 
-GCP_BUCKET = "gs://cookiecutter-e2e"
+GCP_BUCKET = "gs://mlops-ci-e2e"
 AWS_BUCKET = "s3://cookiecutter-e2e"
 AZURE_BUCKET = (
     "azure+https://st4006d4f97475ef17167b.blob.core.windows.net/cookiecutter-e2e"
