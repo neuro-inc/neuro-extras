@@ -4,3 +4,7 @@ flake8==3.9.2
 flake8-isort==4.0.0
 mypy==0.901
 pre-commit==2.13.0
+
+# mypy stubs and typesheds (https://mypy.readthedocs.io/en/latest/getting_started.html#library-stubs-and-typeshed)
+types-PyYAML==0.1.5
+types-toml==0.1.1
