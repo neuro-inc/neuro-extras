@@ -193,7 +193,7 @@ jobs:
   posttest:
     name: Cleanup after e2e tests
     needs: [pretest, test]
-    if: needs.pretest.result == 'success'
+    if: ${{ needs.pretest.result == 'success' }}
     runs-on: ubuntu-latest
     env:
       PYTHONIOENCODING: utf-8
