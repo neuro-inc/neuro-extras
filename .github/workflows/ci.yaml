@@ -191,11 +191,9 @@ jobs:
         make test_e2e
 
   posttest:
-    if: |
-      (github.event_name != 'pull_request_target' && github.actor != 'dependabot[bot]') ||
-      (github.event_name == 'pull_request_target' && github.actor == 'dependabot[bot]') && ${{ always() }}
     name: Cleanup after e2e tests
-    needs: [test]
+    needs: [pretest, test]
+    if: needs.pretest.result == 'success'
     runs-on: ubuntu-latest
     env:
       PYTHONIOENCODING: utf-8
