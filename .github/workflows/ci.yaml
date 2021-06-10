@@ -192,8 +192,8 @@ jobs:
 
   posttest:
     name: Cleanup after e2e tests
-    needs: [pretest, test]
-    if: needs.pretest.result == 'success'
+    needs: [test]
+    if: ${{ always() }}
     runs-on: ubuntu-latest
     env:
       PYTHONIOENCODING: utf-8
@@ -228,4 +228,4 @@ jobs:
 
       - name: Delete test image
         run: |
-          neuro image rm $NEURO_EXTRAS_IMAGE
+          neuro image rm $NEURO_EXTRAS_IMAGE || echo "Image not found"
