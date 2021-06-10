@@ -194,8 +194,8 @@ jobs:
     name: Cleanup after e2e tests
     needs: [pretest, test]
     if: |
-        (github.event_name != 'pull_request_target' && github.actor != 'dependabot[bot]') ||
-        (github.event_name == 'pull_request_target' && github.actor == 'dependabot[bot]')
+      (github.event_name != 'pull_request_target' && github.actor != 'dependabot[bot]') ||
+      (github.event_name == 'pull_request_target' && github.actor == 'dependabot[bot]')
     runs-on: ubuntu-latest
     env:
       PYTHONIOENCODING: utf-8
