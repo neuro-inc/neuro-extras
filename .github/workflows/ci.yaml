@@ -228,4 +228,4 @@ jobs:
 
       - name: Delete test image
         run: |
-          neuro image rm $NEURO_EXTRAS_IMAGE
+          neuro image rm $NEURO_EXTRAS_IMAGE || echo "Image not found"
