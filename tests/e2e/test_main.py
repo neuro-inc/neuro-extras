@@ -89,8 +89,9 @@ def cli_runner(capfd: CaptureFixture[str], project_dir: Path) -> CLIRunner:
             code = e.code
         out, err = capfd.readouterr()
         out, err = out.strip(), err.strip()
-        if out:
-            logger.debug(f"Stdout:\n{SEP_BEGIN}\n{out}\n{SEP_END}\nStdout finished")
+        # This generates too much garbage, but might be handy for debugging
+        # if out:
+        #    logger.debug(f"Stdout:\n{SEP_BEGIN}\n{out}\n{SEP_END}\nStdout finished")
         if err:
             logger.debug(f"Stderr:\n{SEP_BEGIN}\n{err}\n{SEP_END}\nStderr finished")
         return CompletedProcess(
