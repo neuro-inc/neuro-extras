@@ -154,7 +154,7 @@ class ImageBuilder:
             f"--dockerfile={KANIKO_CONTEXT_PATH}/{dockerfile_path}",
             f"--destination={self.parse_image_ref(image_uri_str)}",
             f"--cache={'true' if use_cache else 'false'}",
-            f"--cache-copy-layers",
+            # f"--cache-copy-layers", # TODO: since kaniko 1.3 does not support it
             f"--cache-repo={cache_repo}",
             f"--snapshotMode=redo",
             f"--verbosity={'debug' if self._verbose else 'info'}",
