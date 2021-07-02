@@ -4,6 +4,21 @@
 
 [comment]: # (towncrier release notes start)
 
+
+Features
+--------
+
+
+- Make `neuro-extras data cp` accept preset name and migrate code to use `neuro.jobs.start` method in the SDK ([#218](https://github.com/neuromation/neuro-extras/issues/218))
+
+
+Bugfixes
+--------
+
+
+- Downgrade Kaniko to v1.3.0 due to OOMKills ([#287](https://github.com/neuromation/neuro-extras/issues/287))
+
+
 Neuro_Extras 21.3.19 (2021-03-19)
 =================================
 
