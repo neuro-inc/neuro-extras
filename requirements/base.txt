@@ -1,5 +1,5 @@
 click==8.0.1
 dataclasses==0.7; python_version<"3.7"
-neuro-cli==21.6.23
+neuro-cli==21.7.9
 pyyaml==5.4.1
 toml==0.10.2
