@@ -32,17 +32,13 @@ RUN cd /usr/local/bin && \
      chmod +x ./kubectl && \
      kubectl version --client
 
-# Install neuro CLI tools
-RUN pip3 install --no-cache-dir -U pip \
-    && MULTIDICT_NO_EXTENSIONS=1 YARL_NO_EXTENSIONS=1 \
-    pip3 install --no-cache-dir -U neuro-cli==21.7.9 neuro-flow==21.7.9 neuro-extras==21.7.2 awscli==1.19.109
-
 # package version is to be overloaded with exact version
 ARG NEURO_EXTRAS_PACKAGE=neuro-extras
 
 ENV PATH=/root/.local/bin:$PATH
 
-RUN pip install --user $NEURO_EXTRAS_PACKAGE
+RUN pip3 install --no-cache-dir -U pip
+RUN MULTIDICT_NO_EXTENSIONS=1 YARL_NO_EXTENSIONS=1 pip install --user $NEURO_EXTRAS_PACKAGE neuro-flow==21.7.9
 RUN neuro-extras init-aliases
 
 RUN mkdir -p /root/.ssh
