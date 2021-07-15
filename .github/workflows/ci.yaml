@@ -27,11 +27,11 @@ jobs:
       with:
         python-version: '3.7'
 
-    - name: Cache Python and its deps
-      uses: actions/cache@v2.1.6
-      with:
-        key: ${{ runner.os }}-python-3.7-${{ hashFiles('requirements/*.txt') }}
-        path: ${{ env.pythonLocation }}
+    # - name: Cache Python and its deps
+    #   uses: actions/cache@v2.1.6
+    #   with:
+    #     key: ${{ runner.os }}-python-3.7-${{ hashFiles('requirements/*.txt') }}
+    #     path: ${{ env.pythonLocation }}
 
     - name: Cache pre-commit hooks
       uses: actions/cache@v2.1.6
