@@ -22,7 +22,7 @@ setup(
         'dataclasses>=0.7; python_version<"3.7"',
         "click>=7.0",
         "toml>=0.10.0",
-        "pyyaml>=3.0"
+        "pyyaml>=3.0",
         "awscli==1.19.112",
     ],
     entry_points={
