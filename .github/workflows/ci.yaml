@@ -161,7 +161,7 @@ jobs:
       run: |
         curl https://rclone.org/install.sh | sudo bash
 
-    - name: Insawsclitall python dependencies
+    - name: Install python dependencies
       run: |
         make setup
 
