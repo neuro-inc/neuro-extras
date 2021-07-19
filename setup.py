@@ -23,7 +23,7 @@ setup(
         "click>=7.0",
         "toml>=0.10.0",
         "pyyaml>=3.0",
-        "awscli>=1.19.0",
+        "awscli>=1.20.0",
     ],
     entry_points={
         "console_scripts": ["neuro-extras=neuro_extras:main"],
