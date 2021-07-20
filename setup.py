@@ -24,6 +24,7 @@ setup(
         "toml>=0.10.0",
         "pyyaml>=3.0",
         "awscli>=1.20.0",
+        "colorama<=0.4.3",
     ],
     entry_points={
         "console_scripts": ["neuro-extras=neuro_extras:main"],
