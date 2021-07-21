@@ -23,9 +23,6 @@ setup(
         "click>=7.0",
         "toml>=0.10.0",
         "pyyaml>=3.0",
-        "awscli>=1.20.0",
-        # awscli 1.x.x conflicts with newer verions of colorama
-        "colorama<=0.4.3",
     ],
     entry_points={
         "console_scripts": ["neuro-extras=neuro_extras:main"],

@@ -38,7 +38,7 @@ ARG NEURO_EXTRAS_PACKAGE=neuro-extras
 ENV PATH=/root/.local/bin:$PATH
 
 RUN pip3 install --no-cache-dir -U pip
-RUN MULTIDICT_NO_EXTENSIONS=1 YARL_NO_EXTENSIONS=1 pip install --user $NEURO_EXTRAS_PACKAGE neuro-flow==21.7.9
+RUN MULTIDICT_NO_EXTENSIONS=1 YARL_NO_EXTENSIONS=1 pip install --user $NEURO_EXTRAS_PACKAGE neuro-flow==21.7.9 awscli
 RUN neuro-extras init-aliases
 
 RUN mkdir -p /root/.ssh
