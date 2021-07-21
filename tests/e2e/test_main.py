@@ -56,7 +56,7 @@ def project_dir() -> Iterator[Path]:
 GCP_BUCKET = "gs://mlops-ci-e2e"
 AWS_BUCKET = "s3://cookiecutter-e2e"
 AZURE_BUCKET = (
-    "azure+https://st4006d4f97475ef17167b.blob.core.windows.net/cookiecutter-e2e"
+    "azure+https://neuromlops.blob.core.windows.net/cookiecutter-e2e"
 )
 HTTP_BUCKET = "http://s3.amazonaws.com/data.neu.ro/cookiecutter-e2e"
 HTTPS_BUCKET = "https://s3.amazonaws.com/data.neu.ro/cookiecutter-e2e"
