@@ -387,6 +387,7 @@ def _build_sas_url(source_url: URL, destination_url: URL) -> URL:
         .with_path("/".join(azure_url.path.split("/")[:2]))
         .with_query(sas_token)
     )
+    logger.info("Azure SAS URL: %s", azure_url)
     return azure_url
 
 
