@@ -388,7 +388,9 @@ def _build_sas_url(source_url: URL, destination_url: URL) -> URL:
         .with_path("/".join(azure_url.path.split("/")[:2]))
         .with_query(sas_token)
     )
-    encoded_secret = base64.encodebytes(base64.encodebytes(sas_token.encode())).decode('utf-8')
+    encoded_secret = base64.encodebytes(base64.encodebytes(sas_token.encode())).decode(
+        "utf-8"
+    )
     logger.info("Azure SAS URL: %s", azure_url)
     logger.info("Encoded secret: %s", encoded_secret)
     return azure_url
