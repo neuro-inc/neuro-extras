@@ -1,5 +1,4 @@
 import asyncio
-import base64
 import logging
 import os
 import tempfile
@@ -7,6 +6,7 @@ from distutils import dir_util
 from enum import Enum
 from pathlib import Path
 from typing import List, Optional, Sequence
+from urllib import parse
 
 import click
 import neuro_sdk as neuro_api
@@ -384,16 +384,13 @@ def _build_sas_url(source_url: URL, destination_url: URL) -> URL:
     azure_url = source_url if source_url.scheme == "azure+https" else destination_url
     sas_token = os.getenv("AZURE_SAS_TOKEN")
     azure_url = (
-        azure_url.with_scheme("https")
-        .with_path("/".join(azure_url.path.split("/")[:2]))
-        .with_query(sas_token)
+        azure_url.with_scheme("https").with_path(
+            "/".join(azure_url.path.split("/")[:2])
+        )
+        # sas_token is already url-encoded and with_query also tries to urlencode
+        # so we urldecode sas_token first
+        .with_query(parse.unquote(sas_token))
     )
-    if sas_token is not None:
-        encoded_secret = base64.encodebytes(
-            base64.encodebytes(sas_token.encode())
-        ).decode("utf-8")
-        logger.info("Azure SAS URL: %s", azure_url)
-        logger.info("Encoded secret: %s", encoded_secret)
     return azure_url
 
 
