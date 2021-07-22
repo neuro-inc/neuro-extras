@@ -174,15 +174,19 @@ def _get_cluster_from_uri(image_uri: str, *, scheme: str) -> Optional[str]:
     return uri.host
 
 
-async def _image_transfer(src_uri: str, dst_uri: str, force_overwrite: bool) -> int:
-    src_cluster: Optional[str] = _get_cluster_from_uri(src_uri, scheme="image")
-    dst_cluster: Optional[str] = _get_cluster_from_uri(dst_uri, scheme="image")
+async def _image_transfer(
+    src_uri_str: str, dst_uri_str: str, force_overwrite: bool
+) -> int:
+    src_cluster: Optional[str] = _get_cluster_from_uri(src_uri_str, scheme="image")
+    dst_cluster: Optional[str] = _get_cluster_from_uri(dst_uri_str, scheme="image")
     if not dst_cluster:
-        raise ValueError(f"Invalid destination image {dst_uri}: missing cluster name")
+        raise ValueError(
+            f"Invalid destination image {dst_uri_str}: missing cluster name"
+        )
 
     with tempfile.TemporaryDirectory() as tmpdir:
         async with get_neuro_client(cluster=src_cluster) as src_client:
-            src_image = src_client.parse.remote_image(image=src_uri)
+            src_image = src_client.parse.remote_image(image=src_uri_str)
             src_reg_auth = await create_docker_config_auth(src_client.config)
 
         dockerfile = Path(f"{tmpdir}/Dockerfile")
@@ -190,7 +194,7 @@ async def _image_transfer(src_uri: str, dst_uri: str, force_overwrite: bool) -> 
             textwrap.dedent(
                 f"""\
                 FROM {src_image.as_docker_url()}
-                LABEL neu.ro/source-image-uri={src_uri}
+                LABEL neu.ro/source-image-uri={src_uri_str}
                 """
             )
         )
@@ -201,7 +205,7 @@ async def _image_transfer(src_uri: str, dst_uri: str, force_overwrite: bool) -> 
         return await _build_image(
             dockerfile_path=Path(dockerfile.name),
             context=tmpdir,
-            image_uri=dst_uri,
+            image_uri=dst_uri_str,
             use_cache=True,
             build_args=(),
             volume=(),
