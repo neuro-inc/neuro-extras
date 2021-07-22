@@ -98,7 +98,7 @@ neuro-extras data [OPTIONS] COMMAND [ARGS]...
 
 #### neuro-extras data cp
 
-Copy data between external object storage and cluster. Supported external object storage systems: ['AWS', 'GCS', 'AZURE', 'HTTP', 'HTTPS']
+Copy data between external object storage and cluster. Supported external object storage systems: ['AWS', 'GCS', 'AZURE', 'HTTP', 'HTTPS']. Note: originally, Azure's blob storage scheme is 'http(s)', but we prepend 'azure+' to differenciate https vs azure
 
 **Usage:**
 
