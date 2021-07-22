@@ -382,7 +382,7 @@ def _build_sas_url(source_url: URL, destination_url: URL) -> URL:
     remove everything from path except bucket name and append SAS token
     """
     azure_url = source_url if source_url.scheme == "azure+https" else destination_url
-    sas_token = os.getenv("AZURE_SAS_TOKEN")
+    sas_token = os.getenv("AZURE_SAS_TOKEN", "")
     azure_url = (
         azure_url.with_scheme("https").with_path(
             "/".join(azure_url.path.split("/")[:2])
