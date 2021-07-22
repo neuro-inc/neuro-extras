@@ -1023,6 +1023,7 @@ def args_data_cp_from_cloud(cli_runner: CLIRunner) -> Callable[..., List[str]]:
             args.append("-c")
         if use_temp_dir:
             args.append("-t")
+        logger.info("args = %s", args)
         return args
 
     return _f

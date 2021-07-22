@@ -391,6 +391,7 @@ def _build_sas_url(source_url: URL, destination_url: URL) -> URL:
         # so we urldecode sas_token first
         .with_query(parse.unquote(sas_token))
     )
+    logger.info("Azure URL: %s", azure_url)
     return azure_url
 
 
