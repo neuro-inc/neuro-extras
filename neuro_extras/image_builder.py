@@ -78,7 +78,7 @@ class ImageBuilder:
                 authenticated to the destination cluster
             extra_registry_auths (Sequence[DockerConfigAuth], optional):
                 Sequence of extra docker container registry auth credits,
-                usefull if base image(s) hidden under private registry(es).
+                useful if base image(s) hidden under private registry(es).
                 Defaults to ().
             verbose (bool, optional): Whether to set Kaniko's verbosity to DEBUG.
                 Defaults to False.

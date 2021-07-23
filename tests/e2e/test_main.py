@@ -28,6 +28,8 @@ from neuro_extras.data import TEMP_UNPACK_DIR
 from .conftest import TESTED_ARCHIVE_TYPES, CLIRunner, Secret, gen_random_file
 
 
+root_logger = logging.getLogger()
+root_logger.setLevel(logging.INFO)
 logger = logging.getLogger(__name__)
 
 
@@ -68,9 +70,8 @@ def cli_runner(capfd: CaptureFixture[str], project_dir: Path) -> CLIRunner:
         if cmd not in ("neuro", "neuro-extras"):
             pytest.fail(f"Illegal command: {cmd}")
 
-        logger.info(
-            f"Run '{cmd} {' '.join(args)}'",
-        )
+        run_cmd = f"Run '{cmd} {' '.join(args)}'"
+        logger.info(run_cmd)
         capfd.readouterr()
 
         main = extras_main
@@ -89,11 +90,12 @@ def cli_runner(capfd: CaptureFixture[str], project_dir: Path) -> CLIRunner:
             code = e.code
         out, err = capfd.readouterr()
         out, err = out.strip(), err.strip()
-        # This generates too much garbage, but might be handy for debugging
-        # if out:
-        #    logger.debug(f"Stdout:\n{SEP_BEGIN}\n{out}\n{SEP_END}\nStdout finished")
+        if code != EX_OK:
+            # This generates too much garbage, but might be handy for debugging
+            logger.info(f"Stdout:\n{SEP_BEGIN}\n{out}\n{SEP_END}\nStdout finished")
         if err:
-            logger.debug(f"Stderr:\n{SEP_BEGIN}\n{err}\n{SEP_END}\nStderr finished")
+            logger.info(f"Stderr:\n{SEP_BEGIN}\n{err}\n{SEP_END}\nStderr finished")
+
         return CompletedProcess(
             args=[cmd] + args, returncode=code, stdout=out, stderr=err
         )
