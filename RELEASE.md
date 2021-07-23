@@ -14,7 +14,7 @@ Suppose, today is October 15, 2020, and we want to update both neuro-extras pip 
     - update `neuro_extras/version.py`: set `__version__ = "20.10.15"`;
     - run `make changelog-draft` and verify changelog looks valid;
     - run `make changelog` - this will delete changelog items from `CHANGELOG.d`;
-    - `git add CHANGELOG* neuro_extras/version.py && git commit -m "Release version 20.10.15"` and `push` directly to `origin/master`;
+    - `git add CHANGELOG* neuro_extras/version.py && git commit -m "Release v$(python setup.py --version)"` and `push` directly to `origin/master`;
     - wait for green build in [Actions](https://github.com/neuro-inc/neuro-extras/actions);
 
 2. Submit a release on GitHub.

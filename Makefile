@@ -24,11 +24,11 @@ test: lint test_e2e
 
 .PHONY: changelog-draft
 changelog-draft:
-	towncrier --draft
+	towncrier --draft --name `python setup.py --name` --version v`python setup.py --version`
 
 .PHONY: changelog
 changelog:
-	towncrier
+	towncrier --name `python setup.py --name` --version v`python setup.py --version`
 
 .PHONY: docs
 docs:

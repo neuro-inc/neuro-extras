@@ -4,6 +4,27 @@
 
 [comment]: # (towncrier release notes start)
 
+neuro-extras v21.7.23 (2021-07-23)
+=================================
+
+
+Features
+--------
+
+
+- Reduce neuro-extras image size, add neuro-flow into the image and include GitHub ssh key to known hosts. ([#290](https://github.com/neuromation/neuro-extras/issues/290))
+
+
+Bugfixes
+--------
+
+
+- Image transfer now works even if it was initiated not from SRC cluster. ([#295](https://github.com/neuromation/neuro-extras/issues/295))
+
+
+neuro-extras v21.7.2 (2021-07-02)
+=================================
+
 
 Features
 --------
