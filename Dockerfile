@@ -28,9 +28,9 @@ RUN curl -O https://downloads.rclone.org/rclone-current-linux-amd64.zip && \
 
 # Install kubectl
 RUN cd /usr/local/bin && \
-     wget https://storage.googleapis.com/kubernetes-release/release/v1.8.0/bin/linux/amd64/kubectl && \
-     chmod +x ./kubectl && \
-     kubectl version --client
+    wget https://storage.googleapis.com/kubernetes-release/release/v1.8.0/bin/linux/amd64/kubectl && \
+    chmod +x ./kubectl && \
+    kubectl version --client
 
 # package version is to be overloaded with exact version
 ARG NEURO_EXTRAS_PACKAGE=neuro-extras
@@ -38,7 +38,9 @@ ARG NEURO_EXTRAS_PACKAGE=neuro-extras
 ENV PATH=/root/.local/bin:$PATH
 
 RUN pip3 install --no-cache-dir -U pip
-RUN MULTIDICT_NO_EXTENSIONS=1 YARL_NO_EXTENSIONS=1 pip install --user $NEURO_EXTRAS_PACKAGE neuro-flow==21.7.9 awscli
+RUN MULTIDICT_NO_EXTENSIONS=1 YARL_NO_EXTENSIONS=1 pip install --user \
+    $NEURO_EXTRAS_PACKAGE \
+    neuro-flow==21.7.9  # used in outforz, not in reqs file since NF itself requires NE
 RUN neuro-extras init-aliases
 
 RUN mkdir -p /root/.ssh
