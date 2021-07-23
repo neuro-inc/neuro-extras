@@ -1,38 +1,54 @@
-FROM python:3.7-stretch as requirements
+FROM python:3.7.11-alpine3.13
 
-RUN pip install --user \
-    awscli google-cloud-storage crcmod
+ENV LANG C.UTF-8
+ENV PYTHONUNBUFFERED 1
 
-FROM python:3.7-stretch as service
+ARG CLOUD_SDK_VERSION=347.0.0
+ENV CLOUD_SDK_VERSION=$CLOUD_SDK_VERSION
 
-RUN echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] http://packages.cloud.google.com/apt cloud-sdk main" \
-        | tee -a /etc/apt/sources.list.d/google-cloud-sdk.list && \
-    curl https://packages.cloud.google.com/apt/doc/apt-key.gpg \
-        | apt-key --keyring /usr/share/keyrings/cloud.google.gpg add - && \
-    apt-get update -y
+ENV PATH /google-cloud-sdk/bin:$PATH
 
-RUN apt-get install -y --no-install-recommends \
-        google-cloud-sdk \
-        gcc \
-        kubectl \
-        python3-dev \
-        python3-setuptools && \
-    curl https://rclone.org/install.sh | bash && \
-    apt-get clean -y -qq && \
-    apt-get autoremove -y -qq && \
-    rm -rf /var/lib/apt/lists/*
+RUN apk add --no-cache make curl git rsync unrar zip unzip vim wget openssh-client ca-certificates bash
 
-COPY --from=requirements /root/.local /root/.local
-COPY docker.entrypoint.sh /var/lib/neuro/entrypoint.sh
-RUN chmod u+x /var/lib/neuro/entrypoint.sh
+# Install Google Cloud SDK
+RUN wget -q https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-sdk-${CLOUD_SDK_VERSION}-linux-x86_64.tar.gz && \
+    tar xzf google-cloud-sdk-${CLOUD_SDK_VERSION}-linux-x86_64.tar.gz && \
+    rm google-cloud-sdk-${CLOUD_SDK_VERSION}-linux-x86_64.tar.gz && \
+    ln -s /lib /lib64 && \
+    gcloud config set core/disable_usage_reporting true && \
+    gcloud --version
 
-WORKDIR /root
-ENV PATH=/root/.local/bin:$PATH
+# Install rclone
+RUN curl -O https://downloads.rclone.org/rclone-current-linux-amd64.zip && \
+    unzip rclone-current-linux-amd64.zip && \
+    rm rclone-current-linux-amd64.zip && \
+    cp rclone-*-linux-amd64/rclone /usr/bin/ && \
+    rm -rf rclone-*-linux-amd64 && \
+    chmod 755 /usr/bin/rclone
+
+# Install kubectl
+RUN cd /usr/local/bin && \
+    wget https://storage.googleapis.com/kubernetes-release/release/v1.8.0/bin/linux/amd64/kubectl && \
+    chmod +x ./kubectl && \
+    kubectl version --client
 
 # package version is to be overloaded with exact version
 ARG NEURO_EXTRAS_PACKAGE=neuro-extras
 
-RUN pip install --user $NEURO_EXTRAS_PACKAGE
+ENV PATH=/root/.local/bin:$PATH
+
+RUN pip3 install --no-cache-dir -U pip
+RUN MULTIDICT_NO_EXTENSIONS=1 YARL_NO_EXTENSIONS=1 pip install --user \
+    $NEURO_EXTRAS_PACKAGE \
+    neuro-flow==21.7.9  # used in outforz, not in reqs file since NF itself requires NE
 RUN neuro-extras init-aliases
 
+RUN mkdir -p /root/.ssh
+COPY files/ssh/known_hosts /root/.ssh/known_hosts
+
+VOLUME ["/root/.config"]
+
+WORKDIR /root
+
+COPY docker.entrypoint.sh /var/lib/neuro/entrypoint.sh
 ENTRYPOINT ["/var/lib/neuro/entrypoint.sh"]

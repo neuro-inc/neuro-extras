@@ -55,9 +55,7 @@ def project_dir() -> Iterator[Path]:
 
 GCP_BUCKET = "gs://mlops-ci-e2e"
 AWS_BUCKET = "s3://cookiecutter-e2e"
-AZURE_BUCKET = (
-    "azure+https://st4006d4f97475ef17167b.blob.core.windows.net/cookiecutter-e2e"
-)
+AZURE_BUCKET = "azure+https://neuromlops.blob.core.windows.net/cookiecutter-e2e"
 HTTP_BUCKET = "http://s3.amazonaws.com/data.neu.ro/cookiecutter-e2e"
 HTTPS_BUCKET = "https://s3.amazonaws.com/data.neu.ro/cookiecutter-e2e"
 
@@ -91,8 +89,9 @@ def cli_runner(capfd: CaptureFixture[str], project_dir: Path) -> CLIRunner:
             code = e.code
         out, err = capfd.readouterr()
         out, err = out.strip(), err.strip()
-        if out:
-            logger.debug(f"Stdout:\n{SEP_BEGIN}\n{out}\n{SEP_END}\nStdout finished")
+        # This generates too much garbage, but might be handy for debugging
+        # if out:
+        #    logger.debug(f"Stdout:\n{SEP_BEGIN}\n{out}\n{SEP_END}\nStdout finished")
         if err:
             logger.debug(f"Stderr:\n{SEP_BEGIN}\n{err}\n{SEP_END}\nStderr finished")
         return CompletedProcess(
@@ -1025,6 +1024,7 @@ def args_data_cp_from_cloud(cli_runner: CLIRunner) -> Callable[..., List[str]]:
             args.append("-c")
         if use_temp_dir:
             args.append("-t")
+        logger.info("args = %s", args)
         return args
 
     return _f

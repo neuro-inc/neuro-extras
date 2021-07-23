@@ -6,6 +6,7 @@ from distutils import dir_util
 from enum import Enum
 from pathlib import Path
 from typing import List, Optional, Sequence
+from urllib import parse
 
 import click
 import neuro_sdk as neuro_api
@@ -32,6 +33,8 @@ SUPPORTED_ARCHIVE_TYPES = (
 SUPPORTED_OBJECT_STORAGE_SCHEMES = {
     "AWS": "s3://",
     "GCS": "gs://",
+    # originally, Azure's blob scheme is 'http(s)',
+    # but we prepend 'azure+' to differenciate https vs azure
     "AZURE": "azure+https://",
     "HTTP": "http://",
     "HTTPS": "https://",
@@ -143,7 +146,9 @@ def data_transfer(source: str, destination: str) -> None:
     help=(
         "Copy data between external object storage and cluster. "
         "Supported external object storage systems: "
-        f"{list(SUPPORTED_OBJECT_STORAGE_SCHEMES.keys())}"
+        f"{list(SUPPORTED_OBJECT_STORAGE_SCHEMES.keys())}. "
+        "Note: originally, Azure's blob storage scheme is 'http(s)', "
+        "but we prepend 'azure+' to differenciate https vs azure"
     ),
 )
 @click.argument("source")
@@ -378,15 +383,19 @@ def _patch_azure_url_for_rclone(url: URL) -> str:
 def _build_sas_url(source_url: URL, destination_url: URL) -> URL:
     """
     In order to build SAS URL we replace original URL scheme with HTTPS,
-    remove everything from path except bucket name and append SAS token
+    remove everything from path except bucket name and append SAS token as a query
     """
     azure_url = source_url if source_url.scheme == "azure+https" else destination_url
-    sas_token = os.getenv("AZURE_SAS_TOKEN")
+    sas_token = os.getenv("AZURE_SAS_TOKEN", "")
     azure_url = (
         azure_url.with_scheme("https")
         .with_path("/".join(azure_url.path.split("/")[:2]))
         .with_query(sas_token)
     )
+    # with_query performs urlencode of sas_token, which brokes the token,
+    # so we urldecode the resulting url
+    azure_url = URL(parse.unquote(str(azure_url)))
+    logger.info("Azure URL: %s", azure_url)
     return azure_url
 
 
