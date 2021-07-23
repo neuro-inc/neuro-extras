@@ -545,9 +545,9 @@ def _rm_local(target: Path) -> None:
         target.unlink()
 
 
-async def _data_transfer(src_uri: str, dst_uri: str) -> None:
-    src_cluster_or_null = _get_cluster_from_uri(src_uri, scheme="storage")
-    dst_cluster = _get_cluster_from_uri(dst_uri, scheme="storage")
+async def _data_transfer(src_uri_str: str, dst_uri_str: str) -> None:
+    src_cluster_or_null = _get_cluster_from_uri(src_uri_str, scheme="storage")
+    dst_cluster = _get_cluster_from_uri(dst_uri_str, scheme="storage")
 
     if not src_cluster_or_null:
         async with get_neuro_client() as src_client:
@@ -556,14 +556,18 @@ async def _data_transfer(src_uri: str, dst_uri: str) -> None:
         src_cluster = src_cluster_or_null
 
     if not dst_cluster:
-        raise ValueError(f"Invalid destination path {dst_uri}: missing cluster name")
+        raise ValueError(
+            f"Invalid destination path {dst_uri_str}: missing cluster name"
+        )
 
     async with get_neuro_client(cluster=dst_cluster) as client:
         await client.storage.mkdir(URL("storage:"), parents=True, exist_ok=True)
-        await _run_copy_container(src_cluster, src_uri, dst_uri)
+        await _run_copy_container(src_cluster, src_uri_str, dst_uri_str)
 
 
-async def _run_copy_container(src_cluster: str, src_uri: str, dst_uri: str) -> None:
+async def _run_copy_container(
+    src_cluster: str, src_uri_str: str, dst_uri_str: str
+) -> None:
     args = [
         "neuro",
         "run",
@@ -571,12 +575,12 @@ async def _run_copy_container(src_cluster: str, src_uri: str, dst_uri: str) -> N
         "cpu-small",
         "--pass-config",
         "-v",
-        f"{dst_uri}:/storage:rw",
+        f"{dst_uri_str}:/storage:rw",
         "-e",
         f"NEURO_CLUSTER={src_cluster}",  # inside the job, switch neuro to 'src_cluster'
         "--life-span 10d",
         NEURO_EXTRAS_IMAGE,
-        f"neuro --show-traceback cp --progress -r -u -T {src_uri} /storage",
+        f"neuro --show-traceback cp --progress -r -u -T {src_uri_str} /storage",
     ]
     cmd = " ".join(args)
     click.echo(f"Running '{cmd}'")

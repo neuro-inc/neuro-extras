@@ -44,20 +44,47 @@ class DockerConfig:
         }
 
 
+async def create_docker_config_auth(
+    client_config: neuro_api.Config,
+) -> DockerConfigAuth:
+    # retrieve registry hostname with optional port
+    url = client_config.registry_url
+    assert url.host
+    port = f":{url.explicit_port}" if url.explicit_port else ""  # type: ignore
+    registry_host = url.host + port
+    auth = DockerConfigAuth(
+        registry=registry_host,
+        username=client_config.username,
+        password=await client_config.token(),
+    )
+    return auth
+
+
 class ImageBuilder:
     def __init__(
         self,
         client: neuro_api.Client,
-        other_clients_configs: Sequence[neuro_api.Config] = (),
+        extra_registry_auths: Sequence[DockerConfigAuth] = (),
         verbose: bool = False,
     ) -> None:
-        self._client = client
-        self._other_clients_configs = list(other_clients_configs)
-        self._verbose = verbose
+        """
+            Builds and pushes docker image to the platform.
+            Build is currently happens on the platform, using Kaniko tool.
+            TODO: add possibility to build using local docker.
 
-    @property
-    def _all_configs(self) -> Sequence[neuro_api.Config]:
-        return [self._client.config] + self._other_clients_configs
+        Args:
+            client (neuro_api.Client): instance of neuro-sdk client,
+                authenticated to the destination cluster
+            extra_registry_auths (Sequence[DockerConfigAuth], optional):
+                Sequence of extra docker container registry auth credits,
+                useful if base image(s) hidden under private registry(es).
+                Defaults to ().
+            verbose (bool, optional): Whether to set Kaniko's verbosity to DEBUG.
+                Defaults to False.
+        """
+        self._client = client
+        self._extra_registry_auths = list(extra_registry_auths)
+        self._verbose = verbose
 
     def _generate_build_uri(self) -> URL:
         return normalize_storage_path_uri(
@@ -66,23 +93,9 @@ class ImageBuilder:
             self._client.cluster_name,
         )
 
-    def _get_registry(self, config: neuro_api.Config) -> str:
-        url = config.registry_url
-        if url.explicit_port:  # type: ignore
-            return f"{url.host}:{url.explicit_port}"  # type: ignore
-        return url.host  # type: ignore
-
     async def create_docker_config(self) -> DockerConfig:
-        return DockerConfig(
-            auths=[
-                DockerConfigAuth(
-                    registry=self._get_registry(config),
-                    username=config.username,
-                    password=await config.token(),
-                )
-                for config in self._all_configs
-            ]
-        )
+        dst_reg_auth = await create_docker_config_auth(self._client.config)
+        return DockerConfig(auths=[dst_reg_auth] + self._extra_registry_auths)
 
     async def save_docker_config(self, docker_config: DockerConfig, uri: URL) -> None:
         async def _gen() -> AsyncIterator[bytes]:

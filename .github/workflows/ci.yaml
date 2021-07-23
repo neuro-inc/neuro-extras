@@ -30,7 +30,7 @@ jobs:
     - name: Cache Python and its deps
       uses: actions/cache@v2.1.6
       with:
-        key: ${{ runner.os }}-python-3.7-${{ hashFiles('requirements/*.txt') }}
+        key: ${{ runner.os }}-py-3.7-${{ hashFiles('requirements/*.txt') }}
         path: ${{ env.pythonLocation }}
 
     - name: Cache pre-commit hooks
@@ -79,7 +79,7 @@ jobs:
     - name: Cache Python and its deps
       uses: actions/cache@v2.1.6
       with:
-        key: ${{ runner.os }}-python-3.7-${{ hashFiles('requirements/base.txt') }}
+        key: ${{ runner.os }}-py-3.7-${{ hashFiles('requirements/base.txt') }}
         path: ${{ env.pythonLocation }}
 
     - name: Install and configure neuro
@@ -141,7 +141,7 @@ jobs:
     - name: Cache Python and its deps
       uses: actions/cache@v2.1.6
       with:
-        key: ${{ runner.os }}-python-${{ matrix.python-version }}-${{ hashFiles('setup.py', 'requirements/*.txt') }}
+        key: ${{ runner.os }}-py-${{ matrix.python-version }}-${{ hashFiles('setup.py', 'requirements/*.txt') }}
         path: ${{ env.pythonLocation }}
 
     - name: Cache pre-commit hooks
@@ -217,7 +217,7 @@ jobs:
       - name: Cache Python and its deps
         uses: actions/cache@v2.1.6
         with:
-          key: ${{ runner.os }}-python-3.7-${{ hashFiles('requirements/base.txt') }}
+          key: ${{ runner.os }}-py-3.7-${{ hashFiles('requirements/base.txt') }}
           path: ${{ env.pythonLocation }}
 
       - name: Install and configure neuro

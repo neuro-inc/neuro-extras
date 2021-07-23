@@ -12,7 +12,7 @@ from neuro_cli.const import EX_OK, EX_PLATFORMERROR
 from neuro_sdk.url_utils import uri_from_cli
 
 from .cli import main
-from .image_builder import ImageBuilder
+from .image_builder import DockerConfigAuth, ImageBuilder, create_docker_config_auth
 from .utils import get_neuro_client
 
 
@@ -174,23 +174,27 @@ def _get_cluster_from_uri(image_uri: str, *, scheme: str) -> Optional[str]:
     return uri.host
 
 
-async def _image_transfer(src_uri: str, dst_uri: str, force_overwrite: bool) -> int:
-    src_cluster: Optional[str] = _get_cluster_from_uri(src_uri, scheme="image")
-    dst_cluster: Optional[str] = _get_cluster_from_uri(dst_uri, scheme="image")
+async def _image_transfer(
+    src_uri_str: str, dst_uri_str: str, force_overwrite: bool
+) -> int:
+    src_cluster: Optional[str] = _get_cluster_from_uri(src_uri_str, scheme="image")
+    dst_cluster: Optional[str] = _get_cluster_from_uri(dst_uri_str, scheme="image")
     if not dst_cluster:
-        raise ValueError(f"Invalid destination image {dst_uri}: missing cluster name")
+        raise ValueError(
+            f"Invalid destination image {dst_uri_str}: missing cluster name"
+        )
 
     with tempfile.TemporaryDirectory() as tmpdir:
         async with get_neuro_client(cluster=src_cluster) as src_client:
-            src_image = src_client.parse.remote_image(image=src_uri)
-            src_client_config = src_client.config
+            src_image = src_client.parse.remote_image(image=src_uri_str)
+            src_reg_auth = await create_docker_config_auth(src_client.config)
 
         dockerfile = Path(f"{tmpdir}/Dockerfile")
         dockerfile.write_text(
             textwrap.dedent(
                 f"""\
                 FROM {src_image.as_docker_url()}
-                LABEL neu.ro/source-image-uri={src_uri}
+                LABEL neu.ro/source-image-uri={src_uri_str}
                 """
             )
         )
@@ -201,14 +205,14 @@ async def _image_transfer(src_uri: str, dst_uri: str, force_overwrite: bool) -> 
         return await _build_image(
             dockerfile_path=Path(dockerfile.name),
             context=tmpdir,
-            image_uri=dst_uri,
+            image_uri=dst_uri_str,
             use_cache=True,
             build_args=(),
             volume=(),
             env=(),
             build_tags=migration_job_tags,
             force_overwrite=force_overwrite,
-            other_client_configs=[src_client_config],
+            registry_auths=[src_reg_auth],
         )
 
 
@@ -223,7 +227,7 @@ async def _build_image(
     build_tags: Tuple[str, ...],
     force_overwrite: bool,
     preset: Optional[str] = None,
-    other_client_configs: Sequence[neuro_api.Config] = (),
+    registry_auths: Sequence[DockerConfigAuth] = (),
     verbose: bool = False,
 ) -> int:
     cluster = _get_cluster_from_uri(image_uri, scheme="image")
@@ -260,7 +264,7 @@ async def _build_image(
                 )
 
         builder = ImageBuilder(
-            client, other_clients_configs=other_client_configs, verbose=verbose
+            client, extra_registry_auths=registry_auths, verbose=verbose
         )
         exit_code = await builder.build(
             dockerfile_path=dockerfile_path,
