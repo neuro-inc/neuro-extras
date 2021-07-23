@@ -49,10 +49,9 @@ async def create_docker_config_auth(
 ) -> DockerConfigAuth:
     # retrieve registry hostname with optional port
     url = client_config.registry_url
-    registry_host = (
-        url.host + str(url.explicit_port) if url.explicit_port else ""  # type: ignore
-    )
-
+    assert url.host
+    port = f":{url.explicit_port}" if url.explicit_port else ""  # type: ignore
+    registry_host = url.host + port
     auth = DockerConfigAuth(
         registry=registry_host,
         username=client_config.username,
