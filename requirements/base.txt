@@ -1,5 +1,6 @@
 awscli==1.20.5
 click==8.0.1
+colorama<0.4.4,>=0.2.5 # from awscli
 dataclasses==0.7; python_version<"3.7"
 neuro-cli==21.7.9
 pyyaml==5.4.1
