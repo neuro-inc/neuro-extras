@@ -1,4 +1,4 @@
-awscli==1.20.5
+awscli==1.20.6
 click==8.0.1
 colorama<=0.4.3 # from awscli
 dataclasses==0.7; python_version<"3.7"
