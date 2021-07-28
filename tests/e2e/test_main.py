@@ -380,9 +380,9 @@ def test_data_transfer(
     switch_cluster: Callable[[str], ContextManager[None]],
 ) -> None:
     # Note: data-transfer runs copying job on dst_cluster and
-    # we pushed test image to `neuro-compute`, so it should be a target cluster
-    src_cluster = "onprem-poc"  # can be any other cluster
-    dst_cluster = "neuro-compute"
+    # we pushed test image to src_cluster, so it should be a target cluster
+    src_cluster = os.environ["NEURO_CLUSTER_SECONDARY"]
+    dst_cluster = os.environ["NEURO_CLUSTER"]
 
     with switch_cluster(src_cluster):
         result = cli_runner(["neuro-extras", "init-aliases"])
@@ -423,9 +423,9 @@ def test_image_transfer(
     switch_cluster: Callable[[str], ContextManager[None]],
     current_user: str,
 ) -> None:
-    # Note: we build image on onprem-poc and transfer to neuro-compute
-    src_cluster = "onprem-poc"
-    dst_cluster = "neuro-compute"  # can be any other cluster
+    # Note: we build src image on src_cluster and run transfer job in dst_cluster
+    src_cluster = os.environ["NEURO_CLUSTER_SECONDARY"]
+    dst_cluster = os.environ["NEURO_CLUSTER"]  # can be any other cluster
     assert src_cluster != dst_cluster
 
     with switch_cluster(src_cluster):
