@@ -164,7 +164,8 @@ jobs:
       PYTHONIOENCODING: utf-8
       NEURO_STAGING_URL: ${{ secrets.NEURO_STAGING_URL }}
       NEURO_TOKEN: ${{ secrets.NEURO_TOKEN }}
-      NEURO_CLUSTER: neuro-compute
+      NEURO_CLUSTER: ${{ secrets.MLOPS_E2E_TESTS_CLUSTER }}
+      NEURO_CLUSTER_SECONDARY: ${{ secrets.MLOPS_E2E_TESTS_CLUSTER_SECONDARY }}
       DOCKER_SERVER: docker.io
       DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
       DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
