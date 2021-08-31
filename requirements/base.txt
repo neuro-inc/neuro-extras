@@ -1,6 +1,6 @@
 awscli==1.20.5
 click==8.0.1
 dataclasses==0.7; python_version<"3.7"
-neuro-cli==21.8.27
+neuro-cli==21.8.30
 pyyaml==5.4.1
 toml==0.10.2
