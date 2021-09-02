@@ -1,4 +1,4 @@
-FROM python:3.9.6-alpine3.13
+FROM python:3.9.7-alpine3.13
 
 ENV LANG C.UTF-8
 ENV PYTHONUNBUFFERED 1
@@ -37,10 +37,12 @@ ARG NEURO_EXTRAS_PACKAGE=neuro-extras
 
 ENV PATH=/root/.local/bin:$PATH
 
-RUN pip3 install --no-cache-dir -U pip
+RUN pip3 install --no-cache-dir -U pip pipx
 RUN MULTIDICT_NO_EXTENSIONS=1 YARL_NO_EXTENSIONS=1 pip install --user \
     $NEURO_EXTRAS_PACKAGE \
-    neuro-flow==21.7.9  # used in outforz, not in reqs file since NF itself requires NE
+    # used in outforz, not in reqs file since NF itself requires NE
+    neuro-flow==21.7.9 && \
+    pipx install awscli # isolated env since it has conflicts with neuro-cli
 RUN neuro-extras init-aliases
 
 RUN mkdir -p /root/.ssh
