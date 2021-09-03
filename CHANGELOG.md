@@ -4,6 +4,17 @@
 
 [comment]: # (towncrier release notes start)
 
+neuro-extras v21.9.3 (2021-09-03)
+=================================
+
+
+Features
+--------
+
+
+- Support Python 3.8 and 3.9 ([#249](https://github.com/neuromation/neuro-extras/issues/249))
+
+
 neuro-extras v21.7.23 (2021-07-23)
 =================================
 
