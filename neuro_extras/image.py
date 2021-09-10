@@ -8,7 +8,8 @@ from typing import Optional, Sequence, Tuple
 import click
 import neuro_sdk as neuro_api
 from neuro_cli.asyncio_utils import run as run_async
-from neuro_cli.const import EX_OK, EX_PLATFORMERROR
+from neuro_cli.const import EX_OK
+from neuro_sdk.client import Client
 from neuro_sdk.url_utils import uri_from_cli
 
 from .cli import main
@@ -141,27 +142,29 @@ def image_build(
     verbose: bool,
     build_tag: Tuple[str],
 ) -> None:
-    try:
-        sys.exit(
-            run_async(
-                _build_image(
-                    dockerfile_path=Path(file),
-                    context=path,
-                    image_uri=image_uri,
-                    use_cache=cache,
-                    build_args=build_arg,
-                    volume=volume,
-                    env=env,
-                    preset=preset,
-                    force_overwrite=force_overwrite,
-                    verbose=verbose,
-                    build_tags=build_tag,
-                )
+    # try:
+    sys.exit(
+        run_async(
+            _build_image(
+                dockerfile_path=Path(file),
+                context=path,
+                image_uri_str=image_uri,
+                use_cache=cache,
+                build_args=build_arg,
+                volume=volume,
+                env=env,
+                preset=preset,
+                force_overwrite=force_overwrite,
+                verbose=verbose,
+                build_tags=build_tag,
             )
         )
-    except (ValueError, click.ClickException) as e:
-        logger.error(f"Failed to build image: {e}")
-        sys.exit(EX_PLATFORMERROR)
+    )
+
+
+# except (ValueError, click.ClickException) as e:
+#     logger.error(f"Failed to build image: {e}")
+#     sys.exit(EX_PLATFORMERROR)
 
 
 async def _parse_neuro_image(image: str) -> neuro_api.RemoteImage:
@@ -170,8 +173,12 @@ async def _parse_neuro_image(image: str) -> neuro_api.RemoteImage:
 
 
 def _get_cluster_from_uri(image_uri: str, *, scheme: str) -> Optional[str]:
-    uri = uri_from_cli(image_uri, "", "", allowed_schemes=[scheme])
-    return uri.host
+    try:
+        uri = uri_from_cli(image_uri, "", "", allowed_schemes=[scheme])
+        return uri.host
+    except ValueError:
+        # seems like the image scheme was not provided, since it's hosted in dockerhub
+        return None
 
 
 async def _image_transfer(
@@ -205,7 +212,7 @@ async def _image_transfer(
         return await _build_image(
             dockerfile_path=Path(dockerfile.name),
             context=tmpdir,
-            image_uri=dst_uri_str,
+            image_uri_str=dst_uri_str,
             use_cache=True,
             build_args=(),
             volume=(),
@@ -219,7 +226,7 @@ async def _image_transfer(
 async def _build_image(
     dockerfile_path: Path,
     context: str,
-    image_uri: str,
+    image_uri_str: str,
     use_cache: bool,
     build_args: Tuple[str, ...],
     volume: Tuple[str, ...],
@@ -230,7 +237,7 @@ async def _build_image(
     registry_auths: Sequence[DockerConfigAuth] = (),
     verbose: bool = False,
 ) -> int:
-    cluster = _get_cluster_from_uri(image_uri, scheme="image")
+    cluster = _get_cluster_from_uri(image_uri_str, scheme="image")
     async with get_neuro_client(cluster=cluster) as client:
         context_uri = uri_from_cli(
             context,
@@ -238,30 +245,16 @@ async def _build_image(
             client.cluster_name,
             allowed_schemes=("file", "storage"),
         )
-        target_image = await _parse_neuro_image(image_uri)
-        try:
-            existing_images = await client.images.tags(
-                neuro_api.RemoteImage(
-                    name=target_image.name,
-                    owner=target_image.owner,
-                    cluster_name=target_image.cluster_name,
-                    registry=target_image.registry,
-                    tag=None,
-                )
+        image_exists = await _check_image_exists(image_uri_str, client)
+        if image_exists and force_overwrite:
+            logger.warning(
+                f"Target image '{image_uri_str}' exists and will be overwritten."
             )
-        except neuro_api.errors.ResourceNotFound:
-            # target_image does not exists on platform registry, skip else block
-            pass
-        else:
-            if target_image in existing_images and force_overwrite:
-                logger.warning(
-                    f"Target image '{target_image}' exists and will be overwritten."
-                )
-            elif target_image in existing_images and not force_overwrite:
-                raise click.ClickException(
-                    f"Target image '{target_image}' exists. "
-                    f"Use -F/--force-overwrite flag to enforce overwriting."
-                )
+        elif image_exists and not force_overwrite:
+            raise click.ClickException(
+                f"Target image '{image_uri_str}' exists. "
+                f"Use -F/--force-overwrite flag to enforce overwriting."
+            )
 
         builder = ImageBuilder(
             client, extra_registry_auths=registry_auths, verbose=verbose
@@ -269,7 +262,7 @@ async def _build_image(
         exit_code = await builder.build(
             dockerfile_path=dockerfile_path,
             context_uri=context_uri,
-            image_uri_str=image_uri,
+            image_uri_str=image_uri_str,
             use_cache=use_cache,
             build_args=build_args,
             volumes=volume,
@@ -278,7 +271,32 @@ async def _build_image(
             build_tags=build_tags,
         )
         if exit_code == EX_OK:
-            logger.info(f"Successfully built {image_uri}")
+            logger.info(f"Successfully built {image_uri_str}")
             return EX_OK
         else:
             raise click.ClickException(f"Failed to build image: {exit_code}")
+
+
+async def _check_image_exists(image_uri_str: str, client: Client) -> bool:
+    image = await _parse_neuro_image(image_uri_str)
+    if image.registry is None:
+        # TODO (y.s.): we might need to implement this check later.
+        logger.warning(
+            f"Skipp check if image '{image}' exists. "
+            "If it does exist - it will be overwritten!"
+        )
+        return False
+    try:
+        existing_images = await client.images.tags(
+            neuro_api.RemoteImage(
+                name=image.name,
+                owner=image.owner,
+                cluster_name=image.cluster_name,
+                registry=image.registry,
+                tag=None,
+            )
+        )
+        return image in existing_images
+    except neuro_api.errors.ResourceNotFound:
+        # image does not exists on platform registry
+        return False

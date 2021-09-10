@@ -1,5 +1,6 @@
 -e .
 -r syntax.txt
+deepdiff==5.5.0
 pytest==6.2.5
 pytest-xdist==2.3.0
 towncrier==21.3.0
