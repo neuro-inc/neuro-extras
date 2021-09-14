@@ -1,10 +1,4 @@
 version: 2
-registries:
-  python-index-devpi-dev-neu-ro-testuser-dev:
-    type: python-index
-    url: https://devpi-dev.neu.ro/testuser/dev
-    username: "${{secrets.PYTHON_INDEX_DEVPI_DEV_NEU_RO_TESTUSER_DEV_USERNAME}}"
-    password: "${{secrets.PYTHON_INDEX_DEVPI_DEV_NEU_RO_TESTUSER_DEV_PASSWORD}}"
 updates:
 - package-ecosystem: pip
   directory: "/"
@@ -14,11 +8,8 @@ updates:
   open-pull-requests-limit: 10
   assignees:
   - anayden
-  - artemlops
   - YevheniiSemendiak
   insecure-external-code-execution: allow
-  registries:
-  - python-index-devpi-dev-neu-ro-testuser-dev
 - package-ecosystem: docker
   directory: "/"
   schedule:
