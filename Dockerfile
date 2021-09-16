@@ -1,5 +1,7 @@
 FROM python:3.9.7-alpine3.13
 
+LABEL org.opencontainers.image.source = "https://github.com/neuro-inc/neuro-extras"
+
 ENV LANG C.UTF-8
 ENV PYTHONUNBUFFERED 1
 
