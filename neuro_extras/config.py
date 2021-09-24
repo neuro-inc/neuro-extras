@@ -52,17 +52,17 @@ async def _save_registry_auth(path: str, cluster: Optional[str]) -> None:
             await builder.save_docker_config(docker_config, uri)
 
 
-@config.command("construct-registy-auth")
+@config.command("build-registy-auth")
 @click.argument("registry-uri")
 @click.argument("username")
 @click.argument("password")
-def construct_registy_auth(registry_uri: str, username: str, password: str) -> None:
+def build_registy_auth(registry_uri: str, username: str, password: str) -> None:
     """Generate docker auth for accessing remote registry."""
-    auth = _construct_registy_auth(registry_uri, username, password)
+    auth = _build_registy_auth(registry_uri, username, password)
     click.echo(auth)
 
 
-def _construct_registy_auth(registry_uri: str, username: str, password: str) -> str:
+def _build_registy_auth(registry_uri: str, username: str, password: str) -> str:
     config = DockerConfigAuth(registry_uri, username, password)
     result = {"auths": {registry_uri: {"auth": config.credentials}}}
     return json.dumps(result)

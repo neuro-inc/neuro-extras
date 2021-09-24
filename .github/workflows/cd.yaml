@@ -1,4 +1,4 @@
-name: CI
+name: CD
 
 on:
   release:
@@ -134,16 +134,7 @@ jobs:
         export IMAGE=${{ steps.push.outputs.image }}
         export TAG=${{ steps.push.outputs.tag }}
 
-        docker_tag_exists () {
-            CT="Content-Type: application/json"
-            U=$DOCKER_USERNAME
-            P=$DOCKER_PASSWORD
-            URL=https://hub.docker.com
-            TOKEN=$(curl -s -H "$CT" -X POST -d '{"username": "'$U'", "password": "'$P'"}' $URL/v2/users/login/ | jq -r .token)
-            curl --silent -f --head -lL $URL/v2/repositories/$1/tags/$2/ > /dev/null
-        }
-
-        until docker_tag_exists $IMAGE $TAG
+        until curl --silent -f --head -lL $URL/v2/repositories/$IMAGE/tags/$TAG/ > /dev/null
         do
             echo "Waiting for the dockerhub image $IMAGE:$TAG ..."
             sleep 1
@@ -238,6 +229,7 @@ jobs:
         make test_e2e
     - name: Run e2e tests on Windows
       if: matrix.os == 'windows'
+      shell: pwsh
       run: |
         if (Test-Path 'Env:NEURO_EXTRAS_IMAGE') { # clear this env var to test it in real
           Remove-Item 'Env:NEURO_EXTRAS_IMAGE'

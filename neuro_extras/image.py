@@ -8,7 +8,7 @@ from typing import Optional, Sequence, Tuple
 import click
 import neuro_sdk as neuro_api
 from neuro_cli.asyncio_utils import run as run_async
-from neuro_cli.const import EX_OK
+from neuro_cli.const import EX_OK, EX_PLATFORMERROR
 from neuro_sdk.client import Client
 from neuro_sdk.url_utils import uri_from_cli
 
@@ -142,29 +142,27 @@ def image_build(
     verbose: bool,
     build_tag: Tuple[str],
 ) -> None:
-    # try:
-    sys.exit(
-        run_async(
-            _build_image(
-                dockerfile_path=Path(file),
-                context=path,
-                image_uri_str=image_uri,
-                use_cache=cache,
-                build_args=build_arg,
-                volume=volume,
-                env=env,
-                preset=preset,
-                force_overwrite=force_overwrite,
-                verbose=verbose,
-                build_tags=build_tag,
+    try:
+        sys.exit(
+            run_async(
+                _build_image(
+                    dockerfile_path=Path(file),
+                    context=path,
+                    image_uri_str=image_uri,
+                    use_cache=cache,
+                    build_args=build_arg,
+                    volume=volume,
+                    env=env,
+                    preset=preset,
+                    force_overwrite=force_overwrite,
+                    verbose=verbose,
+                    build_tags=build_tag,
+                )
             )
         )
-    )
-
-
-# except (ValueError, click.ClickException) as e:
-#     logger.error(f"Failed to build image: {e}")
-#     sys.exit(EX_PLATFORMERROR)
+    except (ValueError, click.ClickException) as e:
+        logger.error(f"Failed to build image: {e}")
+        sys.exit(EX_PLATFORMERROR)
 
 
 async def _parse_neuro_image(image: str) -> neuro_api.RemoteImage:
@@ -282,7 +280,7 @@ async def _check_image_exists(image_uri_str: str, client: Client) -> bool:
     if image.registry is None:
         # TODO (y.s.): we might need to implement this check later.
         logger.warning(
-            f"Skipp check if image '{image}' exists. "
+            f"Skipping check if image '{image}' exists. "
             "If it does exist - it will be overwritten!"
         )
         return False

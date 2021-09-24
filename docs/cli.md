@@ -55,18 +55,18 @@ neuro-extras config [OPTIONS] COMMAND [ARGS]...
 
 | Usage | Description |
 | :--- | :--- |
-| [_neuro-extras config construct-registy-auth_](cli.md#neuro-extras-config-construct-registy-auth) | Generate docker auth for accessing remote registry. |
+| [_neuro-extras config build-registy-auth_](cli.md#neuro-extras-config-build-registy-auth) | Generate docker auth for accessing remote registry. |
 | [_neuro-extras config save-registry-auth_](cli.md#neuro-extras-config-save-registry-auth) | Save docker auth file for accessing platform registry. |
 
-#### neuro-extras config construct-registy-auth
+#### neuro-extras config build-registy-auth
 
 Generate docker auth for accessing remote registry.
 
 **Usage:**
 
 ```bash
-neuro-extras config construct-registy-auth [OPTIONS] REGISTRY_URI
-                                                  USERNAME PASSWORD
+neuro-extras config build-registy-auth [OPTIONS] REGISTRY_URI USERNAME
+                                              PASSWORD
 ```
 
 **Options:**

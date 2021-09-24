@@ -19,7 +19,7 @@ from neuro_cli.main import cli as neuro_main
 
 from neuro_extras import main as extras_main
 from neuro_extras.common import NEURO_EXTRAS_IMAGE
-from neuro_extras.config import _construct_registy_auth
+from neuro_extras.config import _build_registy_auth
 from neuro_extras.image_builder import KANIKO_AUTH_PREFIX
 
 
@@ -127,7 +127,7 @@ def switch_cluster(
 @pytest.fixture
 def dockerhub_auth_secret(_neuro_client: neuro_api.Client) -> Iterator[Secret]:
     secret_name = f"{KANIKO_AUTH_PREFIX}_{uuid.uuid4().hex}"
-    auth_data = _construct_registy_auth(
+    auth_data = _build_registy_auth(
         # Why not v2: https://github.com/GoogleContainerTools/kaniko/pull/1209
         registry_uri="https://index.docker.io/v1/",
         username=os.environ["DOCKER_CI_USERNAME"],
