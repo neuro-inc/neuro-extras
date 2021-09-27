@@ -15,12 +15,13 @@ LOGGER = logging.getLogger(__name__)
 
 
 @pytest.mark.skipif(sys.platform == "win32", reason="Need shell to test this test.")
-def test_auth_merge_script(tmp_file: Path) -> None:
+def test_auth_merge_script(tmp_path: Path) -> None:
     auths = TEST_ASSETS_ROOT / "registry_auths"
     script = NEURO_EXTRAS_ROOT / "assets" / "merge_docker_auths.sh"
     auth1 = auths / "default-registry.json"
     auth2 = auths / "dockerhub-registry.json"
     merged = auths / "merged.json"
+    result_file = tmp_path / "result.json"
     # Check assets
     assert script.exists() and script.is_file()
     assert auth1.exists() and auth1.is_file()
@@ -30,7 +31,7 @@ def test_auth_merge_script(tmp_file: Path) -> None:
     os.environ["NE_REGISTRY_AUTH_INVALID"] = "hey there!"
     os.environ["NE_REGISTRY_AUTH_VALID_STR"] = auth1.read_text().replace("\n", "")
     os.environ["NE_REGISTRY_AUTH_VALID_FILE"] = str(auth2)
-    os.environ["NE_RESULT_PATH"] = str(tmp_file)
+    os.environ["NE_RESULT_PATH"] = str(result_file)
 
     proc = subprocess.Popen(
         ["sh", str(script)], stdout=subprocess.PIPE, stderr=subprocess.PIPE
@@ -44,7 +45,7 @@ def test_auth_merge_script(tmp_file: Path) -> None:
         stderr.count("NE_REGISTRY") == 1
     ), "Not only 'NE_REGISTRY_AUTH_INVALID' was asssumed invalid"
     expected = json.loads(merged.read_text())
-    actual = json.loads(tmp_file.read_text())
+    actual = json.loads(result_file.read_text())
     diff = DeepDiff(expected, actual, ignore_order=True)
 
     assert diff == {}, diff

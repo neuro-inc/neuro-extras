@@ -141,7 +141,7 @@ jobs:
         done
 
   test:
-    name: Run e2e tests against release image
+    name: Run tests against release image
     needs: [dockerhub_deploy]
     if: github.event_name == 'release'
     strategy:
@@ -222,16 +222,16 @@ jobs:
         aws-access-key-id: ${{ secrets.E2E_COOKIECUTTER_AWS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.E2E_COOKIECUTTER_AWS_ACCESS_KEY }}
         aws-region: us-east-1
-    - name: Run e2e tests on MacOS and Linux
+    - name: Run tests on MacOS and Linux
       if: matrix.os != 'windows'
       run: |
         unset NEURO_EXTRAS_IMAGE  # clear this env var to test it in real
-        make test_e2e
-    - name: Run e2e tests on Windows
+        make test
+    - name: Run tests on Windows
       if: matrix.os == 'windows'
       shell: pwsh
       run: |
         if (Test-Path 'Env:NEURO_EXTRAS_IMAGE') { # clear this env var to test it in real
           Remove-Item 'Env:NEURO_EXTRAS_IMAGE'
         }
-        make test_e2e
+        make test

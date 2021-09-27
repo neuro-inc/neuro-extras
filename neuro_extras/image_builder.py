@@ -163,7 +163,9 @@ class ImageBuilder:
             # we have extra auth info.
             # in this case we cannot mount registry auth info at the default path
             # and should upload and configure 'merge_docker_auths' script to merge auths
-            docker_config_mnt = str(Path(KANIKO_DOCKER_CONFIG_PATH).with_stem("base"))
+            mnt_path = Path(KANIKO_DOCKER_CONFIG_PATH)
+            mnt_path = mnt_path.with_name(f"{mnt_path.stem}_base{mnt_path.suffix}")
+            docker_config_mnt = str(mnt_path)
             envs += (
                 f"{KANIKO_AUTH_PREFIX}_BASE_{uuid.uuid4().hex[:8]}={docker_config_mnt}",
             )
