@@ -14,7 +14,7 @@ NEURO_EXTRAS_ROOT = Path(__file__).parent.parent.parent / "neuro_extras"
 LOGGER = logging.getLogger(__name__)
 
 
-@pytest.mark.skipif(sys.platform == "win32", reason="Need shell to test this test.")
+@pytest.mark.skipif(sys.platform != "darwin", reason="Need sh to test this test.")
 def test_auth_merge_script(tmp_path: Path) -> None:
     auths = TEST_ASSETS_ROOT / "registry_auths"
     script = NEURO_EXTRAS_ROOT / "assets" / "merge_docker_auths.sh"
