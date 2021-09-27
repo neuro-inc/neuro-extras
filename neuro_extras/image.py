@@ -176,6 +176,7 @@ def _get_cluster_from_uri(image_uri: str, *, scheme: str) -> Optional[str]:
         return uri.host
     except ValueError:
         # seems like the image scheme was not provided, since it's hosted in dockerhub
+        logger.warning(f"Unable to parse the cluster name from URI '{image_uri}' ")
         return None
 
 

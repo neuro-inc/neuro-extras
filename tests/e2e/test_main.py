@@ -6,7 +6,6 @@ import re
 import sys
 import uuid
 from pathlib import Path
-from subprocess import CompletedProcess
 from tempfile import TemporaryDirectory
 from typing import Callable, ContextManager, Iterator, List
 from unittest import mock
@@ -91,9 +90,7 @@ def test_data_transfer(
 
 
 @pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
-def test_seldon_deploy_from_local(
-    cli_runner: CLIRunner, repeat_until_success: Callable[..., "CompletedProcess[str]"]
-) -> None:
+def test_seldon_deploy_from_local(cli_runner: CLIRunner) -> None:
     result = cli_runner(["neuro-extras", "init-aliases"])
     assert result.returncode == 0, result
 
@@ -104,21 +101,19 @@ def test_seldon_deploy_from_local(
 
     assert (pkg_path / "seldon.Dockerfile").exists()
 
-    # TODO (yartem) This part is muted because I'm constantly getting UNAUTHORIZED while
-    #  building the image. See https://github.com/neuro-inc/neuro-extras/issues/123
-    # tag = str(uuid.uuid4())
-    # # WORKAROUND: Fixing 401 Not Authorized because of this problem:
-    # # https://github.com/neuromation/platform-registry-api/issues/209
-    # rnd = uuid.uuid4().hex[:6]
-    # img_name = f"image:extras-e2e-seldon-local-{rnd}"
-    # img_uri = f"{img_name}:{tag}"
-    # result = cli_runner(
-    #     ["neuro", "image-build", "-f", "seldon.Dockerfile", str(pkg_path), img_uri]
-    # )
-    # assert result.returncode == 0, result
-    #
-    # result = repeat_until_success(["neuro", "image", "tags", img_name])
-    # assert tag in result.stdout
+    tag = str(uuid.uuid4())
+    # WORKAROUND: Fixing 401 Not Authorized because of this problem:
+    # https://github.com/neuromation/platform-registry-api/issues/209
+    rnd = uuid.uuid4().hex[:6]
+    img_name = f"image:extras-e2e-seldon-local-{rnd}"
+    img_uri = f"{img_name}:{tag}"
+    result = cli_runner(
+        ["neuro", "image-build", "-f", "seldon.Dockerfile", str(pkg_path), img_uri]
+    )
+    assert result.returncode == 0, result
+
+    result = cli_runner(["neuro", "image", "tags", img_name])
+    assert tag in result.stdout
 
 
 def test_config_save_registry_auth_locally(cli_runner: CLIRunner) -> None:

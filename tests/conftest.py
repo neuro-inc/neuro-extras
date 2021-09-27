@@ -11,4 +11,4 @@ def tmp_file(mode: str = "w") -> Iterator[Path]:
     try:
         yield fp
     finally:
-        fp.unlink()
+        fp.unlink(missing_ok=True)

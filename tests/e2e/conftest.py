@@ -1,7 +1,5 @@
-import asyncio
 import logging
 import os
-import time
 import uuid
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -16,6 +14,7 @@ from _pytest.capture import CaptureFixture
 from neuro_cli.asyncio_utils import run as run_async, setup_child_watcher
 from neuro_cli.const import EX_OK
 from neuro_cli.main import cli as neuro_main
+from tenacity import retry, stop_after_attempt, stop_after_delay
 
 from neuro_extras import main as extras_main
 from neuro_extras.common import NEURO_EXTRAS_IMAGE
@@ -154,6 +153,7 @@ def project_dir() -> Iterator[Path]:
 
 
 @pytest.fixture()
+@retry(stop=stop_after_attempt(5) | stop_after_delay(5 * 10))
 def cli_runner(capfd: CaptureFixture[str], project_dir: Path) -> CLIRunner:
     def _run_cli(args: List[str]) -> "CompletedProcess[str]":
         args = args.copy()
@@ -192,32 +192,3 @@ def cli_runner(capfd: CaptureFixture[str], project_dir: Path) -> CLIRunner:
         )
 
     return _run_cli
-
-
-@pytest.fixture
-def repeat_until_success(
-    cli_runner: CLIRunner,
-) -> Callable[..., "CompletedProcess[str]"]:
-    def _f(args: List[str], timeout: int = 5 * 60) -> "CompletedProcess[str]":
-        logger.info(f"Waiting {timeout} sec for success of {args}")
-        time_started = time.time()
-        time_sleep = 5.0
-        attempts = 0
-        while True:
-            if time.time() - time_started > timeout:
-                raise ValueError(
-                    f"Command {args} couldn't succeed in {attempts} attempts"
-                )
-            attempts += 1
-            try:
-                result = cli_runner(args)
-                if result.returncode == 0:
-                    return result
-            except asyncio.CancelledError:
-                raise
-            except BaseException as e:
-                logger.info(f"Command {args}, exception caught: {e}")
-            time.sleep(time_sleep)
-            time_sleep *= 1.5
-
-    return _f

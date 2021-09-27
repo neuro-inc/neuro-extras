@@ -1,21 +1,23 @@
 import json
+import logging
 import os
 import subprocess
+import sys
 from pathlib import Path
 
+import pytest
 from deepdiff import DeepDiff
 
 
-ASSETS_ROOT = (Path(__file__).parent.parent / "assets").resolve()
+TEST_ASSETS_ROOT = (Path(__file__).parent.parent / "assets").resolve()
+NEURO_EXTRAS_ROOT = Path(__file__).parent.parent.parent / "neuro_extras"
+LOGGER = logging.getLogger(__name__)
 
 
-# @pytest.mark.skipif(
-#     sys.platform != "linux",
-#     reason="Need shell to test this scrip."
-# )
+@pytest.mark.skipif(sys.platform == "win32", reason="Need shell to test this test.")
 def test_auth_merge_script(tmp_file: Path) -> None:
-    auths = ASSETS_ROOT / "registry_auths"
-    script = Path(__file__).parent.parent.parent / "assets" / "merge_docker_auths.sh"
+    auths = TEST_ASSETS_ROOT / "registry_auths"
+    script = NEURO_EXTRAS_ROOT / "assets" / "merge_docker_auths.sh"
     auth1 = auths / "default-registry.json"
     auth2 = auths / "dockerhub-registry.json"
     merged = auths / "merged.json"
@@ -35,8 +37,8 @@ def test_auth_merge_script(tmp_file: Path) -> None:
     )
     stdout_b, stderr_b = proc.communicate(timeout=10)
     stdout, stderr = stdout_b.decode(), stderr_b.decode()
-    print(stdout)
-    print(stderr)
+    LOGGER.info(stdout)
+    LOGGER.info(stderr)
     assert proc.returncode == 0, f"STDOUT: {stdout}\nSTDERR: {stderr}"
     assert (
         stderr.count("NE_REGISTRY") == 1

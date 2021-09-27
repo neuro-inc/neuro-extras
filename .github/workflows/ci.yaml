@@ -206,7 +206,7 @@ jobs:
     - name: Run e2e tests
       run: |
         echo "NEURO_EXTRAS_IMAGE=${{ env.NEURO_EXTRAS_IMAGE }}"
-        make test_e2e
+        make test
 
   posttest:
     name: Cleanup after e2e tests
