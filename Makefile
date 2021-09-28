@@ -1,4 +1,4 @@
-PYTEST_FLAGS = -vv
+PYTEST_FLAGS = -v
 PYTEST_PARALLEL = 5
 
 .PHONY: setup

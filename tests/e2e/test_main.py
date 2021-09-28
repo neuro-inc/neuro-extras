@@ -78,14 +78,18 @@ def test_data_transfer(
         )
         assert result.returncode == 0, result
 
-        del_result = cli_runner(["neuro", "rm", "-r", f"storage:{src_path}"])
+        del_result = cli_runner(
+            ["neuro", "rm", "-r", f"storage:{src_path}"], enable_retry=True
+        )
         assert del_result.returncode == 0, result
 
     with switch_cluster(dst_cluster):
-        result = cli_runner(["neuro", "ls", f"storage:{dst_path}"])
+        result = cli_runner(["neuro", "ls", f"storage:{dst_path}"], enable_retry=True)
         assert result.returncode == 0, result
 
-        del_result = cli_runner(["neuro", "rm", "-r", f"storage:{dst_path}"])
+        del_result = cli_runner(
+            ["neuro", "rm", "-r", f"storage:{dst_path}"], enable_retry=True
+        )
         assert del_result.returncode == 0, result
 
 
@@ -105,15 +109,16 @@ def test_seldon_deploy_from_local(cli_runner: CLIRunner) -> None:
     # WORKAROUND: Fixing 401 Not Authorized because of this problem:
     # https://github.com/neuromation/platform-registry-api/issues/209
     rnd = uuid.uuid4().hex[:6]
-    img_name = f"image:extras-e2e-seldon-local-{rnd}"
-    img_uri = f"{img_name}:{tag}"
+    img_uri = f"image:extras-e2e-seldon-local-{rnd}:{tag}"
     result = cli_runner(
         ["neuro", "image-build", "-f", "seldon.Dockerfile", str(pkg_path), img_uri]
     )
     assert result.returncode == 0, result
 
-    result = cli_runner(["neuro", "image", "tags", img_name])
-    assert tag in result.stdout
+    result = cli_runner(["neuro", "image", "size", img_uri], enable_retry=True)
+    assert result.returncode == 0, result
+
+    cli_runner(["neuro", "image", "rm", img_uri], enable_retry=True)
 
 
 def test_config_save_registry_auth_locally(cli_runner: CLIRunner) -> None:
@@ -624,7 +629,7 @@ def test_data_cp_from_cloud_to_storage(
     finally:
         try:
             # Delete disk
-            res = cli_runner(["neuro", "rm", "-r", dst])
+            res = cli_runner(["neuro", "rm", "-r", dst], enable_retry=True)
             assert res.returncode == 0, res
         except BaseException as e:
             logger.warning(f"Finalization error: {e}")
@@ -651,7 +656,7 @@ def disk(cli_runner: CLIRunner) -> Iterator[str]:
         try:
             # Delete disk
             if disk_id is not None:
-                res = cli_runner(["neuro", "disk", "rm", disk_id])
+                res = cli_runner(["neuro", "disk", "rm", disk_id], enable_retry=True)
                 assert res.returncode == 0, res
         except BaseException as e:
             logger.warning(f"Finalization error: {e}")

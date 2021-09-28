@@ -23,6 +23,7 @@ from neuro_cli.asyncio_utils import run as run_async, setup_child_watcher
 from neuro_cli.const import EX_OK
 from neuro_cli.main import cli as neuro_main
 from tenacity import retry, stop_after_attempt, stop_after_delay
+from typing_extensions import Protocol
 
 from neuro_extras import main as extras_main
 from neuro_extras.common import NEURO_EXTRAS_IMAGE
@@ -32,7 +33,13 @@ from neuro_extras.image_builder import KANIKO_AUTH_PREFIX
 
 logger = logging.getLogger(__name__)
 
-CLIRunner = Callable[[List[str]], CompletedProcess]
+
+class CLIRunner(Protocol):
+    def __call__(
+        self, args: List[str], enable_retry: bool = False
+    ) -> CompletedProcess[str]:
+        ...
+
 
 TERM_WIDTH = 80
 SEP_BEGIN = "=" * TERM_WIDTH
@@ -64,10 +71,7 @@ def temp_random_secret(cli_runner: CLIRunner) -> Iterator[Secret]:
     try:
         yield secret
     finally:
-        r = cli_runner(["neuro", "secret", "rm", secret.name])
-        if r.returncode != 0:
-            details = f"code {r.returncode}, stdout: `{r.stdout}`, stderr: `{r.stderr}`"
-            logger.warning(f"Could not delete secret '{secret.name}', {details}")
+        cli_runner(["neuro", "secret", "rm", secret.name], enable_retry=True)
 
 
 def gen_random_file(location: Union[str, Path], name: Optional[str] = None) -> Path:
@@ -134,7 +138,7 @@ def switch_cluster(
     return _f
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture
 async def dockerhub_auth_secret() -> AsyncIterator[Secret]:
     async with neuro_api.get() as neuro_client:
         secret_name = f"{KANIKO_AUTH_PREFIX}_{uuid.uuid4().hex}"
@@ -164,10 +168,10 @@ def project_dir() -> Iterator[Path]:
             os.chdir(old_cwd)
 
 
-@pytest.fixture()
+@pytest.fixture
 @retry(stop=stop_after_attempt(5) | stop_after_delay(5 * 10))
 def cli_runner(capfd: CaptureFixture[str], project_dir: Path) -> CLIRunner:
-    def _run_cli(args: List[str]) -> "CompletedProcess[str]":
+    def _run_cli(args: List[str], enable_retry: bool = False) -> CompletedProcess[str]:
         args = args.copy()
         cmd = args.pop(0)
         if cmd not in ("neuro", "neuro-extras"):
@@ -193,12 +197,10 @@ def cli_runner(capfd: CaptureFixture[str], project_dir: Path) -> CLIRunner:
             code = e.code
         out, err = capfd.readouterr()
         out, err = out.strip(), err.strip()
-        if code != EX_OK:
-            # This generates too much garbage, but might be handy for debugging
-            logger.info(f"Stdout:\n{SEP_BEGIN}\n{out}\n{SEP_END}\nStdout finished")
-        if err:
+        if code != EX_OK and enable_retry:
             logger.info(f"Stderr:\n{SEP_BEGIN}\n{err}\n{SEP_END}\nStderr finished")
-
+            logger.warning(f"Stderr:\n{SEP_BEGIN}\n{err}\n{SEP_END}\nStderr finished")
+            raise RuntimeError(f"Got '{code}' for '{cmd}'")
         return CompletedProcess(
             args=[cmd] + args, returncode=code, stdout=out, stderr=err
         )

@@ -52,8 +52,7 @@ def test_image_build_custom_preset(
     # WORKAROUND: Fixing 401 Not Authorized because of this problem:
     # https://github.com/neuromation/platform-registry-api/issues/209
     rnd = uuid.uuid4().hex[:6]
-    img_name = f"image:extras-e2e-custom-preset-{rnd}"
-    img_uri_str = f"{img_name}:{tag}"
+    img_uri_str = f"image:extras-e2e-custom-preset-{rnd}:{tag}"
 
     cmd = [
         "neuro",
@@ -71,10 +70,9 @@ def test_image_build_custom_preset(
     assert result.returncode == 0, result
 
     try:
-        result = cli_runner(["neuro", "image", "tags", img_name])
-        assert tag in result.stdout
+        cli_runner(["neuro", "image", "size", img_uri_str], enable_retry=True)
     finally:
-        cli_runner(["neuro", "image", "rm", img_uri_str])
+        cli_runner(["neuro", "image", "rm", img_uri_str], enable_retry=True)
 
 
 @pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
@@ -105,8 +103,7 @@ def test_image_build_custom_dockerfile(
     # WORKAROUND: Fixing 401 Not Authorized because of this problem:
     # https://github.com/neuromation/platform-registry-api/issues/209
     rnd = uuid.uuid4().hex[:6]
-    img_name = f"image:extras-e2e-custom-dockerfile-{rnd}"
-    img_uri_str = f"{img_name}:{tag}"
+    img_uri_str = f"image:extras-e2e-custom-dockerfile-{rnd}:{tag}"
 
     cmd = [
         "neuro",
@@ -121,10 +118,9 @@ def test_image_build_custom_dockerfile(
     result = cli_runner(cmd)
     assert result.returncode == 0, result
     try:
-        result = cli_runner(["neuro", "image", "tags", img_name])
-        assert tag in result.stdout
+        cli_runner(["neuro", "image", "size", img_uri_str], enable_retry=True)
     finally:
-        cli_runner(["neuro", "image", "rm", img_uri_str])
+        cli_runner(["neuro", "image", "rm", img_uri_str], enable_retry=True)
 
 
 @pytest.mark.serial  # first we build the image, then we are trying to overwrite it
@@ -153,9 +149,8 @@ def test_image_build_overwrite(
             )
         )
 
-    img_name = "image:extras-e2e-overwrite"
     python_version = f"{sys.version_info[0]}.{sys.version_info[1]}"
-    img_uri_str = f"{img_name}:{sys.platform}-{python_version}-latest"
+    img_uri_str = f"image:extras-e2e-overwrite:{sys.platform}-{python_version}-latest"
     build_command = [
         "neuro",
         "image-build",
@@ -175,12 +170,11 @@ def test_image_build_overwrite(
     else:
         assert result.returncode == EX_PLATFORMERROR, result
     try:
-        result = cli_runner(["neuro", "image", "tags", img_name])
-        assert "latest" in result.stdout
+        cli_runner(["neuro", "image", "size", img_uri_str], enable_retry=True)
     finally:
         # Only delete image after second run of the test
         if overwrite is False:
-            cli_runner(["neuro", "image", "rm", img_uri_str])
+            cli_runner(["neuro", "image", "rm", img_uri_str], enable_retry=True)
 
 
 @pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
@@ -229,7 +223,7 @@ def test_ignored_files_are_not_copied(
         assert random_file_to_disable_layer_caching.name in result.stdout
         assert ignored_file.name not in result.stdout
     finally:
-        cli_runner(["neuro", "image", "rm", img_uri_str])
+        cli_runner(["neuro", "image", "rm", img_uri_str], enable_retry=True)
 
 
 @pytest.mark.serial
@@ -287,20 +281,12 @@ def test_image_transfer(
         assert result.returncode == 0, result
 
         try:
-            result = cli_runner(["neuro", "image", "tags", f"image:{img_name}"])
-            assert tag in result.stdout
-
-            result = cli_runner(["neuro", "image-transfer", from_img, to_img])
-            assert result.returncode == 0, result
-            with switch_cluster(dst_cluster):
-                result = cli_runner(["neuro", "image", "tags", f"image:{img_name}"])
-                assert tag in result.stdout
-
+            cli_runner(["neuro", "image", "size", from_img], enable_retry=True)
+            cli_runner(["neuro", "image-transfer", from_img, to_img])
+            cli_runner(["neuro", "image", "size", to_img], enable_retry=True)
         finally:
-            with switch_cluster(src_cluster):
-                cli_runner(["neuro", "image", "rm", from_img])
-            with switch_cluster(dst_cluster):
-                cli_runner(["neuro", "image", "rm", to_img])
+            cli_runner(["neuro", "image", "rm", from_img], enable_retry=True)
+            cli_runner(["neuro", "image", "rm", to_img], enable_retry=True)
 
 
 @pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
@@ -331,28 +317,27 @@ def test_image_build_custom_build_args(
 
     tag = str(uuid.uuid4())
     img_uri_str = f"image:extras-e2e:{tag}"
-    result = cli_runner(
-        [
-            "neuro",
-            "image-build",
-            "-e",
-            f"{dockerhub_auth_secret.name}=secret:{dockerhub_auth_secret.name}",
-            "-f",
-            str(dockerfile_path),
-            "--build-arg",
-            f"TEST_ARG=arg-{tag}",
-            "--build-arg",
-            f"ANOTHER_TEST_ARG=arg-another-{tag}",
-            ".",
-            img_uri_str,
-        ]
-    )
+    cmd = [
+        "neuro",
+        "image-build",
+        "-e",
+        f"{dockerhub_auth_secret.name}=secret:{dockerhub_auth_secret.name}",
+        "-f",
+        str(dockerfile_path),
+        "--build-arg",
+        f"TEST_ARG=arg-{tag}",
+        "--build-arg",
+        f"ANOTHER_TEST_ARG=arg-another-{tag}",
+        ".",
+        img_uri_str,
+    ]
+    result = cli_runner(cmd)
     assert result.returncode == 0, result
     try:
         assert f"arg-{tag}" in result.stdout
         assert f"arg-another-{tag}" in result.stdout
     finally:
-        cli_runner(["neuro", "image", "rm", img_uri_str])
+        cli_runner(["neuro", "image", "rm", img_uri_str], enable_retry=True)
 
 
 @pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
@@ -409,7 +394,7 @@ def test_image_build_volume(
     try:
         assert f"git_token={sec.value}" in result.stdout
     finally:
-        cli_runner(["neuro", "image", "rm", img_uri_str])
+        cli_runner(["neuro", "image", "rm", img_uri_str], enable_retry=True)
 
 
 @pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
