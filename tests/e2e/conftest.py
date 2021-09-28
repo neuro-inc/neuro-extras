@@ -37,7 +37,7 @@ logger = logging.getLogger(__name__)
 class CLIRunner(Protocol):
     def __call__(
         self, args: List[str], enable_retry: bool = False
-    ) -> CompletedProcess[str]:
+    ) -> "CompletedProcess[str]":
         ...
 
 
@@ -171,7 +171,9 @@ def project_dir() -> Iterator[Path]:
 @pytest.fixture
 @retry(stop=stop_after_attempt(5) | stop_after_delay(5 * 10))
 def cli_runner(capfd: CaptureFixture[str], project_dir: Path) -> CLIRunner:
-    def _run_cli(args: List[str], enable_retry: bool = False) -> CompletedProcess[str]:
+    def _run_cli(
+        args: List[str], enable_retry: bool = False
+    ) -> "CompletedProcess[str]":
         args = args.copy()
         cmd = args.pop(0)
         if cmd not in ("neuro", "neuro-extras"):
