@@ -87,9 +87,7 @@ def test_data_transfer(
         result = cli_runner(["neuro", "ls", f"storage:{dst_path}"], enable_retry=True)
         assert result.returncode == 0, result
 
-        del_result = cli_runner(
-            ["neuro", "rm", "-r", f"storage:{dst_path}"], enable_retry=True
-        )
+        del_result = cli_runner(["neuro", "rm", "-r", f"storage:{dst_path}"])
         assert del_result.returncode == 0, result
 
 
@@ -118,7 +116,7 @@ def test_seldon_deploy_from_local(cli_runner: CLIRunner) -> None:
     result = cli_runner(["neuro", "image", "size", img_uri], enable_retry=True)
     assert result.returncode == 0, result
 
-    cli_runner(["neuro", "image", "rm", img_uri], enable_retry=True)
+    cli_runner(["neuro", "image", "rm", img_uri])
 
 
 def test_config_save_registry_auth_locally(cli_runner: CLIRunner) -> None:
@@ -629,7 +627,7 @@ def test_data_cp_from_cloud_to_storage(
     finally:
         try:
             # Delete disk
-            res = cli_runner(["neuro", "rm", "-r", dst], enable_retry=True)
+            res = cli_runner(["neuro", "rm", "-r", dst])
             assert res.returncode == 0, res
         except BaseException as e:
             logger.warning(f"Finalization error: {e}")
@@ -656,7 +654,7 @@ def disk(cli_runner: CLIRunner) -> Iterator[str]:
         try:
             # Delete disk
             if disk_id is not None:
-                res = cli_runner(["neuro", "disk", "rm", disk_id], enable_retry=True)
+                res = cli_runner(["neuro", "disk", "rm", disk_id])
                 assert res.returncode == 0, res
         except BaseException as e:
             logger.warning(f"Finalization error: {e}")

@@ -71,7 +71,7 @@ def temp_random_secret(cli_runner: CLIRunner) -> Iterator[Secret]:
     try:
         yield secret
     finally:
-        cli_runner(["neuro", "secret", "rm", secret.name], enable_retry=True)
+        cli_runner(["neuro", "secret", "rm", secret.name])
 
 
 def gen_random_file(location: Union[str, Path], name: Optional[str] = None) -> Path:
