@@ -40,7 +40,7 @@ def test_image_build_custom_preset(
         f.write(
             textwrap.dedent(
                 f"""\
-                FROM ubuntu:latest
+                FROM alpine:latest
                 ADD {random_file_to_disable_layer_caching} /tmp
                 RUN echo !
                 """
@@ -93,7 +93,7 @@ def test_image_build_custom_dockerfile(
         f.write(
             textwrap.dedent(
                 f"""\
-                FROM ubuntu:latest
+                FROM alpine:latest
                 ADD {random_file_to_disable_layer_caching} /tmp
                 RUN echo !
                 """
@@ -191,22 +191,22 @@ def test_ignored_files_are_not_copied(
     result = cli_runner(["neuro-extras", "init-aliases"])
     assert result.returncode == 0, result
 
-    ignored_file = "this_file_should_not_be_added.txt"
-    ignored_file_content = "this should not be printed\n"
-
     dockerfile_path = Path("nested/custom.Dockerfile")
     dockerfile_path.parent.mkdir(parents=True)
 
+    ignored_file = Path("this_file_should_not_be_added.txt")
+    ignored_file.touch()
     Path(".neuroignore").write_text(f"{ignored_file}\n")
-    Path(ignored_file).write_text(ignored_file_content)
+
     random_file_to_disable_layer_caching = gen_random_file(dockerfile_path.parent)
     Path(dockerfile_path).write_text(
         textwrap.dedent(
             f"""\
-            FROM ubuntu:latest
+            FROM alpine:latest
             ADD {random_file_to_disable_layer_caching} /tmp
-            ADD {ignored_file} /
-            RUN cat /{ignored_file}
+            ADD . /
+            RUN find / -name "*{random_file_to_disable_layer_caching.stem}*"
+            RUN find / -name "*{ignored_file.stem}*"
             """
         )
     )
@@ -224,8 +224,10 @@ def test_ignored_files_are_not_copied(
         img_uri_str,
     ]
     result = cli_runner(cmd)
+    assert result.returncode == 0, result
     try:
-        assert ignored_file_content not in result.stdout
+        assert random_file_to_disable_layer_caching.name in result.stdout
+        assert ignored_file.name not in result.stdout
     finally:
         cli_runner(["neuro", "image", "rm", img_uri_str])
 
@@ -317,7 +319,7 @@ def test_image_build_custom_build_args(
         f.write(
             textwrap.dedent(
                 f"""\
-                FROM ubuntu:latest
+                FROM alpine:latest
                 ADD {random_file_to_disable_layer_caching} /tmp
                 ARG TEST_ARG
                 ARG ANOTHER_TEST_ARG
@@ -375,7 +377,7 @@ def test_image_build_volume(
         f.write(
             textwrap.dedent(
                 f"""\
-                FROM ubuntu:latest
+                FROM alpine:latest
                 ADD {random_file_to_disable_layer_caching} /tmp
                 ADD secret.txt /
                 RUN echo git_token=$(cat secret.txt)

@@ -6,7 +6,15 @@ from dataclasses import dataclass
 from pathlib import Path
 from subprocess import CompletedProcess
 from tempfile import TemporaryDirectory
-from typing import Callable, ContextManager, Iterator, List, Optional, Union
+from typing import (
+    AsyncIterator,
+    Callable,
+    ContextManager,
+    Iterator,
+    List,
+    Optional,
+    Union,
+)
 
 import neuro_sdk as neuro_api  # NOTE: don't use async test functions (issue #129)
 import pytest
@@ -38,6 +46,9 @@ setup_child_watcher()
 class Secret:
     name: str
     value: str
+
+    def __repr__(self) -> str:
+        return f"Secret(name='{self.name}', value='HIDDEN!'"
 
 
 def generate_random_secret(name_prefix: str = "secret") -> Secret:
@@ -124,20 +135,21 @@ def switch_cluster(
 
 
 @pytest.fixture
-def dockerhub_auth_secret(_neuro_client: neuro_api.Client) -> Iterator[Secret]:
-    secret_name = f"{KANIKO_AUTH_PREFIX}_{uuid.uuid4().hex}"
-    auth_data = _build_registy_auth(
-        # Why not v2: https://github.com/GoogleContainerTools/kaniko/pull/1209
-        registry_uri="https://index.docker.io/v1/",
-        username=os.environ["DOCKER_CI_USERNAME"],
-        password=os.environ["DOCKER_CI_TOKEN"],
-    )
-    secret = Secret(secret_name, auth_data)
-    try:
-        run_async(_neuro_client.secrets.add(secret_name, auth_data.encode()))
-        yield secret
-    finally:
-        run_async(_neuro_client.secrets.rm(secret_name))
+async def dockerhub_auth_secret() -> AsyncIterator[Secret]:
+    async with neuro_api.get() as neuro_client:
+        secret_name = f"{KANIKO_AUTH_PREFIX}_{uuid.uuid4().hex}"
+        auth_data = _build_registy_auth(
+            # Why not v2: https://github.com/GoogleContainerTools/kaniko/pull/1209
+            registry_uri="https://index.docker.io/v1/",
+            username=os.environ["DOCKER_CI_USERNAME"],
+            password=os.environ["DOCKER_CI_TOKEN"],
+        )
+        secret = Secret(secret_name, auth_data)
+        try:
+            await neuro_client.secrets.add(secret_name, auth_data.encode())
+            yield secret
+        finally:
+            await neuro_client.secrets.rm(secret_name)
 
 
 @pytest.fixture
