@@ -134,7 +134,7 @@ def switch_cluster(
     return _f
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 async def dockerhub_auth_secret() -> AsyncIterator[Secret]:
     async with neuro_api.get() as neuro_client:
         secret_name = f"{KANIKO_AUTH_PREFIX}_{uuid.uuid4().hex}"
