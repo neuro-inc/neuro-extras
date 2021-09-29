@@ -5,7 +5,7 @@ import uuid
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from subprocess import CompletedProcess
+from subprocess import PIPE, CompletedProcess
 from tempfile import TemporaryDirectory
 from typing import (
     AsyncIterator,
@@ -217,7 +217,13 @@ def cli_runner(project_dir: Path) -> CLIRunner:
     def _run_cli(
         args: List[str], enable_retry: bool = False
     ) -> "CompletedProcess[str]":
-        proc = subprocess.run(args, capture_output=True, check=enable_retry, text=True)
+        proc = subprocess.run(
+            args,
+            check=enable_retry,
+            stdout=PIPE,
+            stderr=PIPE,
+            universal_newlines=True,
+        )
         if proc.returncode:
             logger.warning(f"Got '{proc.returncode}' for '{' '.join(args)}'")
         logger.warning(proc.stderr)

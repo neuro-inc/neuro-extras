@@ -686,6 +686,7 @@ def test_data_cp_from_cloud_to_disk(
             "-v",
             f"{disk}:{local_folder}:rw",
             "ubuntu",
+            "--",
             f"bash -c 'ls -l {local_folder}/intermediate/{filename}'",
         ]
     )

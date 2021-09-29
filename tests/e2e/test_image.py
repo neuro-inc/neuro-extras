@@ -282,7 +282,8 @@ def test_image_transfer(
 
         try:
             cli_runner(["neuro", "image", "size", from_img], enable_retry=True)
-            cli_runner(["neuro", "image-transfer", from_img, to_img])
+            result = cli_runner(["neuro", "image-transfer", from_img, to_img])
+            assert result.returncode == 0, result
             cli_runner(["neuro", "image", "size", to_img], enable_retry=True)
         finally:
             cli_runner(["neuro", "image", "rm", from_img])
