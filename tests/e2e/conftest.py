@@ -1,5 +1,6 @@
 import logging
 import os
+import subprocess
 import uuid
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -170,7 +171,7 @@ def project_dir() -> Iterator[Path]:
 
 @pytest.fixture
 @retry(stop=stop_after_attempt(5) | stop_after_delay(5 * 10))
-def cli_runner(capfd: CaptureFixture[str], project_dir: Path) -> CLIRunner:
+def cli_runner_old(capfd: CaptureFixture[str], project_dir: Path) -> CLIRunner:
     def _run_cli(
         args: List[str], enable_retry: bool = False
     ) -> "CompletedProcess[str]":
@@ -206,5 +207,21 @@ def cli_runner(capfd: CaptureFixture[str], project_dir: Path) -> CLIRunner:
         return CompletedProcess(
             args=[cmd] + args, returncode=code, stdout=out, stderr=err
         )
+
+    return _run_cli
+
+
+@pytest.fixture
+@retry(stop=stop_after_attempt(5) | stop_after_delay(5 * 10))
+def cli_runner(project_dir: Path) -> CLIRunner:
+    def _run_cli(
+        args: List[str], enable_retry: bool = False
+    ) -> "CompletedProcess[str]":
+        proc = subprocess.run(args, capture_output=True, check=enable_retry, text=True)
+        if proc.returncode:
+            logger.warning(f"Got '{proc.returncode}' for '{' '.join(args)}'")
+        logger.warning(proc.stderr)
+        logger.debug(proc.stdout)
+        return proc
 
     return _run_cli
