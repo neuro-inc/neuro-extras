@@ -19,14 +19,10 @@ from typing import (
 
 import neuro_sdk as neuro_api  # NOTE: don't use async test functions (issue #129)
 import pytest
-from _pytest.capture import CaptureFixture
 from neuro_cli.asyncio_utils import run as run_async, setup_child_watcher
-from neuro_cli.const import EX_OK
-from neuro_cli.main import cli as neuro_main
 from tenacity import retry, stop_after_attempt, stop_after_delay
 from typing_extensions import Protocol
 
-from neuro_extras import main as extras_main
 from neuro_extras.common import NEURO_EXTRAS_IMAGE
 from neuro_extras.config import _build_registy_auth
 from neuro_extras.image_builder import KANIKO_AUTH_PREFIX
@@ -42,9 +38,6 @@ class CLIRunner(Protocol):
         ...
 
 
-TERM_WIDTH = 80
-SEP_BEGIN = "=" * TERM_WIDTH
-SEP_END = "-" * TERM_WIDTH
 TESTED_ARCHIVE_TYPES = ["tar.gz", "tgz", "zip", "tar"]
 
 setup_child_watcher()
@@ -103,11 +96,6 @@ def _neuro_client() -> Iterator[neuro_api.Client]:
         yield run_async(client.__aenter__())
     finally:
         run_async(client.__aexit__())  # it doesn't use arguments
-
-
-@pytest.fixture
-def current_cluster(_neuro_client: neuro_api.Client) -> str:
-    return _neuro_client.cluster_name
 
 
 @pytest.fixture
@@ -171,48 +159,6 @@ def project_dir() -> Iterator[Path]:
 
 @pytest.fixture
 @retry(stop=stop_after_attempt(5) | stop_after_delay(5 * 10))
-def cli_runner_old(capfd: CaptureFixture[str], project_dir: Path) -> CLIRunner:
-    def _run_cli(
-        args: List[str], enable_retry: bool = False
-    ) -> "CompletedProcess[str]":
-        args = args.copy()
-        cmd = args.pop(0)
-        if cmd not in ("neuro", "neuro-extras"):
-            pytest.fail(f"Illegal command: {cmd}")
-
-        run_cmd = f"Run '{cmd} {' '.join(args)}'"
-        logger.info(run_cmd)
-        capfd.readouterr()
-
-        main = extras_main
-        if cmd == "neuro":
-            args = [
-                "--show-traceback",
-                "--disable-pypi-version-check",
-                "--color=no",
-            ] + args
-            main = neuro_main
-
-        code = EX_OK
-        try:
-            main(args)
-        except SystemExit as e:
-            code = e.code
-        out, err = capfd.readouterr()
-        out, err = out.strip(), err.strip()
-        if code != EX_OK and enable_retry:
-            logger.info(f"Stderr:\n{SEP_BEGIN}\n{err}\n{SEP_END}\nStderr finished")
-            logger.warning(f"Stderr:\n{SEP_BEGIN}\n{err}\n{SEP_END}\nStderr finished")
-            raise RuntimeError(f"Got '{code}' for '{cmd}'")
-        return CompletedProcess(
-            args=[cmd] + args, returncode=code, stdout=out, stderr=err
-        )
-
-    return _run_cli
-
-
-@pytest.fixture
-@retry(stop=stop_after_attempt(5) | stop_after_delay(5 * 10))
 def cli_runner(project_dir: Path) -> CLIRunner:
     def _run_cli(
         args: List[str], enable_retry: bool = False
@@ -227,7 +173,7 @@ def cli_runner(project_dir: Path) -> CLIRunner:
         if proc.returncode:
             logger.warning(f"Got '{proc.returncode}' for '{' '.join(args)}'")
         logger.warning(proc.stderr)
-        logger.debug(proc.stdout)
+        logger.info(proc.stdout)
         return proc
 
     return _run_cli
