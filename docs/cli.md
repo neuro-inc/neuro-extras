@@ -55,22 +55,41 @@ neuro-extras config [OPTIONS] COMMAND [ARGS]...
 
 | Usage | Description |
 | :--- | :--- |
-| [_neuro-extras config save-docker-json_](cli.md#neuro-extras-config-save-docker-json) | Generate JSON configuration file for accessing cluster registry. |
+| [_neuro-extras config build-registy-auth_](cli.md#neuro-extras-config-build-registy-auth) | Generate docker auth for accessing remote registry. |
+| [_neuro-extras config save-registry-auth_](cli.md#neuro-extras-config-save-registry-auth) | Save docker auth file for accessing platform registry. |
 
-#### neuro-extras config save-docker-json
+#### neuro-extras config build-registy-auth
 
-Generate JSON configuration file for accessing cluster registry.
+Generate docker auth for accessing remote registry.
 
 **Usage:**
 
 ```bash
-neuro-extras config save-docker-json [OPTIONS] PATH
+neuro-extras config build-registy-auth [OPTIONS] REGISTRY_URI USERNAME
+                                              PASSWORD
 ```
 
 **Options:**
 
 | Name | Description |
 | :--- | :--- |
+| _--help_ | Show this message and exit. |
+
+#### neuro-extras config save-registry-auth
+
+Save docker auth file for accessing platform registry.
+
+**Usage:**
+
+```bash
+neuro-extras config save-registry-auth [OPTIONS] PATH
+```
+
+**Options:**
+
+| Name | Description |
+| :--- | :--- |
+| _--cluster TEXT_ | Cluster name for which the auth information should be saved. Current cluster by default |
 | _--help_ | Show this message and exit. |
 
 ### neuro-extras data

@@ -1,4 +1,4 @@
-PYTEST_FLAGS = -vv
+PYTEST_FLAGS = -v
 PYTEST_PARALLEL = 5
 
 .PHONY: setup
@@ -20,7 +20,11 @@ test_e2e:
 	pytest -n 0                  ${PYTEST_FLAGS} -m "serial"     tests/e2e
 
 .PHONY: test
-test: lint test_e2e
+test: test_unit test_e2e
+
+.PHONY: test_unit
+test_unit:
+	pytest ${PYTEST_FLAGS} tests/unit
 
 .PHONY: changelog-draft
 changelog-draft:

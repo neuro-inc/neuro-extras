@@ -5,7 +5,7 @@ from typing import Any, MutableMapping
 import toml
 
 from .cli import main
-from .config import config_save_docker_json  # noqa
+from .config import save_registry_auth  # noqa
 from .data import data_cp, data_transfer  # noqa
 from .image import image_build, image_transfer  # noqa
 from .k8s import generate_k8s_registry_secret, generate_k8s_secret  # noqa

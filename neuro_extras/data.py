@@ -580,6 +580,7 @@ async def _run_copy_container(
         f"NEURO_CLUSTER={src_cluster}",  # inside the job, switch neuro to 'src_cluster'
         "--life-span 10d",
         NEURO_EXTRAS_IMAGE,
+        "--",
         f"neuro --show-traceback cp --progress -r -u -T {src_uri_str} /storage",
     ]
     cmd = " ".join(args)

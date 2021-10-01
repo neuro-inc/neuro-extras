@@ -10,7 +10,9 @@ ENV CLOUD_SDK_VERSION=$CLOUD_SDK_VERSION
 
 ENV PATH /google-cloud-sdk/bin:$PATH
 
-RUN apk add --no-cache make curl git rsync unrar zip unzip vim wget openssh-client ca-certificates bash
+# TODO (semendiak): 'gcc g++ libffi-dev' are needed for upstream dependency cffi
+# some of the latest releases (not in our repo) broke installation without those libs as for 27.09.2021
+RUN apk add --no-cache make curl git rsync unrar zip unzip vim wget openssh-client ca-certificates bash gcc g++ libffi-dev
 
 # Install Google Cloud SDK
 RUN wget -q https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-sdk-${CLOUD_SDK_VERSION}-linux-x86_64.tar.gz && \
