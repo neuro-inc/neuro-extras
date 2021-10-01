@@ -3,6 +3,7 @@ import base64
 import json
 import logging
 import re
+import shlex
 import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -15,7 +16,10 @@ from yarl import URL
 
 
 KANIKO_IMAGE_REF = "gcr.io/kaniko-project/executor"
-KANIKO_IMAGE_TAG = "v1.3.0"
+KANIKO_IMAGE_TAG = "v1.3.0-debug"  # since it has busybox, which is needed for auth
+KANIKO_AUTH_PREFIX = "NE_REGISTRY_AUTH"
+KANIKO_DOCKER_CONFIG_PATH = "/kaniko/.docker/config.json"
+KANIKO_AUTH_SCRIPT_PATH = "/kaniko/.docker/merge_docker_auths.sh"
 KANIKO_CONTEXT_PATH = "/kaniko_context"
 BUILDER_JOB_LIFESPAN = "4h"
 BUILDER_JOB_SHEDULE_TIMEOUT = "20m"
@@ -155,9 +159,35 @@ class ImageBuilder:
         cache_repo = self.parse_image_ref(str(cache_image))
         cache_repo = re.sub(r":.*$", "", cache_repo)  # drop tag
 
+        if any(KANIKO_AUTH_PREFIX in env for env in envs):
+            # we have extra auth info.
+            # in this case we cannot mount registry auth info at the default path
+            # and should upload and configure 'merge_docker_auths' script to merge auths
+            mnt_path = Path(KANIKO_DOCKER_CONFIG_PATH)
+            mnt_path = mnt_path.with_name(f"{mnt_path.stem}_base{mnt_path.suffix}")
+            docker_config_mnt = str(mnt_path)
+            envs += (
+                f"{KANIKO_AUTH_PREFIX}_BASE_{uuid.uuid4().hex[:8]}={docker_config_mnt}",
+            )
+            local_script = URL(
+                (Path(__file__).parent / "assets" / "merge_docker_auths.sh").as_uri()
+            )
+            remote_script = build_uri / "merge_docker_auths.sh"
+            await self._client.storage.upload_file(local_script, remote_script)
+            volumes += (f"{remote_script}:{KANIKO_AUTH_SCRIPT_PATH}:ro",)
+            entrypoint = [
+                f"sh {KANIKO_AUTH_SCRIPT_PATH}",
+                "&&",
+                "executor",
+                # Kaniko args will be added below
+            ]
+        else:
+            docker_config_mnt = str(KANIKO_DOCKER_CONFIG_PATH)
+            entrypoint = []
+
         # mount build context and Kaniko auth info
         volumes += (
-            f"{docker_config_uri}:/kaniko/.docker/config.json:ro",
+            f"{docker_config_uri}:{docker_config_mnt}:ro",
             # context dir cannot be R/O if we want to mount secrets there
             f"{context_uri}:{KANIKO_CONTEXT_PATH}:rw",
         )
@@ -179,7 +209,8 @@ class ImageBuilder:
         # env vars (which might be platform secrets too) are passed as build args
         env_parsed = self._client.parse.envs(envs)
         for arg in list(env_parsed.env) + list(env_parsed.secret_env):
-            kaniko_args.append(f"--build-arg {arg}")
+            if KANIKO_AUTH_PREFIX not in arg:
+                kaniko_args.append(f"--build-arg {arg}")
 
         build_command = [
             "neuro",
@@ -197,8 +228,15 @@ class ImageBuilder:
             build_command.append(f"--env={env}")
         for build_tag in build_tags:
             build_command.append(f"--tag={build_tag}")
-        build_command.append(f"{KANIKO_IMAGE_REF}:{KANIKO_IMAGE_TAG}")
-        build_command.append(" ".join(kaniko_args))
+        if entrypoint:
+            entrypoint.append(" ".join(kaniko_args))
+            build_command.append("--entrypoint")
+            build_command.append(f"sh -c {shlex.quote(' '.join(entrypoint))}")
+            build_command.append(f"{KANIKO_IMAGE_REF}:{KANIKO_IMAGE_TAG}")
+        else:
+            build_command.append(f"{KANIKO_IMAGE_REF}:{KANIKO_IMAGE_TAG}")
+            build_command.append("--")
+            build_command.append(" ".join(kaniko_args))
 
         logger.info("Submitting a builder job")
         logger.debug(build_command)

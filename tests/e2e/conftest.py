@@ -1,21 +1,42 @@
 import logging
+import os
+import subprocess
 import uuid
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from subprocess import CompletedProcess
-from typing import Callable, ContextManager, Iterator, List, Optional, Union
+from subprocess import PIPE, CompletedProcess
+from tempfile import TemporaryDirectory
+from typing import (
+    AsyncIterator,
+    Callable,
+    ContextManager,
+    Iterator,
+    List,
+    Optional,
+    Union,
+)
 
 import neuro_sdk as neuro_api  # NOTE: don't use async test functions (issue #129)
 import pytest
 from neuro_cli.asyncio_utils import run as run_async, setup_child_watcher
+from tenacity import retry, stop_after_attempt, stop_after_delay
+from typing_extensions import Protocol
 
 from neuro_extras.common import NEURO_EXTRAS_IMAGE
+from neuro_extras.config import _build_registy_auth
+from neuro_extras.image_builder import KANIKO_AUTH_PREFIX
 
-
-CLIRunner = Callable[[List[str]], CompletedProcess]
 
 logger = logging.getLogger(__name__)
+
+
+class CLIRunner(Protocol):
+    def __call__(
+        self, args: List[str], enable_retry: bool = False
+    ) -> "CompletedProcess[str]":
+        ...
+
 
 TESTED_ARCHIVE_TYPES = ["tar.gz", "tgz", "zip", "tar"]
 
@@ -26,6 +47,9 @@ setup_child_watcher()
 class Secret:
     name: str
     value: str
+
+    def __repr__(self) -> str:
+        return f"Secret(name='{self.name}', value='HIDDEN!'"
 
 
 def generate_random_secret(name_prefix: str = "secret") -> Secret:
@@ -41,10 +65,7 @@ def temp_random_secret(cli_runner: CLIRunner) -> Iterator[Secret]:
     try:
         yield secret
     finally:
-        r = cli_runner(["neuro", "secret", "rm", secret.name])
-        if r.returncode != 0:
-            details = f"code {r.returncode}, stdout: `{r.stdout}`, stderr: `{r.stderr}`"
-            logger.warning(f"Could not delete secret '{secret.name}', {details}")
+        cli_runner(["neuro", "secret", "rm", secret.name])
 
 
 def gen_random_file(location: Union[str, Path], name: Optional[str] = None) -> Path:
@@ -78,11 +99,6 @@ def _neuro_client() -> Iterator[neuro_api.Client]:
 
 
 @pytest.fixture
-def current_cluster(_neuro_client: neuro_api.Client) -> str:
-    return _neuro_client.cluster_name
-
-
-@pytest.fixture
 def current_user(_neuro_client: neuro_api.Client) -> str:
     return _neuro_client.username
 
@@ -109,3 +125,55 @@ def switch_cluster(
                 )
 
     return _f
+
+
+@pytest.fixture
+async def dockerhub_auth_secret() -> AsyncIterator[Secret]:
+    async with neuro_api.get() as neuro_client:
+        secret_name = f"{KANIKO_AUTH_PREFIX}_{uuid.uuid4().hex}"
+        auth_data = _build_registy_auth(
+            # Why not v2: https://github.com/GoogleContainerTools/kaniko/pull/1209
+            registry_uri="https://index.docker.io/v1/",
+            username=os.environ["DOCKER_CI_USERNAME"],
+            password=os.environ["DOCKER_CI_TOKEN"],
+        )
+        secret = Secret(secret_name, auth_data)
+        try:
+            await neuro_client.secrets.add(secret_name, auth_data.encode())
+            yield secret
+        finally:
+            await neuro_client.secrets.rm(secret_name)
+
+
+@pytest.fixture
+def project_dir() -> Iterator[Path]:
+    with TemporaryDirectory() as cwd_str:
+        old_cwd = Path.cwd()
+        cwd = Path(cwd_str)
+        os.chdir(cwd)
+        try:
+            yield cwd
+        finally:
+            os.chdir(old_cwd)
+
+
+@pytest.fixture
+@retry(stop=stop_after_attempt(5) | stop_after_delay(5 * 10))
+def cli_runner(project_dir: Path) -> CLIRunner:
+    def _run_cli(
+        args: List[str], enable_retry: bool = False
+    ) -> "CompletedProcess[str]":
+        proc = subprocess.run(
+            args,
+            check=enable_retry,
+            stdout=PIPE,
+            stderr=PIPE,
+            universal_newlines=True,
+        )
+        if proc.returncode:
+            logger.warning(f"Got '{proc.returncode}' for '{' '.join(args)}'")
+        logger.warning(proc.stderr)
+        logger.info(proc.stdout)
+        return proc
+
+    return _run_cli

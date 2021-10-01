@@ -52,7 +52,7 @@ jobs:
     if: |
       (github.event_name != 'pull_request_target' && github.actor != 'dependabot[bot]') ||
       (github.event_name == 'pull_request_target' && github.actor == 'dependabot[bot]')
-    name: Prepare for e2e tests
+    name: Prepare for tests
     needs: [lint]
     runs-on: ubuntu-latest
     env:
@@ -107,7 +107,7 @@ jobs:
     if: |
       (github.event_name != 'pull_request_target' && github.actor != 'dependabot[bot]') ||
       (github.event_name == 'pull_request_target' && github.actor == 'dependabot[bot]')
-    name: Run e2e tests
+    name: Run tests
     needs: [pretest]
     strategy:
       matrix:
@@ -136,6 +136,8 @@ jobs:
       DOCKER_SERVER: docker.io
       DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
       DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+      DOCKER_CI_USERNAME: ${{ secrets.DOCKERHUB_CI_USERNAME }}
+      DOCKER_CI_TOKEN: ${{ secrets.DOCKERHUB_CI_TOKEN }}
       AZURE_SAS_TOKEN: ${{ secrets.AZURE_SAS_TOKEN }}
       # Note: ${{ github.sha }} not working, see https://github.com/actions/checkout/issues/299
       NEURO_EXTRAS_IMAGE: image:neuromation/neuro-extras:${{ github.event.pull_request.head.sha
@@ -201,13 +203,13 @@ jobs:
         aws-secret-access-key: ${{ secrets.E2E_COOKIECUTTER_AWS_ACCESS_KEY }}
         aws-region: us-east-1
 
-    - name: Run e2e tests
+    - name: Run tests
       run: |
         echo "NEURO_EXTRAS_IMAGE=${{ env.NEURO_EXTRAS_IMAGE }}"
-        make test_e2e
+        make test
 
   posttest:
-    name: Cleanup after e2e tests
+    name: Cleanup after tests
     needs: [pretest, test]
     if: needs.pretest.result == 'success'
     runs-on: ubuntu-latest
