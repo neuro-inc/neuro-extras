@@ -8,9 +8,6 @@ updates:
   open-pull-requests-limit: 10
   reviewers:
     - neuro-inc/mlops
-  ignore:
-    - dependency-name: "typing-extensions"
-      versions: ["^3.10.0", "^4.0"]
 - package-ecosystem: docker
   directory: "/"
   schedule:
