@@ -43,10 +43,9 @@ ENV PATH=/root/.local/bin:$PATH
 
 RUN pip3 install --no-cache-dir -U pip pipx
 RUN MULTIDICT_NO_EXTENSIONS=1 YARL_NO_EXTENSIONS=1 pip install --user \
-    $NEURO_EXTRAS_PACKAGE \
-    # used in outforz, not in reqs file since NF itself requires NE
-    neuro-flow==21.7.9 && \
-    pipx install awscli # isolated env since it has conflicts with neuro-cli
+    $NEURO_EXTRAS_PACKAGE && \
+    # neuro-flow is used in outforz, not in reqs file since NF itself requires NE
+    pipx install awscli neuro-flow # isolated env since it has conflicts with neuro-cli
 RUN neuro-extras init-aliases
 
 RUN mkdir -p /root/.ssh
