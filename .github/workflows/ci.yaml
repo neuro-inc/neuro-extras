@@ -62,9 +62,6 @@ jobs:
       NEURO_STAGING_URL: ${{ secrets.NEURO_STAGING_URL }}
       NEURO_TOKEN: ${{ secrets.NEURO_TOKEN }}
       NEURO_CLUSTER: ${{ secrets.MLOPS_E2E_TESTS_CLUSTER }}
-      DOCKER_SERVER: docker.io
-      DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
-      DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
       # Note: ${{ github.sha }} not working, see https://github.com/actions/checkout/issues/299
       SHA: ${{ github.event.pull_request.head.sha || github.sha }}
     steps:
@@ -90,20 +87,21 @@ jobs:
         neuro config login-with-token ${{ env.NEURO_TOKEN }} ${{ env.NEURO_STAGING_URL }}
         neuro config switch-cluster ${{ env.NEURO_CLUSTER }}
         neuro --color=no config show
-    - name: Configure docker
-      run: |
-        docker login $DOCKER_SERVER \
-          --username $DOCKER_USERNAME --password $DOCKER_PASSWORD
-        neuro config docker
+    - name: Login to DockerHub
+      uses: docker/login-action@v1.10.0
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
     - name: Build test image
       run: |
         export REPO_URL=https://github.com/neuro-inc/neuro-extras.git
         export PACKAGE="git+$REPO_URL@$SHA"
-        docker build -t neuromation/neuro-extras:$SHA \
+        docker build -t ghcr.io/neuro-inc/neuro-extras:$SHA \
           --build-arg NEURO_EXTRAS_PACKAGE=$PACKAGE .
     - name: Push test image
       run: |
-        neuro push neuromation/neuro-extras:$SHA image:neuromation/neuro-extras:$SHA
+        neuro push ghcr.io/neuro-inc/neuro-extras:$SHA
 
   test:
     if: |
@@ -135,14 +133,9 @@ jobs:
       NEURO_TOKEN: ${{ secrets.NEURO_TOKEN }}
       NEURO_CLUSTER: ${{ secrets.MLOPS_E2E_TESTS_CLUSTER }}
       NEURO_CLUSTER_SECONDARY: ${{ secrets.MLOPS_E2E_TESTS_CLUSTER_SECONDARY }}
-      DOCKER_SERVER: docker.io
-      DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
-      DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
-      DOCKER_CI_USERNAME: ${{ secrets.DOCKERHUB_CI_USERNAME }}
-      DOCKER_CI_TOKEN: ${{ secrets.DOCKERHUB_CI_TOKEN }}
       AZURE_SAS_TOKEN: ${{ secrets.AZURE_SAS_TOKEN }}
       # Note: ${{ github.sha }} not working, see https://github.com/actions/checkout/issues/299
-      NEURO_EXTRAS_IMAGE: image:neuromation/neuro-extras:${{ github.event.pull_request.head.sha
+      NEURO_EXTRAS_IMAGE: ghcr.io/neuro-inc/neuro-extras:${{ github.event.pull_request.head.sha
         || github.sha }}
     steps:
     - name: Checkout commit
@@ -221,7 +214,7 @@ jobs:
       NEURO_TOKEN: ${{ secrets.NEURO_TOKEN }}
       NEURO_CLUSTER: ${{ secrets.MLOPS_E2E_TESTS_CLUSTER }}
       # Note: ${{ github.sha }} not working, see https://github.com/actions/checkout/issues/299
-      NEURO_EXTRAS_IMAGE: image:neuromation/neuro-extras:${{ github.event.pull_request.head.sha
+      NEURO_EXTRAS_IMAGE: ghcr.io/neuro-inc/neuro-extras:${{ github.event.pull_request.head.sha
         || github.sha }}
     steps:
     - name: Checkout commit

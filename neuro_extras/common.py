@@ -12,7 +12,7 @@ from .version import __version__
 logger = logging.getLogger(__name__)
 
 NEURO_EXTRAS_IMAGE = os.environ.get(
-    "NEURO_EXTRAS_IMAGE", f"neuromation/neuro-extras:{__version__}"
+    "NEURO_EXTRAS_IMAGE", f"ghcr.io/neuro-inc/neuro-extras:{__version__}"
 )
 
 
