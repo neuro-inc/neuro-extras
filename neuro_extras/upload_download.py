@@ -95,7 +95,7 @@ def _get_project_root() -> Path:
 
 async def _get_remote_project_root() -> Path:
     factory = Factory()
-    config = factory.load_user_config()
+    config = await factory.load_user_config()
     try:
         return Path(config["extra"]["remote-project-dir"])
     except KeyError:
