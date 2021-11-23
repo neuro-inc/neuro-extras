@@ -3,8 +3,7 @@ from pathlib import Path
 
 import click
 from neuro_cli.asyncio_utils import run as run_async
-from neuro_sdk import ConfigError, find_project_root
-from neuro_sdk.config import load_user_config
+from neuro_sdk import ConfigError, Factory, find_project_root
 
 from .cli import main
 
@@ -95,7 +94,8 @@ def _get_project_root() -> Path:
 
 
 async def _get_remote_project_root() -> Path:
-    config = load_user_config(Path("~/.neuro"))
+    factory = Factory()
+    config = factory.load_user_config()
     try:
         return Path(config["extra"]["remote-project-dir"])
     except KeyError:
