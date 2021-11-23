@@ -135,7 +135,7 @@ jobs:
         export IMAGE=${{ steps.push.outputs.image }}
         export TAG=${{ steps.push.outputs.tag }}
 
-        until curl --silent -f --head -lL $URL/v2/repositories/$IMAGE/tags/$TAG/ > /dev/null
+        until docker pull --quiet $IMAGE:$TAG
         do
             echo "Waiting for the dockerhub image $IMAGE:$TAG ..."
             sleep 1
@@ -169,9 +169,6 @@ jobs:
       NEURO_TOKEN: ${{ secrets.NEURO_TOKEN }}
       NEURO_CLUSTER: ${{ secrets.MLOPS_E2E_TESTS_CLUSTER }}
       NEURO_CLUSTER_SECONDARY: ${{ secrets.MLOPS_E2E_TESTS_CLUSTER_SECONDARY }}
-      DOCKER_SERVER: docker.io
-      DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
-      DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
       AZURE_SAS_TOKEN: ${{ secrets.AZURE_SAS_TOKEN }}
     steps:
     - name: Checkout commit
