@@ -14,13 +14,12 @@ with open("neuro_extras/version.py") as f:
 setup(
     name="neuro-extras",
     version=version,
-    python_requires=">=3.6.0",
+    python_requires=">=3.7.0",
     url="https://github.com/neuro-inc/neuro-extras",
     packages=find_packages(),
     install_requires=[
-        "neuro-cli>=21.11.2",
-        'dataclasses>=0.7; python_version<"3.7"',
-        "click>=7.0",
+        "neuro-cli>=21.11.3",
+        "click>=8.0",
         "toml>=0.10.0",
         "pyyaml>=3.0",
     ],

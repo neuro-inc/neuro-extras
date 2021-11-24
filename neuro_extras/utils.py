@@ -1,15 +1,10 @@
 import asyncio
 import logging
-import sys
+from contextlib import asynccontextmanager
 from typing import AsyncIterator, Optional
 
-import neuro_sdk as neuro_api
+import neuro_sdk
 
-
-if sys.version_info >= (3, 7):  # pragma: no cover
-    from contextlib import asynccontextmanager
-else:
-    from async_generator import asynccontextmanager
 
 logger = logging.getLogger(__name__)
 
@@ -17,8 +12,8 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def get_neuro_client(
     cluster: Optional[str] = None,
-) -> AsyncIterator[neuro_api.Client]:
-    client: neuro_api.Client = await neuro_api.get()
+) -> AsyncIterator[neuro_sdk.Client]:
+    client: neuro_sdk.Client = await neuro_sdk.get()
     cluster_orig: Optional[str] = None
     try:
         await client.__aenter__()

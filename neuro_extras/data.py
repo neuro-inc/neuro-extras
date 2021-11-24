@@ -9,7 +9,7 @@ from typing import List, Optional, Sequence
 from urllib import parse
 
 import click
-import neuro_sdk as neuro_api
+import neuro_sdk
 from neuro_cli.asyncio_utils import run as run_async
 from neuro_cli.const import EX_OK
 from yarl import URL
@@ -46,7 +46,7 @@ logger = logging.getLogger(__name__)
 
 
 class DataCopier:
-    def __init__(self, client: neuro_api.Client):
+    def __init__(self, client: neuro_sdk.Client):
         self._client = client
 
     async def launch(
@@ -59,7 +59,7 @@ class DataCopier:
         use_temp_dir: bool,
         preset: Optional[str] = None,
         life_span: Optional[int] = None,
-    ) -> neuro_api.JobDescription:
+    ) -> neuro_sdk.JobDescription:
         logger.info("Submitting a copy job")
 
         image = await _parse_neuro_image(NEURO_EXTRAS_IMAGE)
@@ -546,14 +546,16 @@ def _rm_local(target: Path) -> None:
 
 
 async def _data_transfer(src_uri_str: str, dst_uri_str: str) -> None:
-    src_cluster_or_null = _get_cluster_from_uri(src_uri_str, scheme="storage")
-    dst_cluster = _get_cluster_from_uri(dst_uri_str, scheme="storage")
+    async with get_neuro_client() as client:
+        src_cluster_or_null = _get_cluster_from_uri(
+            client, src_uri_str, scheme="storage"
+        )
+        dst_cluster = _get_cluster_from_uri(client, dst_uri_str, scheme="storage")
 
-    if not src_cluster_or_null:
-        async with get_neuro_client() as src_client:
-            src_cluster = src_client.cluster_name
-    else:
-        src_cluster = src_cluster_or_null
+        if not src_cluster_or_null:
+            src_cluster = client.cluster_name
+        else:
+            src_cluster = src_cluster_or_null
 
     if not dst_cluster:
         raise ValueError(

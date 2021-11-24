@@ -5,7 +5,6 @@ from typing import Any, Dict
 import click
 import yaml
 from neuro_cli.asyncio_utils import run as run_async
-from neuro_sdk.url_utils import uri_from_cli
 from yarl import URL
 
 from .cli import main
@@ -59,10 +58,8 @@ def generate_seldon_deployment(
 
 async def _init_seldon_package(path: str) -> None:
     async with get_neuro_client() as client:
-        uri = uri_from_cli(
+        uri = client.parse.str_to_uri(
             path,
-            client.username,
-            client.cluster_name,
             allowed_schemes=("file", "storage"),
         )
         click.echo(f"Copying a Seldon package scaffolding into {uri}")

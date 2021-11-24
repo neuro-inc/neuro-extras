@@ -3,7 +3,6 @@ from typing import Optional
 
 import click
 from neuro_cli.asyncio_utils import run as run_async
-from neuro_sdk.url_utils import uri_from_cli
 
 from .cli import main
 from .image_builder import DockerConfigAuth, ImageBuilder
@@ -36,10 +35,8 @@ def save_registry_auth(path: str, cluster: Optional[str]) -> None:
 
 async def _save_registry_auth(path: str, cluster: Optional[str]) -> None:
     async with get_neuro_client(cluster) as client:
-        uri = uri_from_cli(
+        uri = client.parse.str_to_uri(
             path,
-            client.username,
-            client.cluster_name,
             allowed_schemes=("file", "storage"),
         )
         builder = ImageBuilder(client)
