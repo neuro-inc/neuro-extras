@@ -10,12 +10,11 @@ from urllib import parse
 
 import click
 import neuro_sdk
-from neuro_cli.asyncio_utils import run as run_async
-from neuro_cli.const import EX_OK
 from yarl import URL
 
 from .cli import main
 from .common import NEURO_EXTRAS_IMAGE, _attach_job_stdout
+from .const import EX_OK
 from .image import _get_cluster_from_uri, _parse_neuro_image
 from .utils import get_neuro_client
 
@@ -138,7 +137,7 @@ def data_transfer(source: str, destination: str) -> None:
     Consider archiving dataset first for the sake of performance,
     if the dataset contains a lot (100k+) of small (< 100Kb each) files.
     """
-    run_async(_data_transfer(source, destination))
+    asyncio.run(_data_transfer(source, destination))
 
 
 @data.command(
@@ -233,7 +232,7 @@ def data_cp(
 ) -> None:
     if extract and compress:
         raise click.ClickException("Extract and compress can't be used together")
-    run_async(
+    asyncio.run(
         _data_cp(
             source,
             destination,

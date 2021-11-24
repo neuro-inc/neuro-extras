@@ -1,8 +1,8 @@
+import asyncio
 import json
 from typing import Optional
 
 import click
-from neuro_cli.asyncio_utils import run as run_async
 
 from .cli import main
 from .image_builder import DockerConfigAuth, ImageBuilder
@@ -30,7 +30,7 @@ def config() -> None:
 )
 @click.argument("path")
 def save_registry_auth(path: str, cluster: Optional[str]) -> None:
-    run_async(_save_registry_auth(path, cluster))
+    asyncio.run(_save_registry_auth(path, cluster))
 
 
 async def _save_registry_auth(path: str, cluster: Optional[str]) -> None:

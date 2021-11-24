@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import os
 import subprocess
@@ -19,13 +20,13 @@ from typing import (
 
 import neuro_sdk  # NOTE: don't use async test functions (issue #129)
 import pytest
-from neuro_cli.asyncio_utils import run as run_async, setup_child_watcher
 from tenacity import retry, stop_after_attempt, stop_after_delay
 from typing_extensions import Protocol
 
 from neuro_extras.common import NEURO_EXTRAS_IMAGE
 from neuro_extras.config import _build_registy_auth
 from neuro_extras.image_builder import KANIKO_AUTH_PREFIX
+from neuro_extras.utils import setup_child_watcher
 
 
 logger = logging.getLogger(__name__)
@@ -91,11 +92,11 @@ async def _async_get_bare_client() -> neuro_sdk.Client:
 def _neuro_client() -> Iterator[neuro_sdk.Client]:
     # Note: because of issue #129 we can't use async methods of the client,
     # therefore this fixture is private
-    client = run_async(_async_get_bare_client())
+    client = asyncio.run(_async_get_bare_client())
     try:
-        yield run_async(client.__aenter__())
+        yield asyncio.run(client.__aenter__())
     finally:
-        run_async(client.__aexit__())  # it doesn't use arguments
+        asyncio.run(client.__aexit__())  # it doesn't use arguments
 
 
 @pytest.fixture
@@ -112,12 +113,12 @@ def switch_cluster(
         orig_cluster = _neuro_client.config.cluster_name
         try:
             logger.info(f"Temporary cluster switch: {orig_cluster} -> {cluster}")
-            run_async(_neuro_client.config.switch_cluster(cluster))
+            asyncio.run(_neuro_client.config.switch_cluster(cluster))
             yield
         finally:
             logger.info(f"Switch back cluster: {cluster} -> {orig_cluster}")
             try:
-                run_async(_neuro_client.config.switch_cluster(orig_cluster))
+                asyncio.run(_neuro_client.config.switch_cluster(orig_cluster))
             except Exception as e:
                 logger.error(
                     f"Could not switch back to cluster '{orig_cluster}': {e}. "

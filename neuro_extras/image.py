@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import sys
 import tempfile
@@ -7,11 +8,10 @@ from typing import Optional, Sequence, Tuple
 
 import click
 import neuro_sdk
-from neuro_cli.asyncio_utils import run as run_async
-from neuro_cli.const import EX_OK, EX_PLATFORMERROR
 from neuro_sdk import Client
 
 from .cli import main
+from .const import EX_OK, EX_PLATFORMERROR
 from .image_builder import DockerConfigAuth, ImageBuilder, create_docker_config_auth
 from .utils import get_neuro_client
 
@@ -41,7 +41,7 @@ def image_transfer(source: str, destination: str, force_overwrite: bool) -> None
     """
     Copy images between clusters.
     """
-    exit_code = run_async(_image_transfer(source, destination, force_overwrite))
+    exit_code = asyncio.run(_image_transfer(source, destination, force_overwrite))
     sys.exit(exit_code)
 
 
@@ -143,7 +143,7 @@ def image_build(
 ) -> None:
     try:
         sys.exit(
-            run_async(
+            asyncio.run(
                 _build_image(
                     dockerfile_path=Path(file),
                     context=path,

@@ -4,8 +4,8 @@ import os
 
 import click
 import neuro_sdk
-from neuro_cli.const import EX_OK, EX_PLATFORMERROR
 
+from .const import EX_OK, EX_PLATFORMERROR
 from .version import __version__
 
 
