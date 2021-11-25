@@ -18,7 +18,7 @@ setup(
     url="https://github.com/neuro-inc/neuro-extras",
     packages=find_packages(),
     install_requires=[
-        "neuro-cli>=21.11.3",
+        "neuro-cli>=21.11.4",
         "click>=8.0",
         "toml>=0.10.0",
         "pyyaml>=3.0",
