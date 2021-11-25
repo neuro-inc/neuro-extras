@@ -1,3 +1,4 @@
+COLOR ?= auto
 PYTEST_FLAGS = -v
 PYTEST_PARALLEL = 5
 
@@ -16,15 +17,17 @@ format:
 
 .PHONY: test_e2e
 test_e2e:
-	pytest -n ${PYTEST_PARALLEL} ${PYTEST_FLAGS} -m "not serial" tests/e2e
-	pytest -n 0                  ${PYTEST_FLAGS} -m "serial"     tests/e2e
+	pytest -n ${PYTEST_PARALLEL} ${PYTEST_FLAGS} -m "not serial" \
+		--color=$(COLOR) tests/e2e
+	pytest -n 0                  ${PYTEST_FLAGS} -m "serial" \
+		--color=$(COLOR) tests/e2e
 
 .PHONY: test
 test: test_unit test_e2e
 
 .PHONY: test_unit
 test_unit:
-	pytest ${PYTEST_FLAGS} tests/unit
+	pytest ${PYTEST_FLAGS} --color=$(COLOR) tests/unit
 
 .PHONY: changelog-draft
 changelog-draft:

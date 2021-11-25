@@ -199,6 +199,10 @@ jobs:
         aws-region: us-east-1
 
     - name: Run tests
+      env:
+        COLOR: 'yes'
+        DOCKER_CI_USERNAME: ${{ secrets.DOCKER_CI_USERNAME }}
+        DOCKER_CI_TOKEN: ${{ secrets.DOCKER_CI_TOKEN }}
       run: |
         echo "NEURO_EXTRAS_IMAGE=${{ env.NEURO_EXTRAS_IMAGE }}"
         make test
