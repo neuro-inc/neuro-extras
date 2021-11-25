@@ -147,18 +147,18 @@ jobs:
     if: github.event_name == 'release'
     strategy:
       matrix:
-        python-version: [3.6, 3.7, 3.8, 3.9]
+        python-version: ['3.7', '3.8', '3.9', '3.10']
         os: [ubuntu, macos, windows]
         exclude:
           # not to overload the platform, we will remove this eventually
           # see https://github.com/neuro-inc/neuro-extras/pull/249
-          - python-version: 3.7
+          - python-version: 3.8
             os: macos
-          - python-version: 3.7
+          - python-version: 3.8
             os: windows
-          - python-version: 3.8
+          - python-version: 3.9
             os: macos
-          - python-version: 3.8
+          - python-version: 3.9
             os: windows
       fail-fast: false
     runs-on: ${{ matrix.os }}-latest
