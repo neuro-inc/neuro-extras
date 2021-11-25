@@ -10,8 +10,7 @@ from pathlib import Path
 from typing import Any, AsyncIterator, Dict, Optional, Sequence, Tuple
 
 import click
-import neuro_sdk as neuro_api
-from neuro_sdk.url_utils import normalize_storage_path_uri
+import neuro_sdk
 from yarl import URL
 
 
@@ -49,7 +48,7 @@ class DockerConfig:
 
 
 async def create_docker_config_auth(
-    client_config: neuro_api.Config,
+    client_config: neuro_sdk.Config,
 ) -> DockerConfigAuth:
     # retrieve registry hostname with optional port
     url = client_config.registry_url
@@ -67,7 +66,7 @@ async def create_docker_config_auth(
 class ImageBuilder:
     def __init__(
         self,
-        client: neuro_api.Client,
+        client: neuro_sdk.Client,
         extra_registry_auths: Sequence[DockerConfigAuth] = (),
         verbose: bool = False,
     ) -> None:
@@ -77,7 +76,7 @@ class ImageBuilder:
             TODO: add possibility to build using local docker.
 
         Args:
-            client (neuro_api.Client): instance of neuro-sdk client,
+            client (neuro_sdk.Client): instance of neuro-sdk client,
                 authenticated to the destination cluster
             extra_registry_auths (Sequence[DockerConfigAuth], optional):
                 Sequence of extra docker container registry auth credits,
@@ -91,10 +90,8 @@ class ImageBuilder:
         self._verbose = verbose
 
     def _generate_build_uri(self) -> URL:
-        return normalize_storage_path_uri(
+        return self._client.parse.normalize_uri(
             URL(f"storage:.builds/{uuid.uuid4()}"),
-            self._client.username,
-            self._client.cluster_name,
         )
 
     async def create_docker_config(self) -> DockerConfig:
@@ -150,7 +147,7 @@ class ImageBuilder:
         logger.debug(f"Uploading {docker_config_uri}")
         await self.save_docker_config(docker_config, docker_config_uri)
 
-        cache_image = neuro_api.RemoteImage(
+        cache_image = neuro_sdk.RemoteImage(
             name="layer-cache/cache",
             owner=self._client.config.username,
             registry=str(self._client.config.registry_url),

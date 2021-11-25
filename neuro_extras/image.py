@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import sys
 import tempfile
@@ -6,13 +7,11 @@ from pathlib import Path
 from typing import Optional, Sequence, Tuple
 
 import click
-import neuro_sdk as neuro_api
-from neuro_cli.asyncio_utils import run as run_async
-from neuro_cli.const import EX_OK, EX_PLATFORMERROR
-from neuro_sdk.client import Client
-from neuro_sdk.url_utils import uri_from_cli
+import neuro_sdk
+from neuro_sdk import Client
 
 from .cli import main
+from .const import EX_OK, EX_PLATFORMERROR
 from .image_builder import DockerConfigAuth, ImageBuilder, create_docker_config_auth
 from .utils import get_neuro_client
 
@@ -42,7 +41,7 @@ def image_transfer(source: str, destination: str, force_overwrite: bool) -> None
     """
     Copy images between clusters.
     """
-    exit_code = run_async(_image_transfer(source, destination, force_overwrite))
+    exit_code = asyncio.run(_image_transfer(source, destination, force_overwrite))
     sys.exit(exit_code)
 
 
@@ -144,7 +143,7 @@ def image_build(
 ) -> None:
     try:
         sys.exit(
-            run_async(
+            asyncio.run(
                 _build_image(
                     dockerfile_path=Path(file),
                     context=path,
@@ -165,14 +164,16 @@ def image_build(
         sys.exit(EX_PLATFORMERROR)
 
 
-async def _parse_neuro_image(image: str) -> neuro_api.RemoteImage:
+async def _parse_neuro_image(image: str) -> neuro_sdk.RemoteImage:
     async with get_neuro_client() as client:
         return client.parse.remote_image(image)
 
 
-def _get_cluster_from_uri(image_uri: str, *, scheme: str) -> Optional[str]:
+def _get_cluster_from_uri(
+    client: neuro_sdk.Client, image_uri: str, *, scheme: str
+) -> Optional[str]:
     try:
-        uri = uri_from_cli(image_uri, "", "", allowed_schemes=[scheme])
+        uri = client.parse.str_to_uri(image_uri, allowed_schemes=[scheme])
         return uri.host
     except ValueError:
         # seems like the image scheme was not provided, since it's hosted in dockerhub
@@ -183,12 +184,17 @@ def _get_cluster_from_uri(image_uri: str, *, scheme: str) -> Optional[str]:
 async def _image_transfer(
     src_uri_str: str, dst_uri_str: str, force_overwrite: bool
 ) -> int:
-    src_cluster: Optional[str] = _get_cluster_from_uri(src_uri_str, scheme="image")
-    dst_cluster: Optional[str] = _get_cluster_from_uri(dst_uri_str, scheme="image")
-    if not dst_cluster:
-        raise ValueError(
-            f"Invalid destination image {dst_uri_str}: missing cluster name"
+    async with get_neuro_client() as client:
+        src_cluster: Optional[str] = _get_cluster_from_uri(
+            client, src_uri_str, scheme="image"
         )
+        dst_cluster: Optional[str] = _get_cluster_from_uri(
+            client, dst_uri_str, scheme="image"
+        )
+        if not dst_cluster:
+            raise ValueError(
+                f"Invalid destination image {dst_uri_str}: missing cluster name"
+            )
 
     with tempfile.TemporaryDirectory() as tmpdir:
         async with get_neuro_client(cluster=src_cluster) as src_client:
@@ -236,12 +242,11 @@ async def _build_image(
     registry_auths: Sequence[DockerConfigAuth] = (),
     verbose: bool = False,
 ) -> int:
-    cluster = _get_cluster_from_uri(image_uri_str, scheme="image")
+    async with get_neuro_client() as client:
+        cluster = _get_cluster_from_uri(client, image_uri_str, scheme="image")
     async with get_neuro_client(cluster=cluster) as client:
-        context_uri = uri_from_cli(
+        context_uri = client.parse.str_to_uri(
             context,
-            client.username,
-            client.cluster_name,
             allowed_schemes=("file", "storage"),
         )
         image_exists = await _check_image_exists(image_uri_str, client)
@@ -287,7 +292,7 @@ async def _check_image_exists(image_uri_str: str, client: Client) -> bool:
         return False
     try:
         existing_images = await client.images.tags(
-            neuro_api.RemoteImage(
+            neuro_sdk.RemoteImage(
                 name=image.name,
                 owner=image.owner,
                 cluster_name=image.cluster_name,
@@ -296,6 +301,6 @@ async def _check_image_exists(image_uri_str: str, client: Client) -> bool:
             )
         )
         return image in existing_images
-    except neuro_api.errors.ResourceNotFound:
+    except neuro_sdk.ResourceNotFound:
         # image does not exists on platform registry
         return False

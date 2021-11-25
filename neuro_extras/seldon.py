@@ -1,11 +1,10 @@
-from distutils import dir_util
+import asyncio
+import shutil
 from pathlib import Path
 from typing import Any, Dict
 
 import click
 import yaml
-from neuro_cli.asyncio_utils import run as run_async
-from neuro_sdk.url_utils import uri_from_cli
 from yarl import URL
 
 from .cli import main
@@ -29,7 +28,7 @@ def seldon() -> None:
 @seldon.command("init-package")
 @click.argument("path", default=".")
 def seldon_init_package(path: str) -> None:
-    run_async(_init_seldon_package(path))
+    asyncio.run(_init_seldon_package(path))
 
 
 @seldon.command("generate-deployment")
@@ -45,7 +44,7 @@ def generate_seldon_deployment(
     model_image_uri: str,
     model_storage_uri: str,
 ) -> None:
-    payload = run_async(
+    payload = asyncio.run(
         _create_seldon_deployment(
             name=name,
             neuro_secret_name=neuro_secret,
@@ -59,15 +58,13 @@ def generate_seldon_deployment(
 
 async def _init_seldon_package(path: str) -> None:
     async with get_neuro_client() as client:
-        uri = uri_from_cli(
+        uri = client.parse.str_to_uri(
             path,
-            client.username,
-            client.cluster_name,
             allowed_schemes=("file", "storage"),
         )
         click.echo(f"Copying a Seldon package scaffolding into {uri}")
         if uri.scheme == "file":
-            dir_util.copy_tree(str(SELDON_CUSTOM_PATH), path)
+            shutil.copytree(str(SELDON_CUSTOM_PATH), path)
         else:
             await client.storage.mkdir(uri, parents=True)
             await client.storage.upload_dir(URL(SELDON_CUSTOM_PATH.as_uri()), uri)

@@ -147,15 +147,11 @@ jobs:
     if: github.event_name == 'release'
     strategy:
       matrix:
-        python-version: [3.6, 3.7, 3.8, 3.9]
+        python-version: ['3.7', '3.8', '3.9']
         os: [ubuntu, macos, windows]
         exclude:
           # not to overload the platform, we will remove this eventually
           # see https://github.com/neuro-inc/neuro-extras/pull/249
-          - python-version: 3.7
-            os: macos
-          - python-version: 3.7
-            os: windows
           - python-version: 3.8
             os: macos
           - python-version: 3.8
@@ -222,12 +218,20 @@ jobs:
         aws-region: us-east-1
     - name: Run tests on MacOS and Linux
       if: matrix.os != 'windows'
+      env:
+        COLOR: 'yes'
+        DOCKER_CI_USERNAME: ${{ secrets.DOCKER_CI_USERNAME }}
+        DOCKER_CI_TOKEN: ${{ secrets.DOCKER_CI_TOKEN }}
       run: |
         unset NEURO_EXTRAS_IMAGE  # clear this env var to test it in real
         make test
     - name: Run tests on Windows
       if: matrix.os == 'windows'
       shell: pwsh
+      env:
+        COLOR: 'yes'
+        DOCKER_CI_USERNAME: ${{ secrets.DOCKER_CI_USERNAME }}
+        DOCKER_CI_TOKEN: ${{ secrets.DOCKER_CI_TOKEN }}
       run: |
         if (Test-Path 'Env:NEURO_EXTRAS_IMAGE') { # clear this env var to test it in real
           Remove-Item 'Env:NEURO_EXTRAS_IMAGE'

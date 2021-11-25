@@ -9,13 +9,12 @@ from typing import List, Optional, Sequence
 from urllib import parse
 
 import click
-import neuro_sdk as neuro_api
-from neuro_cli.asyncio_utils import run as run_async
-from neuro_cli.const import EX_OK
+import neuro_sdk
 from yarl import URL
 
 from .cli import main
 from .common import NEURO_EXTRAS_IMAGE, _attach_job_stdout
+from .const import EX_OK
 from .image import _get_cluster_from_uri, _parse_neuro_image
 from .utils import get_neuro_client
 
@@ -46,7 +45,7 @@ logger = logging.getLogger(__name__)
 
 
 class DataCopier:
-    def __init__(self, client: neuro_api.Client):
+    def __init__(self, client: neuro_sdk.Client):
         self._client = client
 
     async def launch(
@@ -59,7 +58,7 @@ class DataCopier:
         use_temp_dir: bool,
         preset: Optional[str] = None,
         life_span: Optional[int] = None,
-    ) -> neuro_api.JobDescription:
+    ) -> neuro_sdk.JobDescription:
         logger.info("Submitting a copy job")
 
         image = await _parse_neuro_image(NEURO_EXTRAS_IMAGE)
@@ -138,7 +137,7 @@ def data_transfer(source: str, destination: str) -> None:
     Consider archiving dataset first for the sake of performance,
     if the dataset contains a lot (100k+) of small (< 100Kb each) files.
     """
-    run_async(_data_transfer(source, destination))
+    asyncio.run(_data_transfer(source, destination))
 
 
 @data.command(
@@ -233,7 +232,7 @@ def data_cp(
 ) -> None:
     if extract and compress:
         raise click.ClickException("Extract and compress can't be used together")
-    run_async(
+    asyncio.run(
         _data_cp(
             source,
             destination,
@@ -546,14 +545,16 @@ def _rm_local(target: Path) -> None:
 
 
 async def _data_transfer(src_uri_str: str, dst_uri_str: str) -> None:
-    src_cluster_or_null = _get_cluster_from_uri(src_uri_str, scheme="storage")
-    dst_cluster = _get_cluster_from_uri(dst_uri_str, scheme="storage")
+    async with get_neuro_client() as client:
+        src_cluster_or_null = _get_cluster_from_uri(
+            client, src_uri_str, scheme="storage"
+        )
+        dst_cluster = _get_cluster_from_uri(client, dst_uri_str, scheme="storage")
 
-    if not src_cluster_or_null:
-        async with get_neuro_client() as src_client:
-            src_cluster = src_client.cluster_name
-    else:
-        src_cluster = src_cluster_or_null
+        if not src_cluster_or_null:
+            src_cluster = client.cluster_name
+        else:
+            src_cluster = src_cluster_or_null
 
     if not dst_cluster:
         raise ValueError(

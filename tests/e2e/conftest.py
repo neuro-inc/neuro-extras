@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import os
 import subprocess
@@ -5,7 +6,7 @@ import uuid
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from subprocess import PIPE, CompletedProcess
+from subprocess import CompletedProcess
 from tempfile import TemporaryDirectory
 from typing import (
     AsyncIterator,
@@ -17,15 +18,15 @@ from typing import (
     Union,
 )
 
-import neuro_sdk as neuro_api  # NOTE: don't use async test functions (issue #129)
+import neuro_sdk  # NOTE: don't use async test functions (issue #129)
 import pytest
-from neuro_cli.asyncio_utils import run as run_async, setup_child_watcher
 from tenacity import retry, stop_after_attempt, stop_after_delay
 from typing_extensions import Protocol
 
 from neuro_extras.common import NEURO_EXTRAS_IMAGE
 from neuro_extras.config import _build_registy_auth
 from neuro_extras.image_builder import KANIKO_AUTH_PREFIX
+from neuro_extras.utils import setup_child_watcher
 
 
 logger = logging.getLogger(__name__)
@@ -82,42 +83,42 @@ def print_neuro_extras_image() -> None:
     logger.warning(f"Using neuro-extras image: '{NEURO_EXTRAS_IMAGE}'")
 
 
-async def _async_get_bare_client() -> neuro_api.Client:
+async def _async_get_bare_client() -> neuro_sdk.Client:
     """Return uninitialized neuro client."""
-    return await neuro_api.get()
+    return await neuro_sdk.get()
 
 
 @pytest.fixture
-def _neuro_client() -> Iterator[neuro_api.Client]:
+def _neuro_client() -> Iterator[neuro_sdk.Client]:
     # Note: because of issue #129 we can't use async methods of the client,
     # therefore this fixture is private
-    client = run_async(_async_get_bare_client())
+    client = asyncio.run(_async_get_bare_client())
     try:
-        yield run_async(client.__aenter__())
+        yield asyncio.run(client.__aenter__())
     finally:
-        run_async(client.__aexit__())  # it doesn't use arguments
+        asyncio.run(client.__aexit__())  # it doesn't use arguments
 
 
 @pytest.fixture
-def current_user(_neuro_client: neuro_api.Client) -> str:
+def current_user(_neuro_client: neuro_sdk.Client) -> str:
     return _neuro_client.username
 
 
 @pytest.fixture
 def switch_cluster(
-    _neuro_client: neuro_api.Client,
+    _neuro_client: neuro_sdk.Client,
 ) -> Callable[[str], ContextManager[None]]:
     @contextmanager
     def _f(cluster: str) -> Iterator[None]:
         orig_cluster = _neuro_client.config.cluster_name
         try:
             logger.info(f"Temporary cluster switch: {orig_cluster} -> {cluster}")
-            run_async(_neuro_client.config.switch_cluster(cluster))
+            asyncio.run(_neuro_client.config.switch_cluster(cluster))
             yield
         finally:
             logger.info(f"Switch back cluster: {cluster} -> {orig_cluster}")
             try:
-                run_async(_neuro_client.config.switch_cluster(orig_cluster))
+                asyncio.run(_neuro_client.config.switch_cluster(orig_cluster))
             except Exception as e:
                 logger.error(
                     f"Could not switch back to cluster '{orig_cluster}': {e}. "
@@ -129,7 +130,7 @@ def switch_cluster(
 
 @pytest.fixture
 async def dockerhub_auth_secret() -> AsyncIterator[Secret]:
-    async with neuro_api.get() as neuro_client:
+    async with neuro_sdk.get() as neuro_client:
         secret_name = f"{KANIKO_AUTH_PREFIX}_{uuid.uuid4().hex}"
         auth_data = _build_registy_auth(
             # Why not v2: https://github.com/GoogleContainerTools/kaniko/pull/1209
@@ -166,9 +167,8 @@ def cli_runner(project_dir: Path) -> CLIRunner:
         proc = subprocess.run(
             args,
             check=enable_retry,
-            stdout=PIPE,
-            stderr=PIPE,
-            universal_newlines=True,
+            capture_output=True,
+            text=True,
         )
         if proc.returncode:
             logger.warning(f"Got '{proc.returncode}' for '{' '.join(args)}'")

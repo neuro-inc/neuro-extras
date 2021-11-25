@@ -1,8 +1,8 @@
 import logging
 
 import click
-from neuro_cli.asyncio_utils import setup_child_watcher
 
+from .utils import setup_child_watcher
 from .version import __version__
 
 

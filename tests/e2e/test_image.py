@@ -7,7 +7,8 @@ from pathlib import Path
 from typing import Callable, ContextManager
 
 import pytest
-from neuro_cli.const import EX_PLATFORMERROR
+
+from neuro_extras.const import EX_PLATFORMERROR
 
 from .conftest import CLIRunner, Secret, gen_random_file
 

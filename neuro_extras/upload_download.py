@@ -2,7 +2,6 @@ import asyncio
 from pathlib import Path
 
 import click
-from neuro_cli.asyncio_utils import run as run_async
 from neuro_sdk import ConfigError, Factory, find_project_root
 
 from .cli import main
@@ -23,7 +22,7 @@ def upload(path: str) -> None:
     [extra]
     remote-project-dir = "project-dir-name"
     """
-    return_code = run_async(_upload(path))
+    return_code = asyncio.run(_upload(path))
     exit(return_code)
 
 
@@ -41,7 +40,7 @@ def download(path: str) -> None:
     [extra]
     remote-project-dir = "project-dir-name"
     """
-    return_code = run_async(_download(path))
+    return_code = asyncio.run(_download(path))
     exit(return_code)
 
 

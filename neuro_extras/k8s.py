@@ -1,3 +1,4 @@
+import asyncio
 import base64
 import json
 from pathlib import Path
@@ -5,7 +6,6 @@ from typing import Any, Dict
 
 import click
 import yaml
-from neuro_cli.asyncio_utils import run as run_async
 
 from .cli import main
 from .image_builder import ImageBuilder
@@ -23,14 +23,14 @@ def k8s() -> None:
 @k8s.command("generate-secret")
 @click.option("--name", default="neuro")
 def generate_k8s_secret(name: str) -> None:
-    payload = run_async(_create_k8s_secret(name))
+    payload = asyncio.run(_create_k8s_secret(name))
     click.echo(yaml.dump(payload), nl=False)
 
 
 @k8s.command("generate-registry-secret")
 @click.option("--name", default="neuro-registry")
 def generate_k8s_registry_secret(name: str) -> None:
-    payload = run_async(_create_k8s_registry_secret(name))
+    payload = asyncio.run(_create_k8s_registry_secret(name))
     click.echo(yaml.dump(payload), nl=False)
 
 
