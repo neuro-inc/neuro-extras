@@ -41,7 +41,7 @@ def test_image_build_custom_preset(
         f.write(
             textwrap.dedent(
                 f"""\
-                FROM alpine:latest
+                FROM ghcr.io/neuro-inc/alpine:latest
                 ADD {random_file_to_disable_layer_caching} /tmp
                 RUN echo !
                 """
@@ -92,7 +92,7 @@ def test_image_build_custom_dockerfile(
         f.write(
             textwrap.dedent(
                 f"""\
-                FROM alpine:latest
+                FROM ghcr.io/neuro-inc/alpine:latest
                 ADD {random_file_to_disable_layer_caching} /tmp
                 RUN echo !
                 """
@@ -143,7 +143,7 @@ def test_image_build_overwrite(
         f.write(
             textwrap.dedent(
                 f"""\
-                FROM alpine:latest
+                FROM ghcr.io/neuro-inc/alpine:latest
                 ADD {random_file_to_disable_layer_caching} /tmp
                 RUN echo !
                 """
@@ -197,7 +197,7 @@ def test_ignored_files_are_not_copied(
     Path(dockerfile_path).write_text(
         textwrap.dedent(
             f"""\
-            FROM alpine:latest
+            FROM ghcr.io/neuro-inc/alpine:latest
             ADD {random_file_to_disable_layer_caching} /tmp
             ADD . /
             RUN find / -name "*{random_file_to_disable_layer_caching.stem}*"
@@ -261,7 +261,7 @@ def test_image_transfer(
             f.write(
                 textwrap.dedent(
                     f"""\
-                    FROM alpine:latest
+                    FROM ghcr.io/neuro-inc/alpine:latest
                     ADD {random_file_to_disable_layer_caching} /tmp
                     RUN echo !
                     """
@@ -307,7 +307,7 @@ def test_image_build_custom_build_args(
         f.write(
             textwrap.dedent(
                 f"""\
-                FROM alpine:latest
+                FROM ghcr.io/neuro-inc/alpine:latest
                 ADD {random_file_to_disable_layer_caching} /tmp
                 ARG TEST_ARG
                 ARG ANOTHER_TEST_ARG
@@ -364,7 +364,7 @@ def test_image_build_volume(
         f.write(
             textwrap.dedent(
                 f"""\
-                FROM alpine:latest
+                FROM ghcr.io/neuro-inc/alpine:latest
                 ADD {random_file_to_disable_layer_caching} /tmp
                 ADD secret.txt /
                 RUN echo git_token=$(cat secret.txt)
@@ -421,7 +421,7 @@ def test_external_image_build(
         f.write(
             textwrap.dedent(
                 f"""\
-                FROM alpine:latest
+                FROM ghcr.io/neuro-inc/alpine:latest
                 ADD {random_file_to_disable_layer_caching} /tmp
                 RUN echo !
                 """
