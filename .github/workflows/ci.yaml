@@ -101,7 +101,7 @@ jobs:
           --build-arg NEURO_EXTRAS_PACKAGE=$PACKAGE .
     - name: Push test image
       run: |
-        neuro push ghcr.io/neuro-inc/neuro-extras:$SHA
+        docker push ghcr.io/neuro-inc/neuro-extras:$SHA
 
   test:
     if: |
@@ -111,7 +111,7 @@ jobs:
     needs: [pretest]
     strategy:
       matrix:
-        python-version: ['3.7', '3.8', '3.9', '3.10']
+        python-version: ['3.7', '3.8', '3.9']
         os: [ubuntu, macos, windows]
         exclude:
           # not to overload the platform, we will remove this eventually
@@ -119,10 +119,6 @@ jobs:
         - python-version: 3.8
           os: macos
         - python-version: 3.8
-          os: windows
-        - python-version: 3.9
-          os: macos
-        - python-version: 3.9
           os: windows
       fail-fast: false
     runs-on: ${{ matrix.os }}-latest
