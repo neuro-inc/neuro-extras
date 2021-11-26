@@ -685,7 +685,7 @@ def test_data_cp_from_cloud_to_disk(
             "run",
             "-v",
             f"{disk}:{local_folder}:rw",
-            "ubuntu",
+            "ghcr.io/neuro-inc/ubuntu",
             "--",
             f"bash -c 'ls -l {local_folder}/intermediate/{filename}'",
         ]
