@@ -197,8 +197,8 @@ jobs:
     - name: Run tests
       env:
         COLOR: 'yes'
-        DOCKER_CI_USERNAME: ${{ secrets.DOCKER_CI_USERNAME }}
-        DOCKER_CI_TOKEN: ${{ secrets.DOCKER_CI_TOKEN }}
+        DOCKER_CI_USERNAME: ${{ secrets.DOCKERHUB_CI_USERNAME }}
+        DOCKER_CI_TOKEN: ${{ secrets.DOCKERHUB_CI_TOKEN }}
       run: |
         echo "NEURO_EXTRAS_IMAGE=${{ env.NEURO_EXTRAS_IMAGE }}"
         make test
