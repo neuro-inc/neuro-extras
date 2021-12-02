@@ -137,6 +137,8 @@ jobs:
       # Note: ${{ github.sha }} not working, see https://github.com/actions/checkout/issues/299
       NEURO_EXTRAS_IMAGE: ghcr.io/neuro-inc/neuro-extras:${{ github.event.pull_request.head.sha
         || github.sha }}
+      # https://github.com/google-github-actions/setup-gcloud/issues/381
+      CLOUDSDK_PYTHON: python3.8
     steps:
     - name: Checkout commit
       uses: actions/checkout@v2
