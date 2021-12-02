@@ -137,13 +137,26 @@ jobs:
       # Note: ${{ github.sha }} not working, see https://github.com/actions/checkout/issues/299
       NEURO_EXTRAS_IMAGE: ghcr.io/neuro-inc/neuro-extras:${{ github.event.pull_request.head.sha
         || github.sha }}
-      # https://github.com/google-github-actions/setup-gcloud/issues/381
-      CLOUDSDK_PYTHON: python3.8
+
     steps:
     - name: Checkout commit
       uses: actions/checkout@v2
       with:
         ref: ${{ github.event.pull_request.head.sha }}
+
+    - name: Configure GCP access
+      uses: google-github-actions/setup-gcloud@master
+      with:
+        project_id: ${{ secrets.E2E_COOKIECUTTER_GCP_PROJECT_ID }}
+        service_account_key: ${{ secrets.E2E_COOKIECUTTER_GCP_SA_KEY }}
+        export_default_credentials: true
+
+    - name: Configure AWS access
+      uses: aws-actions/configure-aws-credentials@v1
+      with:
+        aws-access-key-id: ${{ secrets.E2E_COOKIECUTTER_AWS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.E2E_COOKIECUTTER_AWS_ACCESS_KEY }}
+        aws-region: us-east-1
 
     - name: Install python ${{ matrix.python-version }}
       uses: actions/setup-python@v2
@@ -185,20 +198,6 @@ jobs:
         neuro config switch-cluster ${{ env.NEURO_CLUSTER }}
         neuro secret add azure_sas_token $AZURE_SAS_TOKEN
         neuro --color=no config show
-
-    - name: Configure GCP access
-      uses: google-github-actions/setup-gcloud@master
-      with:
-        project_id: ${{ secrets.E2E_COOKIECUTTER_GCP_PROJECT_ID }}
-        service_account_key: ${{ secrets.E2E_COOKIECUTTER_GCP_SA_KEY }}
-        export_default_credentials: true
-
-    - name: Configure AWS access
-      uses: aws-actions/configure-aws-credentials@v1
-      with:
-        aws-access-key-id: ${{ secrets.E2E_COOKIECUTTER_AWS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.E2E_COOKIECUTTER_AWS_ACCESS_KEY }}
-        aws-region: us-east-1
 
     - name: Run tests
       env:
