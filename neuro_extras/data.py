@@ -1,8 +1,8 @@
 import asyncio
 import logging
 import os
+import shutil
 import tempfile
-from distutils import dir_util
 from enum import Enum
 from pathlib import Path
 from typing import List, Optional, Sequence
@@ -356,7 +356,7 @@ async def _data_cp(
         source_url = cp_destination_url
 
         if extract:
-            dir_util.mkpath(str(dst_dir))
+            dst_dir.mkdir(parents=True, exist_ok=True)
             extraction_dst_url = URL.build(path=str(dst_dir / origin_dst_name))
             await _extract(source_url, extraction_dst_url, rm_src=True)
             source_url = extraction_dst_url
@@ -537,9 +537,12 @@ async def _compress(source_url: URL, destination_url: URL, rm_src: bool) -> None
 
 
 def _rm_local(target: Path) -> None:
+    def warn_dir_wasnt_deleted(func, path, exc_info) -> None:  # type: ignore
+        logger.warning(f"Unable to delete local folder {path}", exc_info=exc_info)
+
     # maybe also AWS / GCS clouds or storage?
     if target.is_dir():
-        dir_util.remove_tree(str(target))
+        shutil.rmtree(str(target), onerror=warn_dir_wasnt_deleted)
     if target.is_file() and target.exists():
         target.unlink()
 
