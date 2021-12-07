@@ -203,6 +203,7 @@ jobs:
         DOCKER_CI_TOKEN: ${{ secrets.DOCKERHUB_CI_TOKEN }}
         NEURO_CLUSTER: ${{ secrets.MLOPS_E2E_TESTS_CLUSTER }}
         NEURO_CLUSTER_SECONDARY: ${{ secrets.MLOPS_E2E_TESTS_CLUSTER_SECONDARY }}
+        AZURE_SAS_TOKEN: ${{ secrets.AZURE_SAS_TOKEN }}
         # Note: ${{ github.sha }} not working, see https://github.com/actions/checkout/issues/299
         SHA: ${{ github.event.pull_request.head.sha || github.sha }}
       shell: bash
