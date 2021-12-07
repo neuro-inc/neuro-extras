@@ -17,9 +17,12 @@ STALE_PERIOD = dt.timedelta(
     hours=float(os.environ.get("STALE_HOURS", 0)),
 )
 VERSION_REGEX = r"\d{1,2}\.\d{1,2}\.\d{0,2}"
-
-assert STALE_PERIOD
 logging.basicConfig(level=logging.INFO)
+if not STALE_PERIOD:
+    raise ValueError(
+        f"Stale period is 0 ({STALE_PERIOD}), "
+        "set 'STALE_DAYS' and/or 'STALE_HOURS' environment variables."
+    )
 
 
 async def main() -> None:

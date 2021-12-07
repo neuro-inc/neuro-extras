@@ -23,7 +23,7 @@ Check-out `neuro-extras` CLI reference [here](./docs/cli.md) for main commands s
     - `neuro-extras data cp -x -t https://example.org/dataset.tar.gz disk:disk-name-or-id:/project/dataset`
 
 ### To local machine
-- From GCC bucket storage:
+- From GCP bucket storage:
     - `neuro-extras data cp -x gs://BUCKET_NAME/dataset.tar.gz /project/dataset`
     - `gsutil` utility should be installed on local machine and authenticated to read needed bucket
     - [Supported](https://cloud.google.com/storage/docs/gsutil_install#sdk-install) Python verions are 3 (3.5 to 3.8, 3.7 recommended) and 2 (2.7.9 or higher)
