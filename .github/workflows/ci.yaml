@@ -129,14 +129,6 @@ jobs:
     timeout-minutes: 30
     env:
       PYTHONIOENCODING: utf-8
-      NEURO_STAGING_URL: ${{ secrets.NEURO_STAGING_URL }}
-      NEURO_TOKEN: ${{ secrets.NEURO_TOKEN }}
-      NEURO_CLUSTER: ${{ secrets.MLOPS_E2E_TESTS_CLUSTER }}
-      NEURO_CLUSTER_SECONDARY: ${{ secrets.MLOPS_E2E_TESTS_CLUSTER_SECONDARY }}
-      AZURE_SAS_TOKEN: ${{ secrets.AZURE_SAS_TOKEN }}
-      # Note: ${{ github.sha }} not working, see https://github.com/actions/checkout/issues/299
-      NEURO_EXTRAS_IMAGE: ghcr.io/neuro-inc/neuro-extras:${{ github.event.pull_request.head.sha
-        || github.sha }}
 
     steps:
     - name: Checkout commit
@@ -166,8 +158,7 @@ jobs:
     - name: Cache Python and its deps
       uses: actions/cache@v2.1.7
       with:
-        key: ${{ runner.os }}-py-${{ matrix.python-version }}-${{ hashFiles('setup.py',
-          'requirements/*.txt') }}
+        key: ${{ runner.os }}-py-${{ matrix.python-version }}-${{ hashFiles('setup.py', 'requirements/*.txt') }}
         path: ${{ env.pythonLocation }}
 
     - name: Cache pre-commit hooks
@@ -182,6 +173,7 @@ jobs:
       shell: bash
       run: |
         curl https://rclone.org/install.sh | sudo bash
+
     - name: Install libraries on macOS
       if: matrix.os == 'macos'
       shell: bash
@@ -192,7 +184,12 @@ jobs:
       run: |
         make setup
 
-    - name: Configure neuro
+    - name: Configure environment
+      env:
+        NEURO_STAGING_URL: ${{ secrets.NEURO_STAGING_URL }}
+        NEURO_TOKEN: ${{ secrets.NEURO_TOKEN }}
+        NEURO_CLUSTER: ${{ secrets.MLOPS_E2E_TESTS_CLUSTER }}
+        AZURE_SAS_TOKEN: ${{ secrets.AZURE_SAS_TOKEN }}
       run: |
         neuro config login-with-token ${{ env.NEURO_TOKEN }} ${{ env.NEURO_STAGING_URL }}
         neuro config switch-cluster ${{ env.NEURO_CLUSTER }}
@@ -204,6 +201,10 @@ jobs:
         COLOR: 'yes'
         DOCKER_CI_USERNAME: ${{ secrets.DOCKERHUB_CI_USERNAME }}
         DOCKER_CI_TOKEN: ${{ secrets.DOCKERHUB_CI_TOKEN }}
+        NEURO_CLUSTER: ${{ secrets.MLOPS_E2E_TESTS_CLUSTER }}
+        NEURO_CLUSTER_SECONDARY: ${{ secrets.MLOPS_E2E_TESTS_CLUSTER_SECONDARY }}
+        # Note: ${{ github.sha }} not working, see https://github.com/actions/checkout/issues/299
+        SHA: ${{ github.event.pull_request.head.sha || github.sha }}
       shell: bash
       run: |
         # Work-around, since gsutil does not support Python 3.10 yet.
@@ -212,46 +213,5 @@ jobs:
         elif [[ '${{ matrix.python-version }}' == '3.10' ]]; then
           export CLOUDSDK_PYTHON=python3.9
         fi
-        echo "NEURO_EXTRAS_IMAGE=${{ env.NEURO_EXTRAS_IMAGE }}"
+        export NEURO_EXTRAS_IMAGE=ghcr.io/neuro-inc/neuro-extras:$SHA
         make test
-
-  posttest:
-    name: Cleanup after tests
-    needs: [pretest, test]
-    if: needs.pretest.result == 'success'
-    runs-on: ubuntu-latest
-    env:
-      PYTHONIOENCODING: utf-8
-      NEURO_STAGING_URL: ${{ secrets.NEURO_STAGING_URL }}
-      NEURO_TOKEN: ${{ secrets.NEURO_TOKEN }}
-      NEURO_CLUSTER: ${{ secrets.MLOPS_E2E_TESTS_CLUSTER }}
-      # Note: ${{ github.sha }} not working, see https://github.com/actions/checkout/issues/299
-      NEURO_EXTRAS_IMAGE: ghcr.io/neuro-inc/neuro-extras:${{ github.event.pull_request.head.sha
-        || github.sha }}
-    steps:
-    - name: Checkout commit
-      uses: actions/checkout@v2
-      with:
-        ref: ${{ github.event.pull_request.head.sha }}
-
-    - name: Setup Python 3.9
-      uses: actions/setup-python@v2
-      with:
-        python-version: "3.9"
-
-    - name: Cache Python and its deps
-      uses: actions/cache@v2.1.7
-      with:
-        key: ${{ runner.os }}-py-3.9-${{ hashFiles('requirements/base.txt') }}
-        path: ${{ env.pythonLocation }}
-
-    - name: Install and configure neuro
-      run: |
-        python -m pip install -r requirements/base.txt
-        neuro config login-with-token ${{ env.NEURO_TOKEN }} ${{ env.NEURO_STAGING_URL }}
-        neuro config switch-cluster ${{ env.NEURO_CLUSTER }}
-        neuro --color=no config show
-
-    - name: Delete test image
-      run: |
-        neuro image rm $NEURO_EXTRAS_IMAGE || echo "Image not found"
