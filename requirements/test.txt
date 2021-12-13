@@ -3,7 +3,7 @@
 deepdiff==5.6.0
 pytest==6.2.5
 pytest-asyncio==0.16.0
-pytest-xdist==2.4.0
+pytest-xdist==2.5.0
 tenacity==8.0.1
 towncrier==21.3.0
 typing-extensions==4.0.1
