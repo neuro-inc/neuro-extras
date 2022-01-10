@@ -65,7 +65,7 @@ def image_transfer(source: str, destination: str, force_overwrite: bool) -> None
     multiple=True,
     metavar="VAR=VAL",
     help=(
-        "Buid-time variables passed in ARG values, similarly to Docker. "
+        "Build-time variables passed in ARG values, similarly to Docker. "
         "Could be used multiple times for multiple arguments."
     ),
 )
@@ -111,13 +111,20 @@ def image_transfer(source: str, destination: str, force_overwrite: bool) -> None
     "--cache/--no-cache",
     default=True,
     show_default=True,
-    help="Use Kaniko cache while building image.",
+    help="Use Kaniko cache while building image. Only works for non-local builds.",
 )
 @click.option(
     "--verbose",
     type=bool,
     default=False,
-    help="If specified, run Kaniko with 'debug' verbosity, otherwise 'info' (default).",
+    help="If specified, run build with 'debug' verbosity, otherwise 'info' (default).",
+)
+@click.option(
+    "--local/--no-local",
+    type=bool,
+    default=False,
+    show_default=True,
+    help="Use local docker build instead of building on the platform.",
 )
 @click.option(
     "--build-tag",
@@ -139,6 +146,7 @@ def image_build(
     force_overwrite: bool,
     cache: bool,
     verbose: bool,
+    local:bool,
     build_tag: Tuple[str],
 ) -> None:
     try:
@@ -155,6 +163,7 @@ def image_build(
                     preset=preset,
                     force_overwrite=force_overwrite,
                     verbose=verbose,
+                    local=local,
                     build_tags=build_tag,
                 )
             )
@@ -240,40 +249,55 @@ async def _build_image(
     force_overwrite: bool,
     preset: Optional[str] = None,
     registry_auths: Sequence[DockerConfigAuth] = (),
+    local = False,
     verbose: bool = False,
 ) -> int:
     async with get_neuro_client() as client:
         cluster = _get_cluster_from_uri(client, image_uri_str, scheme="image")
     async with get_neuro_client(cluster=cluster) as client:
+        if local and preset:
+            raise click.ClickException("Can't use preset option with local build")
         context_uri = client.parse.str_to_uri(
             context,
-            allowed_schemes=("file", "storage"),
+            allowed_schemes=("file",) if local else ("file", "storage"),
         )
         image_exists = await _check_image_exists(image_uri_str, client)
-        if image_exists and force_overwrite:
-            logger.warning(
-                f"Target image '{image_uri_str}' exists and will be overwritten."
-            )
-        elif image_exists and not force_overwrite:
-            raise click.ClickException(
-                f"Target image '{image_uri_str}' exists. "
-                f"Use -F/--force-overwrite flag to enforce overwriting."
-            )
+        if image_exists:
+            if force_overwrite:
+                logger.warning(
+                    f"Target image '{image_uri_str}' exists and will be overwritten."
+                )
+            else:
+                raise click.ClickException(
+                    f"Target image '{image_uri_str}' exists. "
+                    f"Use -F/--force-overwrite flag to enforce overwriting."
+                )
 
         builder = ImageBuilder(
             client, extra_registry_auths=registry_auths, verbose=verbose
         )
-        exit_code = await builder.build(
-            dockerfile_path=dockerfile_path,
-            context_uri=context_uri,
-            image_uri_str=image_uri_str,
-            use_cache=use_cache,
-            build_args=build_args,
-            volumes=volume,
-            envs=env,
-            job_preset=preset,
-            build_tags=build_tags,
-        )
+        if local:
+            exit_code = await builder.build_local(
+                dockerfile_path=dockerfile_path,
+                context_uri=context_uri,
+                image_uri_str=image_uri_str,
+                build_args=build_args,
+                volumes=volume,
+                envs=env,
+                build_tags=build_tags,
+            )
+        else:
+            exit_code = await builder.build(
+                dockerfile_path=dockerfile_path,
+                context_uri=context_uri,
+                image_uri_str=image_uri_str,
+                use_cache=use_cache,
+                build_args=build_args,
+                volumes=volume,
+                envs=env,
+                job_preset=preset,
+                build_tags=build_tags,
+            )
         if exit_code == EX_OK:
             logger.info(f"Successfully built {image_uri_str}")
             return EX_OK
