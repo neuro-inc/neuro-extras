@@ -124,8 +124,7 @@ class ImageBuilder:
         docker_build_args = []
 
         for arg in build_args:
-            docker_build_args.append("--build-arg")
-            docker_build_args.append(arg)
+            docker_build_args.append(f"--build-arg {arg}")
 
         build_command = [
             "docker",
@@ -142,9 +141,8 @@ class ImageBuilder:
 
         logger.info("Running local docker build")
         logger.info(" ".join(build_command))
-        subprocess = await asyncio.create_subprocess_exec(*build_command)
+        subprocess = await asyncio.create_subprocess_shell(" ".join(build_command))
         return await subprocess.wait()
-        # return 0
 
     async def build(
         self,
