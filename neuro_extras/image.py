@@ -120,13 +120,6 @@ def image_transfer(source: str, destination: str, force_overwrite: bool) -> None
     help="If specified, run build with 'debug' verbosity, otherwise 'info' (default).",
 )
 @click.option(
-    "--local/--no-local",
-    type=bool,
-    default=False,
-    show_default=True,
-    help="Use local docker build instead of building on the platform.",
-)
-@click.option(
     "--build-tag",
     multiple=True,
     metavar="VAR=VAL",
@@ -146,7 +139,6 @@ def image_build(
     force_overwrite: bool,
     cache: bool,
     verbose: bool,
-    local:bool,
     build_tag: Tuple[str],
 ) -> None:
     try:
@@ -163,7 +155,7 @@ def image_build(
                     preset=preset,
                     force_overwrite=force_overwrite,
                     verbose=verbose,
-                    local=local,
+                    local=False,
                     build_tags=build_tag,
                 )
             )
@@ -172,6 +164,83 @@ def image_build(
         logger.error(f"Failed to build image: {e}")
         sys.exit(EX_PLATFORMERROR)
 
+
+@image.command(
+    "local-build", help="Build Job container image locally (requires Docker daemon)."
+)
+@click.argument("path", metavar="CONTEXT_PATH")
+@click.argument("image_uri")
+@click.option(
+    "-f",
+    "--file",
+    default="Dockerfile",
+    show_default=True,
+    help=(
+            "Relative (w.r.t. context) path to the dockerfile. "
+            "The dockerfile should be within the context directory."
+    ),
+)
+@click.option(
+    "--build-arg",
+    multiple=True,
+    metavar="VAR=VAL",
+    help=(
+            "Build-time variables passed in ARG values. "
+            "Could be used multiple times for multiple arguments."
+    ),
+)
+@click.option(
+    "-F",
+    "--force-overwrite",
+    default=False,
+    show_default=True,
+    is_flag=True,
+    help="Overwrite if the destination image already exists.",
+)
+@click.option(
+    "--verbose",
+    type=bool,
+    default=False,
+    help="If specified, run build with 'debug' verbosity, otherwise 'info' (default).",
+)
+@click.option(
+    "--build-tag",
+    multiple=True,
+    metavar="VAR=VAL",
+    help=(
+            "Set tag(s) for image builder job. "
+    ),
+)
+def image_build(
+        path: str,
+        image_uri: str,
+        file: str,
+        build_arg: Tuple[str],
+        force_overwrite: bool,
+        verbose: bool,
+        build_tag: Tuple[str],
+) -> None:
+    try:
+        sys.exit(
+            asyncio.run(
+                _build_image(
+                    dockerfile_path=Path(file),
+                    context=path,
+                    image_uri_str=image_uri,
+                    use_cache=True,
+                    build_args=build_arg,
+                    volume=(),
+                    env=(),
+                    force_overwrite=force_overwrite,
+                    verbose=verbose,
+                    local=True,
+                    build_tags=build_tag,
+                )
+            )
+        )
+    except (ValueError, click.ClickException) as e:
+        logger.error(f"Failed to build image: {e}")
+        sys.exit(EX_PLATFORMERROR)
 
 async def _parse_neuro_image(image: str) -> neuro_sdk.RemoteImage:
     async with get_neuro_client() as client:
@@ -282,8 +351,6 @@ async def _build_image(
                 context_uri=context_uri,
                 image_uri_str=image_uri_str,
                 build_args=build_args,
-                volumes=volume,
-                envs=env,
                 build_tags=build_tags,
             )
         else:
