@@ -111,13 +111,13 @@ def image_transfer(source: str, destination: str, force_overwrite: bool) -> None
     "--cache/--no-cache",
     default=True,
     show_default=True,
-    help="Use Kaniko cache while building image. Only works for non-local builds.",
+    help="Use Kaniko cache while building image.",
 )
 @click.option(
     "--verbose",
     type=bool,
     default=False,
-    help="If specified, run build with 'debug' verbosity, otherwise 'info' (default).",
+    help="If specified, run Kaniko with 'debug' verbosity, otherwise 'info' (default).",
 )
 @click.option(
     "--build-tag",
@@ -201,7 +201,7 @@ def image_build(
     "--verbose",
     type=bool,
     default=False,
-    help="If specified, run build with 'debug' verbosity, otherwise 'info' (default).",
+    help="If specified, provide verbose output (default False).",
 )
 @click.option(
     "--build-tag",
@@ -211,7 +211,7 @@ def image_build(
             "Set tag(s) for image builder job. "
     ),
 )
-def image_build(
+def image_build_local(
         path: str,
         image_uri: str,
         file: str,
@@ -241,6 +241,7 @@ def image_build(
     except (ValueError, click.ClickException) as e:
         logger.error(f"Failed to build image: {e}")
         sys.exit(EX_PLATFORMERROR)
+
 
 async def _parse_neuro_image(image: str) -> neuro_sdk.RemoteImage:
     async with get_neuro_client() as client:
