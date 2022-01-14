@@ -8,7 +8,9 @@ from typing import Optional, Sequence, Tuple
 
 import click
 import neuro_sdk
+from neuro_cli.formatters.images import DockerImageProgress
 from neuro_sdk import Client
+from rich.console import Console
 
 from .cli import main
 from .const import EX_OK, EX_PLATFORMERROR
@@ -176,8 +178,8 @@ def image_build(
     default="Dockerfile",
     show_default=True,
     help=(
-            "Relative (w.r.t. context) path to the dockerfile. "
-            "The dockerfile should be within the context directory."
+        "Relative (w.r.t. context) path to the dockerfile. "
+        "The dockerfile should be within the context directory."
     ),
 )
 @click.option(
@@ -185,8 +187,8 @@ def image_build(
     multiple=True,
     metavar="VAR=VAL",
     help=(
-            "Build-time variables passed in ARG values. "
-            "Could be used multiple times for multiple arguments."
+        "Build-time variables passed in ARG values. "
+        "Could be used multiple times for multiple arguments."
     ),
 )
 @click.option(
@@ -207,18 +209,16 @@ def image_build(
     "--build-tag",
     multiple=True,
     metavar="VAR=VAL",
-    help=(
-            "Set tag(s) for image builder job. "
-    ),
+    help=("Set tag(s) for image builder job. "),
 )
 def image_build_local(
-        path: str,
-        image_uri: str,
-        file: str,
-        build_arg: Tuple[str],
-        force_overwrite: bool,
-        verbose: bool,
-        build_tag: Tuple[str],
+    path: str,
+    image_uri: str,
+    file: str,
+    build_arg: Tuple[str],
+    force_overwrite: bool,
+    verbose: bool,
+    build_tag: Tuple[str],
 ) -> None:
     try:
         sys.exit(
@@ -319,14 +319,12 @@ async def _build_image(
     force_overwrite: bool,
     preset: Optional[str] = None,
     registry_auths: Sequence[DockerConfigAuth] = (),
-    local = False,
+    local=False,
     verbose: bool = False,
 ) -> int:
     async with get_neuro_client() as client:
         cluster = _get_cluster_from_uri(client, image_uri_str, scheme="image")
     async with get_neuro_client(cluster=cluster) as client:
-        if local and preset:
-            raise click.ClickException("Can't use preset option with local build")
         context_uri = client.parse.str_to_uri(
             context,
             allowed_schemes=("file",) if local else ("file", "storage"),
@@ -368,6 +366,17 @@ async def _build_image(
             )
         if exit_code == EX_OK:
             logger.info(f"Successfully built {image_uri_str}")
+            if local:
+                logger.info(f"Pushing image to registry")
+                remote_image = await _parse_neuro_image(image_uri_str)
+                console = Console()
+                progress = DockerImageProgress.create(
+                    console=console, quiet=not verbose
+                )
+                await client.images.push(
+                    remote_image.as_docker_url(), remote_image, progress=progress
+                )
+                logger.info(f"Image {image_uri_str} pushed to registry")
             return EX_OK
         else:
             raise click.ClickException(f"Failed to build image: {exit_code}")
