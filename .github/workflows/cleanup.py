@@ -28,14 +28,16 @@ if not STALE_PERIOD:
 async def main() -> None:
     got_fails = False
     async with aiohttp.ClientSession(
-        headers={
-            "Accept": "application/vnd.github.v3+json",
-            "Authorization": f"Bearer { os.environ['GH_TOKEN'] }",
-        },
+        headers={"Accept": "application/vnd.github.v3+json"},
+        auth=aiohttp.BasicAuth(
+            login=os.environ["GH_USERNAME"],
+            password=os.environ["GH_PASSWORD"],
+        ),
     ) as session:
         async with session.get(LIST_CONTAINERS_URL) as resp:
             existing_imgs = await resp.json()
-
+        print(existing_imgs)
+        exit(0)
         for img in existing_imgs:
             if should_delete(img):
                 async with session.delete(img["url"]) as resp:

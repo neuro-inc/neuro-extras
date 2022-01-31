@@ -218,7 +218,7 @@ def test_ignored_files_are_not_copied(
         ".",
         img_uri_str,
     ]
-    result = cli_runner(cmd)
+    result = cli_runner(cmd, enable_retry=True)
     assert result.returncode == 0, result
     try:
         assert random_file_to_disable_layer_caching.name in result.stdout
