@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 
 
 UUID4_PATTERN = r"[0-9a-f]{8}-[0-9a-f]{4}-[4][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}"
-DISK_ID_PATTERN = fr"disk-{UUID4_PATTERN}"
+DISK_ID_PATTERN = rf"disk-{UUID4_PATTERN}"
 DISK_ID_REGEX = re.compile(DISK_ID_PATTERN)
 
 GCP_BUCKET = "gs://mlops-ci-e2e"
@@ -74,7 +74,8 @@ def test_data_transfer(
                 "data-transfer",
                 f"storage:{src_path}",  # also, full src uri is supported
                 f"storage://{dst_cluster}/{current_user}/{dst_path}",
-            ]
+            ],
+            enable_retry=True,
         )
         assert result.returncode == 0, result
 
