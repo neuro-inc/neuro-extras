@@ -42,12 +42,12 @@ async def main() -> None:
                     if resp.ok:
                         logging.info(f"Deleted {img}")
                     else:
+                        got_fails = True
                         logging.warning(
                             f"Failed to delete {img}. \nReason: {resp.reason}"
                         )
             else:
                 logging.debug(f"Ignoring {img}")
-                got_fails = True
     if got_fails:
         exit(1)
     else:
