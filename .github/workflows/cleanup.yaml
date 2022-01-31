@@ -3,12 +3,7 @@ name: "Cleanup after CI tests"
 on:
   schedule:
   - cron: 0 5 * * *
-  # temporarly, to verify it's working
-  pull_request:
-    branches: [master]
 
-permissions:
-  packages: write
 
 jobs:
   posttest:
