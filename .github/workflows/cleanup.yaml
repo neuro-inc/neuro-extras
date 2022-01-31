@@ -3,6 +3,9 @@ name: "Cleanup after CI tests"
 on:
   schedule:
   - cron: 0 5 * * *
+  # temporarly, to verify it's working
+  pull_request:
+    branches: [master]
 
 jobs:
   posttest:
@@ -24,8 +27,7 @@ jobs:
 
     - name: Delete test image
       env:
-        GH_USERNAME: ${{ github.actor }}
-        GH_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         GH_REPO_NAME: neuro-extras
         STALE_DAYS: "7"
       run: |
