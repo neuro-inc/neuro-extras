@@ -30,7 +30,7 @@ jobs:
 
     - name: Delete test image
       env:
-        GH_TOKEN: ${{ secrets.BOT_APP_ID }}
+        GH_USERNAME: ${{ secrets.BOT_APP_ID }}
         GH_PASSWORD: ${{ secrets.BOT_PRIVATE_KEY }}
         GH_REPO_NAME: neuro-extras
         STALE_DAYS: "7"

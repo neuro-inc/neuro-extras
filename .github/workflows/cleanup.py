@@ -36,8 +36,6 @@ async def main() -> None:
     ) as session:
         async with session.get(LIST_CONTAINERS_URL) as resp:
             existing_imgs = await resp.json()
-        print(existing_imgs)
-        exit(0)
         for img in existing_imgs:
             if should_delete(img):
                 async with session.delete(img["url"]) as resp:
