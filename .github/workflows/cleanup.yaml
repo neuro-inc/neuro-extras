@@ -4,6 +4,7 @@ on:
   schedule:
   - cron: 0 5 * * *
 
+
 jobs:
   posttest:
     runs-on: ubuntu-latest
@@ -24,8 +25,8 @@ jobs:
 
     - name: Delete test image
       env:
-        GH_USERNAME: ${{ github.actor }}
-        GH_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+        GH_USERNAME: ${{ secrets.GH_CONTAINERS_CLEANUP_USERNAME }}
+        GH_PASSWORD: ${{ secrets.GH_CONTAINERS_CLEANUP_PAT }}
         GH_REPO_NAME: neuro-extras
         STALE_DAYS: "7"
       run: |

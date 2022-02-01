@@ -218,7 +218,7 @@ def test_ignored_files_are_not_copied(
         ".",
         img_uri_str,
     ]
-    result = cli_runner(cmd)
+    result = cli_runner(cmd, enable_retry=True)
     assert result.returncode == 0, result
     try:
         assert random_file_to_disable_layer_caching.name in result.stdout
@@ -438,5 +438,7 @@ def test_external_image_build(
         ".",
         img_uri_str,
     ]
-    result = cli_runner(build_command)
-    assert f"Successfully built {img_uri_str}" in result.stdout
+    result = cli_runner(build_command, enable_retry=True)
+    if f"Successfully built {img_uri_str}" not in result.stdout:
+        LOGGER.warning(result.stdout)
+        raise AssertionError("Successfully built message was not found.")

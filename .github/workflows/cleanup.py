@@ -26,6 +26,7 @@ if not STALE_PERIOD:
 
 
 async def main() -> None:
+    got_fails = False
     async with aiohttp.ClientSession(
         headers={"Accept": "application/vnd.github.v3+json"},
         auth=aiohttp.BasicAuth(
@@ -35,16 +36,22 @@ async def main() -> None:
     ) as session:
         async with session.get(LIST_CONTAINERS_URL) as resp:
             existing_imgs = await resp.json()
-
         for img in existing_imgs:
             if should_delete(img):
                 async with session.delete(img["url"]) as resp:
                     if resp.ok:
                         logging.info(f"Deleted {img}")
                     else:
-                        logging.warning(f"Failed to delete {img}")
+                        got_fails = True
+                        logging.warning(
+                            f"Failed to delete {img}. \nReason: {resp.reason}"
+                        )
             else:
                 logging.debug(f"Ignoring {img}")
+    if got_fails:
+        exit(1)
+    else:
+        exit(0)
 
 
 def should_delete(img: Dict[str, Any]) -> bool:
