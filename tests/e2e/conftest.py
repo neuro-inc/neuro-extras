@@ -159,8 +159,8 @@ def project_dir() -> Iterator[Path]:
 
 
 @pytest.fixture
-@retry(stop=stop_after_attempt(5) | stop_after_delay(5 * 10))
 def cli_runner(project_dir: Path) -> CLIRunner:
+    @retry(stop=stop_after_attempt(5) | stop_after_delay(5 * 10))
     def _run_cli(
         args: List[str], enable_retry: bool = False
     ) -> "CompletedProcess[str]":
