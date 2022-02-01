@@ -607,7 +607,8 @@ def test_data_cp_from_cloud_to_storage(
             dst = f"{dst}/hello.{archive_extension}"
 
         res = cli_runner(
-            args_data_cp_from_cloud(bucket, src, dst, extract, False, True)
+            args_data_cp_from_cloud(bucket, src, dst, extract, False, True),
+            enable_retry=True,
         )
         assert res.returncode == 0, res
 
