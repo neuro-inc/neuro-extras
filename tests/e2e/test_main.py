@@ -62,33 +62,30 @@ def test_data_transfer(
         result = cli_runner(["neuro-extras", "init-aliases"])
         assert result.returncode == 0, result
 
-        src_path = f"copy-src/{str(uuid.uuid4())}"
-        result = cli_runner(["neuro", "mkdir", "-p", f"storage:{src_path}"])
+        src_path = (
+            f"storage://{src_cluster}/{current_user}/copy-src/{str(uuid.uuid4())}"
+        )
+        result = cli_runner(["neuro", "mkdir", "-p", src_path])
         assert result.returncode == 0, result
 
-        dst_path = f"copy-dst/{str(uuid.uuid4())}"
+        dst_path = (
+            f"storage://{dst_cluster}/{current_user}/copy-dst/{str(uuid.uuid4())}"
+        )
 
         result = cli_runner(
-            [
-                "neuro",
-                "data-transfer",
-                f"storage:{src_path}",  # also, full src uri is supported
-                f"storage://{dst_cluster}/{current_user}/{dst_path}",
-            ],
+            ["neuro", "data-transfer", src_path, dst_path],
             enable_retry=True,
         )
         assert result.returncode == 0, result
 
-        del_result = cli_runner(
-            ["neuro", "rm", "-r", f"storage:{src_path}"], enable_retry=True
-        )
+        del_result = cli_runner(["neuro", "rm", "-r", src_path], enable_retry=True)
         assert del_result.returncode == 0, result
 
     with switch_cluster(dst_cluster):
-        result = cli_runner(["neuro", "ls", f"storage:{dst_path}"], enable_retry=True)
+        result = cli_runner(["neuro", "ls", dst_path], enable_retry=True)
         assert result.returncode == 0, result
 
-        del_result = cli_runner(["neuro", "rm", "-r", f"storage:{dst_path}"])
+        del_result = cli_runner(["neuro", "rm", "-r", dst_path])
         assert del_result.returncode == 0, result
 
 
