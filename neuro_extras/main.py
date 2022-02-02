@@ -45,6 +45,19 @@ def init_aliases() -> None:
             "Hit `neuro-extras image build --help` for more info."
         ),
     }
+    config["alias"]["local-build"] = {
+        "exec": "neuro-extras image local-build",
+        "options": [
+            "-f, --file=PATH  path to the Dockerfile within CONTEXT",
+            "--build-arg=LIST  build arguments for Docker",
+            "-F, --force-overwrite  enforce destination image overwrite",
+        ],
+        "args": "CONTEXT_PATH IMAGE_URI",
+        "help": (
+            "Build docker image using local Docker daemon. "
+            "Hit `neuro-extras image local-build --help` for more info."
+        ),
+    }
     config["alias"]["seldon-init-package"] = {
         "exec": "neuro-extras seldon init-package",
         "args": "URI_OR_PATH",

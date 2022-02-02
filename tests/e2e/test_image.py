@@ -442,3 +442,47 @@ def test_external_image_build(
     if f"Successfully built {img_uri_str}" not in result.stdout:
         LOGGER.warning(result.stdout)
         raise AssertionError("Successfully built message was not found.")
+
+
+def test_image_local_build(cli_runner: CLIRunner) -> None:
+    dockerfile_path = Path("nested/custom.Dockerfile")
+    dockerfile_path.parent.mkdir(parents=True)
+
+    random_file_to_disable_layer_caching = gen_random_file(dockerfile_path.parent)
+
+    with open(dockerfile_path, "w") as f:
+        f.write(
+            textwrap.dedent(
+                f"""\
+                    FROM python:3.9.7-alpine3.13
+                    ADD {random_file_to_disable_layer_caching} /tmp
+
+                    ENV LANG C.UTF-8
+                    ENV PYTHONUNBUFFERED 1
+
+                    ARG CLOUD_SDK_VERSION=347.0.0
+                    ENV CLOUD_SDK_VERSION=$CLOUD_SDK_VERSION
+
+                    RUN echo sdk=$CLOUD_SDK_VERSION
+                """
+            )
+        )
+
+    tag = str(uuid.uuid4())
+    img_uri_str = f"image:extras-e2e:{tag}"
+    cmd = [
+        "neuro-extras",
+        "image",
+        "local-build",
+        "--verbose",
+        "true",
+        "-f",
+        str(dockerfile_path),
+        "--build-arg",
+        f"CLOUD_SDK_VERSION=arg-{tag}",
+        ".",
+        img_uri_str,
+    ]
+    result = cli_runner(cmd)
+    assert result.returncode == 0, result
+    assert f"RUN echo sdk=arg-{tag}" in result.stderr
