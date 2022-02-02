@@ -72,7 +72,8 @@ class ImageBuilder:
     ) -> None:
         """
             Builds and pushes docker image to the platform.
-            By default, build  happens on the platform, using Kaniko tool, unless --local is specified.
+            By default, build  happens on the platform, using Kaniko tool,
+            unless --local is specified.
 
         Args:
             client (neuro_sdk.Client): instance of neuro-sdk client,
@@ -107,29 +108,25 @@ class ImageBuilder:
         image = self._client.parse.remote_image(image_uri_str)
         return re.sub(r"^http[s]?://", "", image.as_docker_url())
 
-    async def build_local(self,
-                          dockerfile_path: Path,
-                          context_uri: URL,
-                          image_uri_str: str,
-                          build_args: Tuple[str, ...],
-                          build_tags: Tuple[str, ...],
-                          ) -> int:
+    async def build_local(
+        self,
+        dockerfile_path: Path,
+        context_uri: URL,
+        image_uri_str: str,
+        build_args: Tuple[str, ...],
+        build_tags: Tuple[str, ...],
+    ) -> int:
         logger.info(f"Building the image {image_uri_str}")
         logger.info(f"Using {context_uri} as the build context")
 
         dst_image = self._client.parse.remote_image(image_uri_str)
-        build_tags += (
-            dst_image.as_docker_url(),
-        )
+        build_tags += (dst_image.as_docker_url(),)
         docker_build_args = []
 
         for arg in build_args:
             docker_build_args.append(f"--build-arg {arg}")
 
-        build_command = [
-            "docker",
-            "build"
-        ]
+        build_command = ["docker", "build"]
         for build_tag in build_tags:
             build_command.append(f"--tag={build_tag}")
         build_command.append(f"--file={dockerfile_path}")
