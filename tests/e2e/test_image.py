@@ -485,4 +485,5 @@ def test_image_local_build(cli_runner: CLIRunner) -> None:
     ]
     result = cli_runner(cmd)
     assert result.returncode == 0, result
-    assert f"RUN echo sdk=arg-{tag}" in result.stderr
+    arg_string = f"sdk=arg-{tag}"
+    assert arg_string in result.stderr or arg_string in result.stdout
