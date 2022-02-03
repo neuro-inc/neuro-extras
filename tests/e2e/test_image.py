@@ -444,6 +444,12 @@ def test_external_image_build(
         raise AssertionError("Successfully built message was not found.")
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="docker is not installed on Windows nodes"
+)
+@pytest.mark.skipif(
+    sys.platform == "darwin", reason="docker is not installed on Mac nodes"
+)
 def test_image_local_build(cli_runner: CLIRunner) -> None:
     dockerfile_path = Path("nested/custom.Dockerfile")
     dockerfile_path.parent.mkdir(parents=True)
