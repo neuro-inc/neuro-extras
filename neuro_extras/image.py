@@ -319,7 +319,7 @@ async def _build_image(
     force_overwrite: bool,
     preset: Optional[str] = None,
     registry_auths: Sequence[DockerConfigAuth] = (),
-    local=False,
+    local: bool = False,
     verbose: bool = False,
 ) -> int:
     async with get_neuro_client() as client:
@@ -373,9 +373,8 @@ async def _build_image(
                 progress = DockerImageProgress.create(
                     console=console, quiet=not verbose
                 )
-                await client.images.push(
-                    remote_image.as_docker_url(), remote_image, progress=progress
-                )
+                local_image = client.parse.local_image(remote_image.as_docker_url())
+                await client.images.push(local_image, remote_image, progress=progress)
                 logger.info(f"Image {image_uri_str} pushed to registry")
             return EX_OK
         else:
