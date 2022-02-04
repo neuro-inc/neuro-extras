@@ -456,11 +456,16 @@ def test_image_local_build(cli_runner: CLIRunner) -> None:
 
     random_file_to_disable_layer_caching = gen_random_file(dockerfile_path.parent)
 
+    if sys.platform == "win32":
+        base_image = "mcr.microsoft.com/windows/nanoserver:2022"
+    else:
+        base_image = "ghcr.io/neuro-inc/alpine:latest"
+
     with open(dockerfile_path, "w") as f:
         f.write(
             textwrap.dedent(
                 f"""\
-                    FROM ghcr.io/neuro-inc/alpine:latest
+                    FROM {base_image}
                     ADD {random_file_to_disable_layer_caching} /tmp
 
                     ENV LANG C.UTF-8
