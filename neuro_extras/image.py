@@ -334,6 +334,9 @@ async def _build_image(
                     f"Use -F/--force-overwrite flag to enforce overwriting."
                 )
 
+        if preset is None:
+            preset = await _select_build_preset(client)
+
         builder_cls = ImageBuilder.get(local=local)
         builder = builder_cls(
             client, extra_registry_auths=registry_auths, verbose=verbose
@@ -378,6 +381,36 @@ async def _build_image(
             return EX_OK
         else:
             raise click.ClickException(f"Failed to build image: {exit_code}")
+
+
+async def _select_build_preset(client):
+    """
+    Try to automatically select the best available preset for image build.
+    """
+    # Require minimum 2 vCPU
+    min_cpu = 2
+    # Require minimum 4 GB RAM
+    min_mem = 4096
+    good_presets = []
+    # Build a shortlist of presets that
+    for cluster_preset_name, cluster_preset_info in client.presets.items():
+        # Don't even try to use GPU machines for image builds
+        if (
+            cluster_preset_info.cpu >= min_cpu
+            and cluster_preset_info.memory_mb >= min_mem
+            and cluster_preset_info.gpu is None
+        ):
+            good_presets.append((cluster_preset_name, cluster_preset_info))
+    if len(good_presets) > 0:
+        # Sort presets by price, then by mem, then by cpu
+        good_presets.sort(
+            key=lambda p: (p[1].credits_per_hour, p[1].memory_mb, p[1].cpu)
+        )
+        preset_name = good_presets[0][0]
+        logger.info(f"Automatically selected build preset {preset_name}")
+        return preset_name
+    else:
+        return None
 
 
 async def _check_image_exists(image_uri_str: str, client: Client) -> bool:
