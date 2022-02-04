@@ -165,7 +165,7 @@ class LocalImageBuilder(ImageBuilder):
             build_command.append("--quiet")
         if len(docker_build_args) > 0:
             build_command.append(" ".join(docker_build_args))
-        build_command.append(_extract_path(context_uri))
+        build_command.append(str(_extract_path(context_uri)))
 
         logger.info("Running local docker build")
         logger.info(" ".join(build_command))
