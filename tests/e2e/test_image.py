@@ -455,7 +455,7 @@ def test_image_local_build(cli_runner: CLIRunner) -> None:
     dockerfile_path.parent.mkdir(parents=True)
 
     if sys.platform == "win32":
-        base_image = "mcr.microsoft.com/windows/nanoserver:1803-amd64"
+        base_image = "python:3.9.7-alpine3.13"
     else:
         base_image = "ghcr.io/neuro-inc/alpine:latest"
 
@@ -464,9 +464,6 @@ def test_image_local_build(cli_runner: CLIRunner) -> None:
             textwrap.dedent(
                 f"""\
                     FROM {base_image}
-
-                    ENV LANG C.UTF-8
-                    ENV PYTHONUNBUFFERED 1
 
                     ARG CLOUD_SDK_VERSION=347.0.0
                     ENV CLOUD_SDK_VERSION=$CLOUD_SDK_VERSION
