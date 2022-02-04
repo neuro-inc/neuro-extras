@@ -205,12 +205,6 @@ def image_build(
     default=False,
     help="If specified, provide verbose output (default False).",
 )
-@click.option(
-    "--build-tag",
-    multiple=True,
-    metavar="VAR=VAL",
-    help=("Set tag(s) for image builder job. "),
-)
 def image_build_local(
     path: str,
     image_uri: str,
@@ -218,7 +212,6 @@ def image_build_local(
     build_arg: Tuple[str],
     force_overwrite: bool,
     verbose: bool,
-    build_tag: Tuple[str],
 ) -> None:
     try:
         sys.exit(
@@ -234,7 +227,7 @@ def image_build_local(
                     force_overwrite=force_overwrite,
                     verbose=verbose,
                     local=True,
-                    build_tags=build_tag,
+                    build_tags=(),
                 )
             )
         )
@@ -350,7 +343,6 @@ async def _build_image(
                 context_uri=context_uri,
                 image_uri_str=image_uri_str,
                 build_args=build_args,
-                build_tags=build_tags,
             )
         else:
             exit_code = await builder.build(
@@ -374,8 +366,21 @@ async def _build_image(
                     console=console, quiet=not verbose
                 )
                 local_image = client.parse.local_image(remote_image.as_docker_url())
-                await client.images.push(local_image, remote_image, progress=progress)
-                logger.info(f"Image {image_uri_str} pushed to registry")
+                try:
+                    await client.images.push(
+                        local_image, remote_image, progress=progress
+                    )
+                    logger.info(
+                        f"Image {image_uri_str} pushed to the platform registry "
+                        f"as {remote_image}"
+                    )
+                except Exception as e:
+                    logger.exception("Image push failed.")
+                    logger.info(
+                        f"You may try to repeat the push process by running "
+                        f"'neuro image push {local_image} {image_uri_str}'"
+                    )
+                    raise e
             return EX_OK
         else:
             raise click.ClickException(f"Failed to build image: {exit_code}")

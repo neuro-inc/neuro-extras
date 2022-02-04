@@ -114,22 +114,22 @@ class ImageBuilder:
         context_uri: URL,
         image_uri_str: str,
         build_args: Tuple[str, ...],
-        build_tags: Tuple[str, ...],
     ) -> int:
         logger.info(f"Building the image {image_uri_str}")
         logger.info(f"Using {context_uri} as the build context")
 
         dst_image = self._client.parse.remote_image(image_uri_str)
-        build_tags += (dst_image.as_docker_url(),)
         docker_build_args = []
 
         for arg in build_args:
             docker_build_args.append(f"--build-arg {arg}")
 
-        build_command = ["docker", "build"]
-        for build_tag in build_tags:
-            build_command.append(f"--tag={build_tag}")
-        build_command.append(f"--file={dockerfile_path}")
+        build_command = [
+            "docker",
+            "build",
+            f"--tag={dst_image.as_docker_url()}",
+            f"--file={dockerfile_path}",
+        ]
         if not self._verbose:
             build_command.append("--quiet")
         if len(docker_build_args) > 0:

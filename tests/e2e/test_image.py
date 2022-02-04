@@ -444,9 +444,9 @@ def test_external_image_build(
         raise AssertionError("Successfully built message was not found.")
 
 
-@pytest.mark.skipif(
-    sys.platform == "win32", reason="docker is not installed on Windows nodes"
-)
+# @pytest.mark.skipif(
+#     sys.platform == "win32", reason="docker is not installed on Windows nodes"
+# )
 @pytest.mark.skipif(
     sys.platform == "darwin", reason="docker is not installed on Mac nodes"
 )
@@ -460,7 +460,7 @@ def test_image_local_build(cli_runner: CLIRunner) -> None:
         f.write(
             textwrap.dedent(
                 f"""\
-                    FROM python:3.9.7-alpine3.13
+                    FROM ghcr.io/neuro-inc/alpine:latest
                     ADD {random_file_to_disable_layer_caching} /tmp
 
                     ENV LANG C.UTF-8
@@ -492,4 +492,7 @@ def test_image_local_build(cli_runner: CLIRunner) -> None:
     result = cli_runner(cmd)
     assert result.returncode == 0, result
     arg_string = f"sdk=arg-{tag}"
-    assert arg_string in result.stderr or arg_string in result.stdout
+    try:
+        assert arg_string in result.stderr or arg_string in result.stdout
+    finally:
+        cli_runner(["neuro", "image", "rm", img_uri_str])
