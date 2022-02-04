@@ -455,7 +455,7 @@ def test_image_local_build(cli_runner: CLIRunner) -> None:
     dockerfile_path.parent.mkdir(parents=True)
 
     if sys.platform == "win32":
-        base_image = "python:3.9.7-alpine3.13"
+        base_image = "hello-world"
     else:
         base_image = "ghcr.io/neuro-inc/alpine:latest"
 
