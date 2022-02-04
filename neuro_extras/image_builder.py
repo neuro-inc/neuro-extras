@@ -12,6 +12,7 @@ from typing import Any, AsyncIterator, Dict, Optional, Sequence, Tuple, Type
 
 import click
 import neuro_sdk
+from neuro_sdk._url_utils import _extract_path
 from yarl import URL
 
 
@@ -164,7 +165,7 @@ class LocalImageBuilder(ImageBuilder):
             build_command.append("--quiet")
         if len(docker_build_args) > 0:
             build_command.append(" ".join(docker_build_args))
-        build_command.append(context_uri.path)
+        build_command.append(_extract_path(context_uri))
 
         logger.info("Running local docker build")
         logger.info(" ".join(build_command))
