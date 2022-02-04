@@ -53,7 +53,7 @@ async def _create_k8s_secret(name: str) -> Dict[str, Any]:
 
 async def _create_k8s_registry_secret(name: str) -> Dict[str, Any]:
     async with get_neuro_client() as client:
-        builder = ImageBuilder(client)
+        builder = ImageBuilder.get(local=False)(client)
         docker_config = await builder.create_docker_config()
         return {
             "apiVersion": "v1",
