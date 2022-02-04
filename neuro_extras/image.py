@@ -334,28 +334,21 @@ async def _build_image(
                     f"Use -F/--force-overwrite flag to enforce overwriting."
                 )
 
-        builder = ImageBuilder(
+        builder_cls = ImageBuilder.get(local=local)
+        builder = builder_cls(
             client, extra_registry_auths=registry_auths, verbose=verbose
         )
-        if local:
-            exit_code = await builder.build_local(
-                dockerfile_path=dockerfile_path,
-                context_uri=context_uri,
-                image_uri_str=image_uri_str,
-                build_args=build_args,
-            )
-        else:
-            exit_code = await builder.build(
-                dockerfile_path=dockerfile_path,
-                context_uri=context_uri,
-                image_uri_str=image_uri_str,
-                use_cache=use_cache,
-                build_args=build_args,
-                volumes=volume,
-                envs=env,
-                job_preset=preset,
-                build_tags=build_tags,
-            )
+        exit_code = await builder.build(
+            dockerfile_path=dockerfile_path,
+            context_uri=context_uri,
+            image_uri_str=image_uri_str,
+            use_cache=use_cache,
+            build_args=build_args,
+            volumes=volume,
+            envs=env,
+            job_preset=preset,
+            build_tags=build_tags,
+        )
         if exit_code == EX_OK:
             logger.info(f"Successfully built {image_uri_str}")
             if local:
@@ -375,11 +368,12 @@ async def _build_image(
                         f"as {remote_image}"
                     )
                 except Exception as e:
-                    logger.exception("Image push failed.")
-                    logger.info(
-                        f"You may try to repeat the push process by running "
-                        f"'neuro image push {local_image} {image_uri_str}'"
-                    )
+                    if local:
+                        logger.exception("Image push failed.")
+                        logger.info(
+                            f"You may try to repeat the push process by running "
+                            f"'neuro image push {local_image} {image_uri_str}'"
+                        )
                     raise e
             return EX_OK
         else:

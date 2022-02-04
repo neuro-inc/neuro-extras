@@ -5,9 +5,10 @@ import logging
 import re
 import shlex
 import uuid
+from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, AsyncIterator, Dict, Optional, Sequence, Tuple
+from typing import Any, AsyncIterator, Dict, Optional, Sequence, Tuple, Type
 
 import click
 import neuro_sdk
@@ -63,7 +64,7 @@ async def create_docker_config_auth(
     return auth
 
 
-class ImageBuilder:
+class ImageBuilder(ABC):
     def __init__(
         self,
         client: neuro_sdk.Client,
@@ -108,12 +109,41 @@ class ImageBuilder:
         image = self._client.parse.remote_image(image_uri_str)
         return re.sub(r"^http[s]?://", "", image.as_docker_url())
 
-    async def build_local(
+    @abstractmethod
+    async def build(
         self,
         dockerfile_path: Path,
         context_uri: URL,
         image_uri_str: str,
+        use_cache: bool,
         build_args: Tuple[str, ...],
+        volumes: Tuple[str, ...],
+        envs: Tuple[str, ...],
+        job_preset: Optional[str],
+        build_tags: Tuple[str, ...],
+    ) -> int:
+        pass
+
+    @staticmethod
+    def get(local: bool) -> Type["ImageBuilder"]:
+        if local:
+            return LocalImageBuilder
+        else:
+            return RemoteImageBuilder
+
+
+class LocalImageBuilder(ImageBuilder):
+    async def build(
+        self,
+        dockerfile_path: Path,
+        context_uri: URL,
+        image_uri_str: str,
+        use_cache: bool,
+        build_args: Tuple[str, ...],
+        volumes: Tuple[str, ...],
+        envs: Tuple[str, ...],
+        job_preset: Optional[str],
+        build_tags: Tuple[str, ...],
     ) -> int:
         logger.info(f"Building the image {image_uri_str}")
         logger.info(f"Using {context_uri} as the build context")
@@ -141,6 +171,8 @@ class ImageBuilder:
         subprocess = await asyncio.create_subprocess_shell(" ".join(build_command))
         return await subprocess.wait()
 
+
+class RemoteImageBuilder(ImageBuilder):
     async def build(
         self,
         dockerfile_path: Path,
