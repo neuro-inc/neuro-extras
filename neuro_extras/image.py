@@ -383,7 +383,7 @@ async def _build_image(
             raise click.ClickException(f"Failed to build image: {exit_code}")
 
 
-async def _select_build_preset(client):
+async def _select_build_preset(client) -> Optional[str]:
     """
     Try to automatically select the best available preset for image build.
     """
