@@ -490,8 +490,11 @@ def test_image_local_build(cli_runner: CLIRunner) -> None:
     ]
     result = cli_runner(cmd)
     assert result.returncode == 0, result
-    arg_string = f"sdk=arg-{tag}"
     try:
+        if sys.platform == "win32":
+            arg_string = f" --build-arg CLOUD_SDK_VERSION=arg-{tag}"
+        else:
+            arg_string = f"sdk=arg-{tag}"
         assert arg_string in result.stderr or arg_string in result.stdout
     finally:
         cli_runner(["neuro", "image", "rm", img_uri_str])
