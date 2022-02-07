@@ -5,12 +5,14 @@ import logging
 import re
 import shlex
 import uuid
+from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, AsyncIterator, Dict, Optional, Sequence, Tuple
+from typing import Any, AsyncIterator, Dict, Optional, Sequence, Tuple, Type
 
 import click
 import neuro_sdk
+from neuro_sdk._url_utils import _extract_path
 from yarl import URL
 
 
@@ -63,7 +65,7 @@ async def create_docker_config_auth(
     return auth
 
 
-class ImageBuilder:
+class ImageBuilder(ABC):
     def __init__(
         self,
         client: neuro_sdk.Client,
@@ -72,8 +74,8 @@ class ImageBuilder:
     ) -> None:
         """
             Builds and pushes docker image to the platform.
-            Build is currently happens on the platform, using Kaniko tool.
-            TODO: add possibility to build using local docker.
+            By default, build  happens on the platform, using Kaniko tool,
+            unless --local is specified.
 
         Args:
             client (neuro_sdk.Client): instance of neuro-sdk client,
@@ -108,6 +110,70 @@ class ImageBuilder:
         image = self._client.parse.remote_image(image_uri_str)
         return re.sub(r"^http[s]?://", "", image.as_docker_url())
 
+    @abstractmethod
+    async def build(
+        self,
+        dockerfile_path: Path,
+        context_uri: URL,
+        image_uri_str: str,
+        use_cache: bool,
+        build_args: Tuple[str, ...],
+        volumes: Tuple[str, ...],
+        envs: Tuple[str, ...],
+        job_preset: Optional[str],
+        build_tags: Tuple[str, ...],
+    ) -> int:
+        pass
+
+    @staticmethod
+    def get(local: bool) -> Type["ImageBuilder"]:
+        if local:
+            return LocalImageBuilder
+        else:
+            return RemoteImageBuilder
+
+
+class LocalImageBuilder(ImageBuilder):
+    async def build(
+        self,
+        dockerfile_path: Path,
+        context_uri: URL,
+        image_uri_str: str,
+        use_cache: bool,
+        build_args: Tuple[str, ...],
+        volumes: Tuple[str, ...],
+        envs: Tuple[str, ...],
+        job_preset: Optional[str],
+        build_tags: Tuple[str, ...],
+    ) -> int:
+        logger.info(f"Building the image {image_uri_str}")
+        logger.info(f"Using {context_uri} as the build context")
+
+        dst_image = self._client.parse.remote_image(image_uri_str)
+        docker_build_args = []
+
+        for arg in build_args:
+            docker_build_args.append(f"--build-arg {arg}")
+
+        build_command = [
+            "docker",
+            "build",
+            f"--tag={dst_image.as_docker_url()}",
+            f"--file={dockerfile_path}",
+        ]
+        if not self._verbose:
+            build_command.append("--quiet")
+        if len(docker_build_args) > 0:
+            build_command.append(" ".join(docker_build_args))
+        build_command.append(str(_extract_path(context_uri)))
+
+        logger.info("Running local docker build")
+        logger.info(" ".join(build_command))
+        subprocess = await asyncio.create_subprocess_shell(" ".join(build_command))
+        return await subprocess.wait()
+
+
+class RemoteImageBuilder(ImageBuilder):
     async def build(
         self,
         dockerfile_path: Path,

@@ -39,7 +39,7 @@ async def _save_registry_auth(path: str, cluster: Optional[str]) -> None:
             path,
             allowed_schemes=("file", "storage"),
         )
-        builder = ImageBuilder(client)
+        builder = ImageBuilder.get(local=False)(client)
         docker_config = await builder.create_docker_config()
         click.echo(f"Saving Docker config.json as {uri}")
         if uri.scheme == "file":

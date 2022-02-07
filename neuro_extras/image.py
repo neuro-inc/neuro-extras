@@ -8,7 +8,9 @@ from typing import Optional, Sequence, Tuple
 
 import click
 import neuro_sdk
+from neuro_cli.formatters.images import DockerImageProgress
 from neuro_sdk import Client
+from rich.console import Console
 
 from .cli import main
 from .const import EX_OK, EX_PLATFORMERROR
@@ -65,7 +67,7 @@ def image_transfer(source: str, destination: str, force_overwrite: bool) -> None
     multiple=True,
     metavar="VAR=VAL",
     help=(
-        "Buid-time variables passed in ARG values, similarly to Docker. "
+        "Build-time variables passed in ARG values, similarly to Docker. "
         "Could be used multiple times for multiple arguments."
     ),
 )
@@ -155,7 +157,77 @@ def image_build(
                     preset=preset,
                     force_overwrite=force_overwrite,
                     verbose=verbose,
+                    local=False,
                     build_tags=build_tag,
+                )
+            )
+        )
+    except (ValueError, click.ClickException) as e:
+        logger.error(f"Failed to build image: {e}")
+        sys.exit(EX_PLATFORMERROR)
+
+
+@image.command(
+    "local-build", help="Build Job container image locally (requires Docker daemon)."
+)
+@click.argument("path", metavar="CONTEXT_PATH")
+@click.argument("image_uri")
+@click.option(
+    "-f",
+    "--file",
+    default="Dockerfile",
+    show_default=True,
+    help=(
+        "Relative (w.r.t. context) path to the dockerfile. "
+        "The dockerfile should be within the context directory."
+    ),
+)
+@click.option(
+    "--build-arg",
+    multiple=True,
+    metavar="VAR=VAL",
+    help=(
+        "Build-time variables passed in ARG values. "
+        "Could be used multiple times for multiple arguments."
+    ),
+)
+@click.option(
+    "-F",
+    "--force-overwrite",
+    default=False,
+    show_default=True,
+    is_flag=True,
+    help="Overwrite if the destination image already exists.",
+)
+@click.option(
+    "--verbose",
+    type=bool,
+    default=False,
+    help="If specified, provide verbose output (default False).",
+)
+def image_build_local(
+    path: str,
+    image_uri: str,
+    file: str,
+    build_arg: Tuple[str],
+    force_overwrite: bool,
+    verbose: bool,
+) -> None:
+    try:
+        sys.exit(
+            asyncio.run(
+                _build_image(
+                    dockerfile_path=Path(file),
+                    context=path,
+                    image_uri_str=image_uri,
+                    use_cache=True,
+                    build_args=build_arg,
+                    volume=(),
+                    env=(),
+                    force_overwrite=force_overwrite,
+                    verbose=verbose,
+                    local=True,
+                    build_tags=(),
                 )
             )
         )
@@ -240,6 +312,7 @@ async def _build_image(
     force_overwrite: bool,
     preset: Optional[str] = None,
     registry_auths: Sequence[DockerConfigAuth] = (),
+    local: bool = False,
     verbose: bool = False,
 ) -> int:
     async with get_neuro_client() as client:
@@ -247,20 +320,22 @@ async def _build_image(
     async with get_neuro_client(cluster=cluster) as client:
         context_uri = client.parse.str_to_uri(
             context,
-            allowed_schemes=("file", "storage"),
+            allowed_schemes=("file",) if local else ("file", "storage"),
         )
         image_exists = await _check_image_exists(image_uri_str, client)
-        if image_exists and force_overwrite:
-            logger.warning(
-                f"Target image '{image_uri_str}' exists and will be overwritten."
-            )
-        elif image_exists and not force_overwrite:
-            raise click.ClickException(
-                f"Target image '{image_uri_str}' exists. "
-                f"Use -F/--force-overwrite flag to enforce overwriting."
-            )
+        if image_exists:
+            if force_overwrite:
+                logger.warning(
+                    f"Target image '{image_uri_str}' exists and will be overwritten."
+                )
+            else:
+                raise click.ClickException(
+                    f"Target image '{image_uri_str}' exists. "
+                    f"Use -F/--force-overwrite flag to enforce overwriting."
+                )
 
-        builder = ImageBuilder(
+        builder_cls = ImageBuilder.get(local=local)
+        builder = builder_cls(
             client, extra_registry_auths=registry_auths, verbose=verbose
         )
         exit_code = await builder.build(
@@ -276,6 +351,30 @@ async def _build_image(
         )
         if exit_code == EX_OK:
             logger.info(f"Successfully built {image_uri_str}")
+            if local:
+                logger.info(f"Pushing image to registry")
+                remote_image = await _parse_neuro_image(image_uri_str)
+                console = Console()
+                progress = DockerImageProgress.create(
+                    console=console, quiet=not verbose
+                )
+                local_image = client.parse.local_image(remote_image.as_docker_url())
+                try:
+                    await client.images.push(
+                        local_image, remote_image, progress=progress
+                    )
+                    logger.info(
+                        f"Image {image_uri_str} pushed to the platform registry "
+                        f"as {remote_image}"
+                    )
+                except Exception as e:
+                    if local:
+                        logger.exception("Image push failed.")
+                        logger.info(
+                            f"You may try to repeat the push process by running "
+                            f"'neuro image push {local_image} {image_uri_str}'"
+                        )
+                    raise e
             return EX_OK
         else:
             raise click.ClickException(f"Failed to build image: {exit_code}")

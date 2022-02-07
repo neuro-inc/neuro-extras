@@ -442,3 +442,59 @@ def test_external_image_build(
     if f"Successfully built {img_uri_str}" not in result.stdout:
         LOGGER.warning(result.stdout)
         raise AssertionError("Successfully built message was not found.")
+
+
+# @pytest.mark.skipif(
+#     sys.platform == "win32", reason="docker is not installed on Windows nodes"
+# )
+@pytest.mark.skipif(
+    sys.platform == "darwin", reason="docker is not installed on Mac nodes"
+)
+def test_image_local_build(cli_runner: CLIRunner) -> None:
+    dockerfile_path = Path("nested/custom.Dockerfile")
+    dockerfile_path.parent.mkdir(parents=True)
+
+    if sys.platform == "win32":
+        base_image = "hello-world"
+    else:
+        base_image = "ghcr.io/neuro-inc/alpine:latest"
+
+    with open(dockerfile_path, "w") as f:
+        f.write(
+            textwrap.dedent(
+                f"""\
+                    FROM {base_image}
+
+                    ARG CLOUD_SDK_VERSION=347.0.0
+                    ENV CLOUD_SDK_VERSION=$CLOUD_SDK_VERSION
+
+                    RUN echo sdk=$CLOUD_SDK_VERSION
+                """
+            )
+        )
+
+    tag = str(uuid.uuid4())
+    img_uri_str = f"image:extras-e2e:{tag}"
+    cmd = [
+        "neuro-extras",
+        "image",
+        "local-build",
+        "--verbose",
+        "true",
+        "-f",
+        str(dockerfile_path),
+        "--build-arg",
+        f"CLOUD_SDK_VERSION=arg-{tag}",
+        ".",
+        img_uri_str,
+    ]
+    result = cli_runner(cmd)
+    assert result.returncode == 0, result
+    try:
+        if sys.platform == "win32":
+            arg_string = f" --build-arg CLOUD_SDK_VERSION=arg-{tag}"
+        else:
+            arg_string = f"sdk=arg-{tag}"
+        assert arg_string in result.stderr or arg_string in result.stdout
+    finally:
+        cli_runner(["neuro", "image", "rm", img_uri_str])

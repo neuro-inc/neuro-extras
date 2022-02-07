@@ -79,7 +79,7 @@ async def _create_seldon_deployment(
     model_storage_uri: str,
 ) -> Dict[str, Any]:
     async with get_neuro_client() as client:
-        builder = ImageBuilder(client)
+        builder = ImageBuilder.get(local=False)(client)
         model_image_ref = builder.parse_image_ref(model_image_uri)
 
     pod_spec = {

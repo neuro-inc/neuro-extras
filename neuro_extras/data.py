@@ -33,7 +33,7 @@ SUPPORTED_OBJECT_STORAGE_SCHEMES = {
     "AWS": "s3://",
     "GCS": "gs://",
     # originally, Azure's blob scheme is 'http(s)',
-    # but we prepend 'azure+' to differenciate https vs azure
+    # but we prepend 'azure+' to differentiate https vs azure
     "AZURE": "azure+https://",
     "HTTP": "http://",
     "HTTPS": "https://",
