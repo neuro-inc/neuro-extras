@@ -10,6 +10,7 @@ from types import TracebackType
 from typing import Any, AsyncIterator, Callable, Dict, List, Optional, Type
 
 import neuro_sdk
+from neuro_sdk import Client
 
 
 logger = logging.getLogger(__name__)
@@ -183,7 +184,7 @@ def setup_child_watcher() -> None:
 
 
 def select_build_preset(
-    preset: Optional[str], client, min_cpu: float = 2, min_mem: int = 4096
+    preset: Optional[str], client: Client, min_cpu: float = 2, min_mem: int = 4096
 ) -> Optional[str]:
     """
     Try to automatically select the best available preset for tasak
