@@ -15,4 +15,4 @@ class MockNeuroClient(Client):
 
 @pytest.fixture
 def mock_client() -> Iterator[MockNeuroClient]:
-    yield MockNeuroClient()
+    yield MockNeuroClient._create()
