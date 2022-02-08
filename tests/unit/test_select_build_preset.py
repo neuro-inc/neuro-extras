@@ -17,7 +17,7 @@ def test_cheapest_preset_is_selected(mock_client: MockNeuroClient) -> None:
     mock_client.presets.update(FAKE_PRESETS)
     selected_preset = select_build_preset(
         preset=None, client=mock_client, min_mem=4096, min_cpu=2
-    )  # typing: ignore
+    )
     assert selected_preset == "cheap"
 
 
