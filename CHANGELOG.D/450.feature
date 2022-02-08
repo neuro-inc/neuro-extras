@@ -1,1 +1,1 @@
-Avoid too small build presets when none is provided
+Help user to select the resource preset for image build

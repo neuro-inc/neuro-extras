@@ -180,3 +180,64 @@ def setup_child_watcher() -> None:
     else:
         if sys.version_info < (3, 8):
             asyncio.set_child_watcher(ThreadedChildWatcher())
+
+
+def select_build_preset(
+    preset: Optional[str], client, min_cpu: float = 2, min_mem: int = 4096
+) -> Optional[str]:
+    """
+    Try to automatically select the best available preset for tasak
+    """
+    good_presets = []
+    good_presets_names = []
+    # Build a shortlist of presets that
+    for cluster_preset_name, cluster_preset_info in client.presets.items():
+        # Don't even try to use GPU machines for image builds
+        if (
+            cluster_preset_info.cpu >= min_cpu
+            and cluster_preset_info.memory_mb >= min_mem
+            and cluster_preset_info.gpu is None
+        ):
+            good_presets.append((cluster_preset_name, cluster_preset_info))
+            good_presets_names.append(cluster_preset_name)
+    # Sort presets by cost - memory - cpu
+    good_presets.sort(key=lambda p: (p[1].credits_per_hour, p[1].memory_mb, p[1].cpu))
+
+    if preset is None:
+        if len(good_presets) > 0:
+            # Select the best preset
+            preset_name = good_presets[0][0]
+            logger.info(f"Automatically selected build preset {preset_name}")
+            return preset_name
+        else:
+            # Fallback to the default preset selection mechanism by neuro sdk
+            logger.warning(
+                "No resource preset satisfying minimal hardware "
+                "requirements was found in the cluster. "
+                "The job might take long time to accomplish. "
+                "Consider contacting your cluster manager or admin "
+                "to adjust the cluster configuration"
+            )
+            return None
+    else:
+        if preset in good_presets_names:
+            # If user asked for a preset and it's a good one - let them use it
+            return preset
+        else:
+            if len(good_presets) > 0:
+                # We have a better preset
+                logger.warning(
+                    f"The selected resource preset {preset} does not "
+                    f"satisfy recommended minimum hardware requirements. "
+                    f"Consider using '{good_presets[0][0]}'"
+                )
+            else:
+                # We don't have any good presets
+                logger.warning(
+                    f"Selected resource preset {preset} does not satisfy "
+                    f"minimal hardware requirements. "
+                    "The job might take long time to accomplish. "
+                    "Consider contacting your cluster manager or admin "
+                    "to adjust the cluster configuration"
+                )
+            return preset
