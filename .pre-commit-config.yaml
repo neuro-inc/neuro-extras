@@ -56,19 +56,19 @@ repos:
   hooks:
   - id: flake8
     exclude: "^docs/"
-#- repo: https://github.com/rhysd/actionlint
-#  rev: v1.6.8
-#  hooks:
-#  - id: actionlint-docker
-#    args:
-#    - -ignore
-#    - 'SC2155:'
-#    - -ignore
-#    - 'SC2086:'
-#    - -ignore
-#    - 'SC1004:'
-#    - -ignore
-#    - 'SC2193:'
+- repo: https://github.com/rhysd/actionlint
+  rev: v1.6.8
+  hooks:
+  - id: actionlint-docker
+    args:
+    - -ignore
+    - 'SC2155:'
+    - -ignore
+    - 'SC2086:'
+    - -ignore
+    - 'SC1004:'
+    - -ignore
+    - 'SC2193:'
 - repo: https://github.com/sirosen/check-jsonschema
   rev: 0.10.1
   hooks:
