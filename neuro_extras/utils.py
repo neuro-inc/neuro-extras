@@ -232,8 +232,8 @@ def select_build_preset(
                     f"satisfy recommended minimum hardware requirements. "
                     f"Consider using '{good_presets[0][0]}'"
                 )
-            else:
-                # We don't have any good presets
+            elif client.presets[preset].gpu is None:
+                # The message is only displayed if user selected a bad non-GPU preset
                 logger.warning(
                     f"Selected resource preset {preset} does not satisfy "
                     f"minimal hardware requirements. "
