@@ -14,8 +14,14 @@ from rich.console import Console
 
 from .cli import main
 from .const import EX_OK, EX_PLATFORMERROR
-from .image_builder import DockerConfigAuth, ImageBuilder, create_docker_config_auth
-from .utils import get_neuro_client
+from .image_builder import (
+    MIN_BUILD_PRESET_CPU,
+    MIN_BUILD_PRESET_MEM,
+    DockerConfigAuth,
+    ImageBuilder,
+    create_docker_config_auth,
+)
+from .utils import get_neuro_client, select_build_preset
 
 
 logger = logging.getLogger(__name__)
@@ -333,6 +339,13 @@ async def _build_image(
                     f"Target image '{image_uri_str}' exists. "
                     f"Use -F/--force-overwrite flag to enforce overwriting."
                 )
+
+        preset = select_build_preset(
+            preset=preset,
+            client=client,
+            min_cpu=MIN_BUILD_PRESET_CPU,
+            min_mem=MIN_BUILD_PRESET_MEM,
+        )
 
         builder_cls = ImageBuilder.get(local=local)
         builder = builder_cls(

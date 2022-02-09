@@ -25,6 +25,9 @@ KANIKO_CONTEXT_PATH = "/kaniko_context"
 BUILDER_JOB_LIFESPAN = "4h"
 BUILDER_JOB_SHEDULE_TIMEOUT = "20m"
 
+MIN_BUILD_PRESET_CPU: float = 2
+MIN_BUILD_PRESET_MEM: int = 4096
+
 logger = logging.getLogger(__name__)
 
 
