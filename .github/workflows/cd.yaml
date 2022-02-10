@@ -159,10 +159,10 @@ jobs:
             os: macos
           - python-version: 3.8
             os: windows
+      max-parallel: 1
       fail-fast: false
     runs-on: ${{ matrix.os }}-latest
     timeout-minutes: 30
-    concurrency: tests
     env:
       PYTHONIOENCODING: utf-8
       NEURO_STAGING_URL: ${{ secrets.NEURO_STAGING_URL }}
