@@ -39,107 +39,107 @@ jobs:
       run: |
         echo ${{ steps.version.outputs.version }}
 
-  pypi_deploy:
-    name: Release package
-    runs-on: ubuntu-latest
-    needs: [info]
-    if: github.event_name == 'release'
-    steps:
-    - name: Checkout commit
-      uses: actions/checkout@v2
-    - name: Sanity check for tag and version
-      run: |
-        export VERSION=${{ needs.info.outputs.version }}
-        if [ "${{ github.ref }}" != "refs/tags/v$VERSION" ]
-        then
-          echo "Git tag '${{ github.ref }}' differs from hard-coded package version 'v$VERSION'"
-          exit 1
-        else
-          echo "OK, git tag matches hard-coded package version: 'v$VERSION'"
-        fi
-    - name: Install python
-      uses: actions/setup-python@v2
-      with:
-        python-version: '3.9'
-    - name: Install dependencies
-      run: |
-        python -m pip install twine wheel
-        make setup
-    - name: Make dists
-      run: |
-        python setup.py sdist bdist_wheel
-    - name: PyPI upload
-      env:
-        TWINE_USERNAME: __token__
-        TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
-      run: |
-        twine upload dist/*
-
-  dockerhub_deploy:
-    name: Release image if needed
-    runs-on: ubuntu-latest
-    needs: [info, pypi_deploy]
-    if: github.event_name == 'release'
-    steps:
-    - name: Checkout commit
-      uses: actions/checkout@v2
-    - name: Install python
-      uses: actions/setup-python@v2
-      with:
-        python-version: '3.9'
-    - name: Install dependencies
-      run: |
-        python -m pip install pip
-        make setup
-    - name: Wait until package becomes available on PyPI
-      timeout-minutes: 5
-      run: |
-        PYPIVERSION=$(python setup.py --version)
-        PYPIPACKAGE=neuro-extras==$PYPIVERSION
-        until python -m pip install $PYPIPACKAGE
-        do
-            echo "Waiting for the pypi package $PYPIPACKAGE ..."
-            sleep 1
-        done
-    - name: Build release image
-      run: |
-        export PACKAGE="neuro-extras==${{ needs.info.outputs.version }}"
-        docker build -t ghcr.io/neuro-inc/neuro-extras:latest \
-          --build-arg NEURO_EXTRAS_PACKAGE=$PACKAGE .
-    - name: Login to ghcr.io
-      uses: docker/login-action@v1.12.0
-      with:
-        registry: ghcr.io
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
-    - name: Push release release image
-      id: push
-      run: |
-        export IMAGE=ghcr.io/neuro-inc/neuro-extras
-        export TAG=${{ needs.info.outputs.version }}
-
-        echo "::set-output name=image::$IMAGE"
-        echo "::set-output name=tag::$TAG"
-
-        docker tag $IMAGE:latest $IMAGE:$TAG
-        docker push $IMAGE:$TAG
-        # Push latest if it's not an alpha release:
-        #   not alpha: TAG="20.9.29"
-        #       alpha: TAG="20.9.29a1"
-        if [[ ! "$TAG" =~ ^.*a[0-9]*$ ]]; then
-          docker push $IMAGE:latest
-        fi
-    - name: Wait until image becomes available on DockerHub
-      timeout-minutes: 10
-      run: |
-        export IMAGE=${{ steps.push.outputs.image }}
-        export TAG=${{ steps.push.outputs.tag }}
-
-        until docker pull --quiet $IMAGE:$TAG
-        do
-            echo "Waiting for the dockerhub image $IMAGE:$TAG ..."
-            sleep 1
-        done
+#  pypi_deploy:
+#    name: Release package
+#    runs-on: ubuntu-latest
+#    needs: [info]
+#    if: github.event_name == 'release'
+#    steps:
+#    - name: Checkout commit
+#      uses: actions/checkout@v2
+#    - name: Sanity check for tag and version
+#      run: |
+#        export VERSION=${{ needs.info.outputs.version }}
+#        if [ "${{ github.ref }}" != "refs/tags/v$VERSION" ]
+#        then
+#          echo "Git tag '${{ github.ref }}' differs from hard-coded package version 'v$VERSION'"
+#          exit 1
+#        else
+#          echo "OK, git tag matches hard-coded package version: 'v$VERSION'"
+#        fi
+#    - name: Install python
+#      uses: actions/setup-python@v2
+#      with:
+#        python-version: '3.9'
+#    - name: Install dependencies
+#      run: |
+#        python -m pip install twine wheel
+#        make setup
+#    - name: Make dists
+#      run: |
+#        python setup.py sdist bdist_wheel
+#    - name: PyPI upload
+#      env:
+#        TWINE_USERNAME: __token__
+#        TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
+#      run: |
+#        twine upload dist/*
+#
+#  dockerhub_deploy:
+#    name: Release image if needed
+#    runs-on: ubuntu-latest
+#    needs: [info, pypi_deploy]
+#    if: github.event_name == 'release'
+#    steps:
+#    - name: Checkout commit
+#      uses: actions/checkout@v2
+#    - name: Install python
+#      uses: actions/setup-python@v2
+#      with:
+#        python-version: '3.9'
+#    - name: Install dependencies
+#      run: |
+#        python -m pip install pip
+#        make setup
+#    - name: Wait until package becomes available on PyPI
+#      timeout-minutes: 5
+#      run: |
+#        PYPIVERSION=$(python setup.py --version)
+#        PYPIPACKAGE=neuro-extras==$PYPIVERSION
+#        until python -m pip install $PYPIPACKAGE
+#        do
+#            echo "Waiting for the pypi package $PYPIPACKAGE ..."
+#            sleep 1
+#        done
+#    - name: Build release image
+#      run: |
+#        export PACKAGE="neuro-extras==${{ needs.info.outputs.version }}"
+#        docker build -t ghcr.io/neuro-inc/neuro-extras:latest \
+#          --build-arg NEURO_EXTRAS_PACKAGE=$PACKAGE .
+#    - name: Login to ghcr.io
+#      uses: docker/login-action@v1.12.0
+#      with:
+#        registry: ghcr.io
+#        username: ${{ github.actor }}
+#        password: ${{ secrets.GITHUB_TOKEN }}
+#    - name: Push release release image
+#      id: push
+#      run: |
+#        export IMAGE=ghcr.io/neuro-inc/neuro-extras
+#        export TAG=${{ needs.info.outputs.version }}
+#
+#        echo "::set-output name=image::$IMAGE"
+#        echo "::set-output name=tag::$TAG"
+#
+#        docker tag $IMAGE:latest $IMAGE:$TAG
+#        docker push $IMAGE:$TAG
+#        # Push latest if it's not an alpha release:
+#        #   not alpha: TAG="20.9.29"
+#        #       alpha: TAG="20.9.29a1"
+#        if [[ ! "$TAG" =~ ^.*a[0-9]*$ ]]; then
+#          docker push $IMAGE:latest
+#        fi
+#    - name: Wait until image becomes available on DockerHub
+#      timeout-minutes: 10
+#      run: |
+#        export IMAGE=${{ steps.push.outputs.image }}
+#        export TAG=${{ steps.push.outputs.tag }}
+#
+#        until docker pull --quiet $IMAGE:$TAG
+#        do
+#            echo "Waiting for the dockerhub image $IMAGE:$TAG ..."
+#            sleep 1
+#        done
 
   test:
     name: Run tests against release image
