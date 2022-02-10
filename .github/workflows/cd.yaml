@@ -79,7 +79,6 @@ jobs:
     name: Release image if needed
     runs-on: ubuntu-latest
     needs: [info, pypi_deploy]
-    needs: [info]
     if: github.event_name == 'release'
     steps:
     - name: Checkout commit
