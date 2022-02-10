@@ -4,6 +4,28 @@
 
 [comment]: # (towncrier release notes start)
 
+neuro-extras v22.2.1 (2022-02-10)
+=================================
+
+
+Features
+--------
+
+
+- Added Python 3.10 support. ([#417](https://github.com/neuromation/neuro-extras/issues/417))
+
+- Add `local-build` subcommand to `neuro-extras image` that allows building images via local Docker daemon. ([#448](https://github.com/neuromation/neuro-extras/issues/448))
+
+- Help user to select the resource preset for image build ([#450](https://github.com/neuromation/neuro-extras/issues/450))
+
+
+Deprecations and Removals
+-------------------------
+
+
+- Removed Python 3.6 support. ([#417](https://github.com/neuromation/neuro-extras/issues/417))
+
+
 Neuro_Extras 21.11.0 (2021-11-23)
 =================================
 
