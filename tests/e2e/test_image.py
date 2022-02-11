@@ -165,7 +165,7 @@ def test_image_build_overwrite(
     if overwrite:
         build_command.insert(2, "-F")
 
-    result = cli_runner(build_command, enable_retry=True)
+    result = cli_runner(build_command)
     if overwrite:
         assert result.returncode == 0, result
     else:
