@@ -278,7 +278,7 @@ def test_image_transfer(
             ".",
             from_img,
         ]
-        result = cli_runner(cmd)
+        result = cli_runner(cmd, enable_retry=True)
         assert result.returncode == 0, result
 
         try:
