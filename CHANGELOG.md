@@ -4,6 +4,17 @@
 
 [comment]: # (towncrier release notes start)
 
+neuro-extras v22.2.2 (2022-02-17)
+=================================
+
+
+Bugfixes
+--------
+
+
+- Fix relative dockerfile path for Kaniko on Windows ([#463](https://github.com/neuromation/neuro-extras/issues/463))
+
+
 neuro-extras v22.2.1 (2022-02-10)
 =================================
 
