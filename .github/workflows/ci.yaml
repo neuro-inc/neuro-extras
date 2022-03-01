@@ -88,7 +88,7 @@ jobs:
         neuro config switch-cluster ${{ env.NEURO_CLUSTER }}
         neuro --color=no config show
     - name: Login to ghcr.io
-      uses: docker/login-action@v1.13.0
+      uses: docker/login-action@v1.14.0
       with:
         registry: ghcr.io
         username: ${{ github.actor }}
