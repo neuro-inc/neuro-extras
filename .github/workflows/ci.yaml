@@ -20,7 +20,7 @@ jobs:
     timeout-minutes: 5
     steps:
     - name: Checkout commit
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         ref: ${{ github.event.pull_request.head.sha }}
 
@@ -66,7 +66,7 @@ jobs:
       SHA: ${{ github.event.pull_request.head.sha || github.sha }}
     steps:
     - name: Checkout commit
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         ref: ${{ github.event.pull_request.head.sha }}
 
@@ -132,7 +132,7 @@ jobs:
 
     steps:
     - name: Checkout commit
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         ref: ${{ github.event.pull_request.head.sha }}
 
