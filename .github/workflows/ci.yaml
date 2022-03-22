@@ -29,13 +29,13 @@ jobs:
       with:
         python-version: '3.9'
     - name: Cache PyPI
-      uses: actions/cache@v2.1.7
+      uses: actions/cache@v3
       with:
         key: ${{ runner.os }}-py-3.9-${{ hashFiles('requirements/*.txt') }}
         path: ${{ env.pythonLocation }}
 
     - name: Cache pre-commit hooks
-      uses: actions/cache@v2.1.7
+      uses: actions/cache@v3
       with:
         path: ~/.cache/pre-commit
         key: ${{ runner.os }}-pre-commit-python-3.9-${{ hashFiles('.pre-commit-config.yaml')
@@ -76,7 +76,7 @@ jobs:
         python-version: '3.9'
 
     - name: Cache Python and its deps
-      uses: actions/cache@v2.1.7
+      uses: actions/cache@v3
       with:
         key: ${{ runner.os }}-py-3.9-${{ hashFiles('requirements/base.txt') }}
         path: ${{ env.pythonLocation }}
@@ -156,13 +156,13 @@ jobs:
         python-version: ${{ matrix.python-version }}
 
     - name: Cache Python and its deps
-      uses: actions/cache@v2.1.7
+      uses: actions/cache@v3
       with:
         key: ${{ runner.os }}-py-${{ matrix.python-version }}-${{ hashFiles('setup.py', 'requirements/*.txt') }}
         path: ${{ env.pythonLocation }}
 
     - name: Cache pre-commit hooks
-      uses: actions/cache@v2.1.7
+      uses: actions/cache@v3
       with:
         path: ~/.cache/pre-commit
         key: ${{ runner.os }}-pre-commit-python-${{ matrix.python-version }}-${{ hashFiles('.pre-commit-config.yaml')
