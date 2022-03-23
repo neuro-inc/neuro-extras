@@ -47,7 +47,7 @@ repos:
       docs/spelling_wordlist.txt|
       .gitignore
 - repo: https://github.com/asottile/pyupgrade
-  rev: 'v2.31.0'
+  rev: 'v2.31.1'
   hooks:
   - id: pyupgrade
     args: ['--py37-plus']
@@ -57,7 +57,7 @@ repos:
   - id: flake8
     exclude: "^docs/"
 - repo: https://github.com/rhysd/actionlint
-  rev: v1.6.9
+  rev: v1.6.10
   hooks:
   - id: actionlint-docker
     args:
