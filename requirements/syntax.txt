@@ -1,6 +1,6 @@
 -r base.txt
 mypy==0.942
-pre-commit==2.17.0
+pre-commit==2.18.1
 
 # mypy stubs and typesheds (https://mypy.readthedocs.io/en/latest/getting_started.html#library-stubs-and-typeshed)
 types-PyYAML==6.0.5
