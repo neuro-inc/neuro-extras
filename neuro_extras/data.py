@@ -351,7 +351,11 @@ async def _data_cp(
             else:
                 dst_name = origin_src_url.name
 
-        cp_destination_url = URL.build(path=str(dst_dir / dst_name))
+        cp_destination_url = URL.build(
+            scheme=destination_url.scheme,
+            host=destination_url.host,  # type: ignore
+            path=str(dst_dir / dst_name),
+        )
         await _nonstorage_cp(origin_src_url, cp_destination_url, remove_source=False)
         source_url = cp_destination_url
 
