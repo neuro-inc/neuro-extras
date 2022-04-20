@@ -1,0 +1,1 @@
+Fixed issue with data copy from local to cloud storage not working due to improper URL handling.
