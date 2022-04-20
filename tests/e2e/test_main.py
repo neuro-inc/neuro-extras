@@ -34,6 +34,7 @@ AWS_BUCKET = "s3://cookiecutter-e2e"
 AZURE_BUCKET = "azure+https://neuromlops.blob.core.windows.net/cookiecutter-e2e"
 HTTP_BUCKET = "http://s3.amazonaws.com/data.neu.ro/cookiecutter-e2e"
 HTTPS_BUCKET = "https://s3.amazonaws.com/data.neu.ro/cookiecutter-e2e"
+NEURO_BUCKET = "blob://default/cookiecutter-e2e/cookiecutter-e2e"
 
 
 def test_init_aliases(cli_runner: CLIRunner) -> None:
@@ -466,7 +467,8 @@ def args_data_cp_from_cloud(cli_runner: CLIRunner) -> Callable[..., List[str]]:
 
 
 @pytest.mark.parametrize(
-    "bucket", [AWS_BUCKET, GCP_BUCKET, AZURE_BUCKET, HTTP_BUCKET, HTTPS_BUCKET]
+    "bucket",
+    [AWS_BUCKET, GCP_BUCKET, AZURE_BUCKET, HTTP_BUCKET, HTTPS_BUCKET, NEURO_BUCKET],
 )
 @pytest.mark.parametrize("archive_extension", TESTED_ARCHIVE_TYPES)
 @pytest.mark.parametrize("extract", [True, False])
@@ -506,7 +508,8 @@ def test_data_cp_from_cloud_to_local(
 
 
 @pytest.mark.parametrize(
-    "bucket", [GCP_BUCKET, AWS_BUCKET, AZURE_BUCKET, HTTP_BUCKET, HTTPS_BUCKET]
+    "bucket",
+    [GCP_BUCKET, AWS_BUCKET, AZURE_BUCKET, HTTP_BUCKET, HTTPS_BUCKET, NEURO_BUCKET],
 )
 @pytest.mark.parametrize("use_temp_dir", [True, False])
 @pytest.mark.parametrize(
@@ -581,7 +584,8 @@ def _run_test_data_cp_from_cloud_to_local_compress(
 
 
 @pytest.mark.parametrize(
-    "bucket", [GCP_BUCKET, AWS_BUCKET, AZURE_BUCKET, HTTP_BUCKET, HTTPS_BUCKET]
+    "bucket",
+    [GCP_BUCKET, AWS_BUCKET, AZURE_BUCKET, HTTP_BUCKET, HTTPS_BUCKET, NEURO_BUCKET],
 )
 @pytest.mark.parametrize("archive_extension", ["tar.gz"])
 @pytest.mark.parametrize("extract", [True, False])

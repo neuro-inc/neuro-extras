@@ -113,7 +113,7 @@ class UrlType(Enum):
             return UrlType.STORAGE
         if url.scheme == "":
             return UrlType.LOCAL
-        if url.scheme in ("s3", "gs", "azure+https", "http", "https"):
+        if url.scheme in ("s3", "gs", "azure+https", "http", "https", "blob"):
             return UrlType.CLOUD
         if url.scheme == "disk":
             return UrlType.DISK
@@ -410,6 +410,9 @@ async def _nonstorage_cp(
         args = ["s3", "cp", str(source_url), str(destination_url)]
         if source_url.path.endswith("/"):
             args.insert(2, "--recursive")
+    elif "blob" in (source_url.scheme, destination_url.scheme):
+        command = "neuro"
+        args = ["blob", "cp", str(source_url), str(destination_url)]
     elif "gs" in (source_url.scheme, destination_url.scheme):
         command = "gsutil"
         # gsutil service credentials are activated in entrypoint.sh
