@@ -449,6 +449,8 @@ def args_data_cp_from_cloud(cli_runner: CLIRunner) -> Callable[..., List[str]]:
                         "AZURE_SAS_TOKEN=secret:azure_sas_token",
                     ]
                 )
+            elif bucket.startswith("blob:"):
+                args.extend(["--pass-config"])
             elif bucket.startswith("https://") or bucket.startswith("http://"):
                 # No additional arguments required
                 pass
