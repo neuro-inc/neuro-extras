@@ -1,5 +1,6 @@
 from decimal import Decimal
 
+import pytest
 from conftest import MockNeuroClient
 from neuro_sdk import Preset
 
@@ -10,6 +11,9 @@ FAKE_PRESETS = {
     "bad": Preset(cpu=1, memory_mb=9999, credits_per_hour=Decimal("5")),
     "expensive": Preset(cpu=2, memory_mb=9999, credits_per_hour=Decimal("15")),
     "cheap": Preset(cpu=20, memory_mb=99999, credits_per_hour=Decimal("14")),
+    "cheap_scheduled": Preset(
+        cpu=20, memory_mb=99999, credits_per_hour=Decimal("10"), scheduler_enabled=True
+    ),
 }
 
 
@@ -21,12 +25,13 @@ def test_cheapest_preset_is_selected(mock_client: MockNeuroClient) -> None:
     assert selected_preset == "cheap"
 
 
-def test_user_selection_is_respected(mock_client: MockNeuroClient) -> None:
+@pytest.mark.parametrize("preset", ["bad", "cheap_scheduled"])
+def test_user_selection_is_respected(mock_client: MockNeuroClient, preset: str) -> None:
     mock_client.presets.update(FAKE_PRESETS)
     selected_preset = select_build_preset(
-        preset="bad", client=mock_client, min_mem=4096, min_cpu=2
+        preset=preset, client=mock_client, min_mem=4096, min_cpu=2
     )
-    assert selected_preset == "bad"
+    assert selected_preset == preset
 
 
 def test_when_nothing_fits_first_preset_is_used(mock_client: MockNeuroClient) -> None:
