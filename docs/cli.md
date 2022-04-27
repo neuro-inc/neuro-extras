@@ -199,7 +199,7 @@ neuro-extras image build [OPTIONS] CONTEXT_PATH IMAGE_URI
 | _-v, --volume MOUNT_ | Mounts directory from vault into container. Use multiple options to mount more than one volume. Use --volume=ALL to mount all accessible storage directories. |
 | _-e, --env VAR=VAL_ | Set environment variable in container Use multiple options to define more than one variable |
 | _-s, --preset PRESET_ | Predefined resource configuration \(to see available values, run `neuro config show`\) |
-| _-F, --force-overwrite_ | Overwrite if the destination image already exists. |
+| _-F, --force-overwrite_ | Overwrite if the destination image already exists.  \[default: False\] |
 | _--cache / --no-cache_ | Use Kaniko cache while building image.  \[default: cache\] |
 | _--verbose BOOLEAN_ | If specified, run Kaniko with 'debug' verbosity, otherwise 'info' \(default\). |
 | _--build-tag VAR=VAL_ | Set tag\(s\) for image builder job. We will add tag 'kaniko-builds:{image-name}' authomatically. |
@@ -221,7 +221,7 @@ neuro-extras image local-build [OPTIONS] CONTEXT_PATH IMAGE_URI
 | :--- | :--- |
 | _-f, --file TEXT_ | Relative \(w.r.t. context\) path to the dockerfile. The dockerfile should be within the context directory.  \[default: Dockerfile\] |
 | _--build-arg VAR=VAL_ | Build-time variables passed in ARG values. Could be used multiple times for multiple arguments. |
-| _-F, --force-overwrite_ | Overwrite if the destination image already exists. |
+| _-F, --force-overwrite_ | Overwrite if the destination image already exists.  \[default: False\] |
 | _--verbose BOOLEAN_ | If specified, provide verbose output \(default False\). |
 | _--help_ | Show this message and exit. |
 

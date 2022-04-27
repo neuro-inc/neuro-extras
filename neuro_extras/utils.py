@@ -187,17 +187,20 @@ def select_build_preset(
     preset: Optional[str], client: Client, min_cpu: float = 2, min_mem: int = 4096
 ) -> Optional[str]:
     """
-    Try to automatically select the best available preset for tasak
+    Try to automatically select the best available preset for a task
     """
     good_presets = []
     good_presets_names = []
-    # Build a shortlist of presets that
+    # Build a shortlist of presets that could fit
     for cluster_preset_name, cluster_preset_info in client.presets.items():
         # Don't even try to use GPU machines for image builds
+        # Also ignore scheduled presets (they don't work with schedule-timeout)
+        # see https://github.com/neuro-inc/neuro-extras/issues/488
         if (
             cluster_preset_info.cpu >= min_cpu
             and cluster_preset_info.memory_mb >= min_mem
             and cluster_preset_info.gpu is None
+            and not cluster_preset_info.scheduler_enabled
         ):
             good_presets.append((cluster_preset_name, cluster_preset_info))
             good_presets_names.append(cluster_preset_name)
@@ -222,7 +225,7 @@ def select_build_preset(
             return None
     else:
         if preset in good_presets_names:
-            # If user asked for a preset and it's a good one - let them use it
+            # If user asked for a preset, and it's a good one - let them use it
             return preset
         else:
             if len(good_presets) > 0:
