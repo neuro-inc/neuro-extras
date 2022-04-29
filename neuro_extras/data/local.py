@@ -81,13 +81,25 @@ class LocalToLocalCopier(BaseLocalCopier):
     Supports compression and extraction.
     """
 
+    async def _extract_compress(self) -> str:
+        raise NotImplementedError
+
+    async def _extract(self) -> str:
+        raise NotImplementedError
+
+    async def _compress(self) -> str:
+        raise NotImplementedError
+
+    async def _copy(self) -> str:
+        raise NotImplementedError
+
     async def perform_copy(self) -> str:
         """Perform copy from local fs to local fs.
 
         Delegates copy implementation to appropriate LocalFSCopier.
         Uses ArchiveManager to handle compression/extraction.
         """
-        # TODO: support (extraction -> compression)
+        # TODO: replace with calls to corresponing private methods
         if self.extract:
             archive_name = get_filename_from_url(self.source)
             if archive_name is None:
@@ -119,13 +131,25 @@ class LocalToCloudCopier(BaseLocalCopier):
     Supports compression and extraction (temp_dir is used to store intermediate results)
     """
 
+    async def _extract_compress_and_copy(self) -> str:
+        raise NotImplementedError
+
+    async def _extract_and_copy(self) -> str:
+        raise NotImplementedError
+
+    async def _compress_and_copy(self) -> str:
+        raise NotImplementedError
+
+    async def _copy(self) -> str:
+        raise NotImplementedError
+
     async def perform_copy(self) -> str:
         """Perform copy from local to cloud.
 
         Delegates copy implementation to appropriate Copier (S3, Azure, GCS, Web).
         Uses ArchiveManager to handle compression/extraction.
         """
-        # TODO: support (extraction -> compression)
+        # TODO: replace with calls to corresponing private methods
         if self.extract:
             archive_name = get_filename_from_url(self.source)
             if archive_name is None:
@@ -158,8 +182,20 @@ class CloudToLocalCopier(BaseLocalCopier):
     Supports compression and extraction (temp_dir is used to store intermediate results)
     """
 
+    async def _copy_and_extract_compress(self) -> str:
+        raise NotImplementedError
+
+    async def _copy_and_extract(self) -> str:
+        raise NotImplementedError
+
+    async def _copy_and_compress(self) -> str:
+        raise NotImplementedError
+
+    async def _copy(self) -> str:
+        raise NotImplementedError
+
     async def perform_copy(self) -> str:
-        # TODO: support (extraction -> compression)
+        # TODO: replace with calls to corresponing private methods
         if self.extract:
             archive_name = get_filename_from_url(self.source)
             if archive_name is None:
