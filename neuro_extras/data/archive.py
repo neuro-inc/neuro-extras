@@ -7,7 +7,7 @@ from typing import Any, Dict, List
 from .common import CLIRunner
 
 
-logger = logging.getLogger()
+logger = logging.getLogger(__name__)
 
 
 class ArchiveType(int, Flag):  # type: ignore

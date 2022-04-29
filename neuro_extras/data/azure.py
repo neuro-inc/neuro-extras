@@ -43,6 +43,11 @@ class AzureCopier(CLICopier):
             return raw_url
 
     async def perform_copy(self) -> str:
+        if UrlType.AZURE not in (self.source_type, self.destination_type):
+            raise ValueError(
+                "Unsupported source and destination - "
+                "at least one should start with azure+https://"
+            )
         sas_url_source = (
             self.source if self.source_type == UrlType.AZURE else self.destination
         )

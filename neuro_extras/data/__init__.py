@@ -166,7 +166,7 @@ def data_cp(
         raise click.ClickException(f"{e.__class__.__name__}: {e}")
 
 
-# TODO: implement TransferOperation
+# TODO: (A.K.) implement TransferOperation
 async def _data_transfer(src_uri_str: str, dst_uri_str: str) -> None:
     async with get_neuro_client() as client:
         src_cluster_or_null = _get_cluster_from_uri(

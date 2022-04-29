@@ -1,3 +1,8 @@
+"""Module for data operations
+
+Currently provides:
+- CopyOperation
+"""
 import logging
 from functools import cached_property
 from pathlib import Path
@@ -13,6 +18,8 @@ from .utils import provide_temp_dir
 
 
 logger = logging.getLogger(__name__)
+
+# TODO: (A.K.) implement TransferOperation
 
 
 class CopyOperation:
@@ -69,6 +76,8 @@ class CopyOperation:
                 f"{self.destination_type.name} is supported"
             )
         if self.compress and self.extract:
+            # TODO: (A.K.) Add support for (extraction -> compression)
+            # if both sources are archives
             raise ValueError("Compression and extraction are mutually exclusive")
 
     @staticmethod
@@ -86,7 +95,7 @@ class CopyOperation:
     ) -> Copier:
         source_type = UrlType.get_type(source)
         destination_type = UrlType.get_type(destination)
-        if source_type == UrlType.LOCAL and destination_type == UrlType.CLOUD:
+        if source_type == UrlType.LOCAL_FS and destination_type == UrlType.CLOUD:
             return LocalToCloudCopier(
                 source=source,
                 destination=destination,
@@ -94,7 +103,7 @@ class CopyOperation:
                 extract=extract,
                 temp_dir=temp_dir,
             )
-        elif source_type == UrlType.CLOUD and destination_type == UrlType.LOCAL:
+        elif source_type == UrlType.CLOUD and destination_type == UrlType.LOCAL_FS:
             return CloudToLocalCopier(
                 source=source,
                 destination=destination,
@@ -146,14 +155,15 @@ class CopyOperation:
 
     @staticmethod
     def get_forbidden_combinations() -> List[Tuple[UrlType, UrlType]]:
-        # TODO: expand list
+        # TODO: (A.K.) expand list
         return [
-            (UrlType.LOCAL, UrlType.LOCAL),
             (UrlType.CLOUD, UrlType.CLOUD),
-            # TODO: implement storage-to-local and vice-versa through neuro storage cp
-            (UrlType.PLATFORM, UrlType.LOCAL),
-            (UrlType.LOCAL, UrlType.PLATFORM),
-            # TODO: check if this is still the case
+            # TODO: (A.K.) implement platform-to-local and vice-versa
+            # through neuro storage cp
+            (UrlType.PLATFORM, UrlType.LOCAL_FS),
+            (UrlType.LOCAL_FS, UrlType.PLATFORM),
+            # TODO: (A.K.) check if this should actually be prohibited
             (UrlType.STORAGE, UrlType.DISK),
             (UrlType.DISK, UrlType.STORAGE),
+            (UrlType.SUPPORTED, UrlType.WEB),
         ]

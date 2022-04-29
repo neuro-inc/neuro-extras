@@ -141,7 +141,7 @@ class RemoteCopier(Copier):
             extract=extract,
             compress=compress,
         )
-        all_volumes = volumes if volumes else [] + data_mounts
+        all_volumes = (volumes if volumes else []) + data_mounts
         env_parse_result = neuro_client.parse.envs(env if env else [])
         volume_parse_result = neuro_client.parse.volumes(all_volumes)
         preset_name = preset or get_default_preset(neuro_client)
@@ -174,7 +174,7 @@ class RemoteCopier(Copier):
 
     async def perform_copy(self) -> str:
         logger.info(f"Starting job from config: {self.job_config}")
-        if False:  # TODO: remove
+        if False:  # TODO: (A.K) remove when image is made available for testing
             kwargs = asdict(self.job_config)
             job = await self.neuro_client.jobs.start(**kwargs)
             exit_code = await _attach_job_stdout(job, self.neuro_client, name="copy")
@@ -183,7 +183,7 @@ class RemoteCopier(Copier):
             else:
                 raise RuntimeError(f"Copy job failed: error code {exit_code}")
         else:
-            # TODO: remove
+            # TODO: (A.K.) remove when image is made available for testing
             logger.warn(
                 f"Called fake implementation of remote copy "
                 f"from {self.source} to {self.destination}"

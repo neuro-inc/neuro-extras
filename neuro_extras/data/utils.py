@@ -18,7 +18,7 @@ def get_filename_from_url(url: str) -> Optional[str]:
     Uses pathlib for local files and URL otherwise
     """
     url_type = UrlType.get_type(url)
-    if url_type == UrlType.LOCAL:
+    if url_type == UrlType.LOCAL_FS:
         # use pathlib
         head, tail = os.path.split(url)
         return tail if tail else None
@@ -36,5 +36,5 @@ def get_default_preset(neuro_client: Client) -> str:
 
 
 def provide_temp_dir() -> TemporaryDirectory:  # type: ignore
-    # TODO
+    # TODO: (A.K.) use .neuro-tmp/ or update tests
     return TemporaryDirectory()
