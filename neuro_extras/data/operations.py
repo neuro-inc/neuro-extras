@@ -12,7 +12,7 @@ from neuro_sdk import Client
 
 from ..utils import get_neuro_client
 from .common import Copier, UrlType
-from .local import CloudToLocalCopier, LocalToCloudCopier
+from .local import CloudToLocalCopier, LocalToCloudCopier, LocalToLocalCopier
 from .remote import RemoteCopier
 from .utils import provide_temp_dir
 
@@ -127,6 +127,14 @@ class CopyOperation:
                 preset=preset,
                 env=env,
                 life_span=life_span,
+            )
+        elif source_type == UrlType.LOCAL_FS and destination_type.LOCAL_FS:
+            return LocalToLocalCopier(
+                source=source,
+                destination=destination,
+                compress=compress,
+                extract=extract,
+                temp_dir=temp_dir,
             )
         else:
             raise NotImplementedError(
