@@ -133,7 +133,8 @@ neuro-extras data cp [OPTIONS] SOURCE DESTINATION
 | _-c, --compress_ | Perform compression of SOURCE into the DESTINATION file. The archive type is derived from the file name. Supported types: .tar.gz, .tgz, .tar.bz2, .tbz2, .tbz, .tar, .gz, .zip. |
 | _-v, --volume MOUNT_ | Mounts directory from vault into container. Use multiple options to mount more than one volume. |
 | _-e, --env VAR=VAL_ | Set environment variable in container. Use multiple options to define more than one variable. |
-| _-t, --use-temp-dir_ | Download and extract / compress data \(if needed\)  inside the temporal directory. Afterwards move resulted file\(s\) into the DESTINATION. NOTE: use it if 'storage:' is involved and extraction or compression is performed to speedup the process. |
+| _-t, --use-temp-dir_ | DEPRECATED - need for temp dir is automatically detected, this flag will be removed in a future release.
+Download and extract / compress data \(if needed\)  inside the temporal directory. Afterwards move resulted file\(s\) into the DESTINATION. NOTE: use it if 'storage:' is involved and extraction or compression is performed to speedup the process. |
 | _-s, --preset PRESET\_NAME_ | Preset name used for copy. |
 | _-l, --life\_span SECONDS_ | Copy job life span in seconds. |
 | _--help_ | Show this message and exit. |
