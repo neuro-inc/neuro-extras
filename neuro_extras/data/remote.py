@@ -174,18 +174,12 @@ class RemoteCopier(Copier):
 
     async def perform_copy(self) -> str:
         logger.info(f"Starting job from config: {self.job_config}")
-        if False:  # TODO: (A.K) remove when image is made available for testing
-            kwargs = asdict(self.job_config)
-            job = await self.neuro_client.jobs.start(**kwargs)
-            exit_code = await _attach_job_stdout(job, self.neuro_client, name="copy")
-            if exit_code == EX_OK:
-                logger.info("Copy job finished")
-            else:
-                raise RuntimeError(f"Copy job failed: error code {exit_code}")
+        kwargs = asdict(self.job_config)
+        job = await self.neuro_client.jobs.start(**kwargs)
+        exit_code = await _attach_job_stdout(job, self.neuro_client, name="copy")
+        if exit_code == EX_OK:
+            logger.info("Copy job finished")
         else:
-            # TODO: (A.K.) remove when image is made available for testing
-            logger.warn(
-                f"Called fake implementation of remote copy "
-                f"from {self.source} to {self.destination}"
-            )
+            raise RuntimeError(f"Copy job failed: error code {exit_code}")
+
         return self.destination

@@ -125,8 +125,9 @@ class CLIRunner:
         with stderr as a message.
         """
         logger.info(f"Executing: {[command] + args}")
-        logger.warn(f"Calling echo instead of actual command!")
-        process = await asyncio.create_subprocess_exec("echo", *([command] + args))
+        # logger.warn(f"Calling echo instead of actual command!")
+        # process = await asyncio.create_subprocess_exec("echo", *([command] + args))
+        process = await asyncio.create_subprocess_exec(command, *args)
         status_code = await process.wait()
         if status_code != 0:
             raise RuntimeError(process.stderr)
