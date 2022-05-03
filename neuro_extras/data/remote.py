@@ -91,11 +91,17 @@ class RemoteCopier(Copier):
                     new_url = f"{storage_mount_prefix}/"
                 volumes.append(f"{url}:{new_url}:{mode}")
             elif url_type == UrlType.DISK:
-                if filename:
-                    new_url = f"{disk_mount_prefix}/{filename}"
+                if ":" in url:
+                    # disk url has directory specification
+                    disk, subfolder = url.split(":")
+                    volumes.append(f"{disk}:{disk_mount_prefix}:{mode}")
+                    new_url = f"{disk_mount_prefix}/{subfolder}"
                 else:
-                    new_url = f"{disk_mount_prefix}/"
-                volumes.append(f"{url}:{new_url}:{mode}")
+                    if filename:
+                        new_url = f"{disk_mount_prefix}/{filename}"
+                    else:
+                        new_url = f"{disk_mount_prefix}/"
+                    volumes.append(f"{url}:{new_url}:{mode}")
             else:
                 new_url = url
             return new_url, volumes
