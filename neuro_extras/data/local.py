@@ -1,6 +1,7 @@
 """Module for handling copy operations, that can be run locally
 
 Contains:
+- LocalToLocalCopier
 - LocalToCloudCopier
 - CloudToLocalCopier
 """
@@ -67,8 +68,12 @@ class BaseLocalCopier(Copier):
         if None in (source_filename, destination_filename):
             # at least one is a directory
             return (False, None)
-        source_archive_type = ArchiveType.get_type(Path(source_filename))
-        destination_archive_type = ArchiveType.get_type(Path(destination_filename))
+        source_archive_type = ArchiveType.get_type(
+            archive=Path(source_filename)  # type: ignore
+        )
+        destination_archive_type = ArchiveType.get_type(
+            archive=Path(destination_filename)  # type: ignore
+        )
         if ArchiveType.UNSUPPORTED in (source_archive_type, destination_archive_type):
             # at least one is not a supported archive
             return (False, None)
@@ -81,17 +86,55 @@ class LocalToLocalCopier(BaseLocalCopier):
     Supports compression and extraction.
     """
 
-    async def _extract_compress(self) -> str:
-        raise NotImplementedError
+    async def _recompress(self) -> str:
+        both_are_archives, both_of_same_type = BaseLocalCopier.check_both_are_archives(
+            self.source, self.destination
+        )
+        if not both_are_archives:
+            raise ValueError(
+                "Can't perform recompression - "
+                "source and destination should be both supported archives"
+            )
+        if both_of_same_type:
+            logger.info(
+                "Skipping compression step - "
+                "source and destination are archives of the same type"
+            )
+            return await self._copy()
+        temp_extraction_destination = self.temp_dir / "extracted"
+        extracted_folder = await self.archive_manager.extract(
+            source=Path(self.source), destination=temp_extraction_destination
+        )
+        new_archive = await self.archive_manager.compress(
+            source=extracted_folder, destination=Path(self.destination)
+        )
+        return str(new_archive)
 
     async def _extract(self) -> str:
-        raise NotImplementedError
+        archive_name = get_filename_from_url(self.source)
+        if archive_name is None:
+            raise ValueError(f"Can't infer archive type from source {self.source}")
+        extracted_folder = await self.archive_manager.extract(
+            source=Path(self.source), destination=Path(self.destination)
+        )
+        return str(extracted_folder)
 
     async def _compress(self) -> str:
-        raise NotImplementedError
+        archive_name = get_filename_from_url(self.destination)
+        if archive_name is None:
+            raise ValueError(
+                f"Can't infer archive type from destination {self.destination}"
+            )
+        compressed_file = await self.archive_manager.compress(
+            source=Path(self.source), destination=Path(self.destination)
+        )
+        return str(compressed_file)
 
     async def _copy(self) -> str:
-        raise NotImplementedError
+        copier_implementation = BaseLocalCopier.get_copier(
+            source=self.source, destination=self.destination, type=UrlType.LOCAL_FS
+        )
+        return await copier_implementation.perform_copy()
 
     async def perform_copy(self) -> str:
         """Perform copy from local fs to local fs.
@@ -99,30 +142,14 @@ class LocalToLocalCopier(BaseLocalCopier):
         Delegates copy implementation to appropriate LocalFSCopier.
         Uses ArchiveManager to handle compression/extraction.
         """
-        # TODO: replace with calls to corresponing private methods
-        if self.extract:
-            archive_name = get_filename_from_url(self.source)
-            if archive_name is None:
-                raise ValueError(f"Can't infer archive type from source {self.source}")
-            extracted_folder = await self.archive_manager.extract(
-                source=Path(self.source), destination=Path(self.destination)
-            )
-            return str(extracted_folder)
+        if self.extract and self.compress:
+            return await self._recompress()
+        elif self.extract:
+            return await self._extract()
         elif self.compress:
-            archive_name = get_filename_from_url(self.destination)
-            if archive_name is None:
-                raise ValueError(
-                    f"Can't infer archive type from destination {self.destination}"
-                )
-            compressed_file = await self.archive_manager.compress(
-                source=Path(self.source), destination=Path(self.destination)
-            )
-            return str(compressed_file)
+            return await self._compress()
         else:
-            copier_implementation = BaseLocalCopier.get_copier(
-                source=self.source, destination=self.destination, type=UrlType.LOCAL_FS
-            )
-            return await copier_implementation.perform_copy()
+            return await self._copy()
 
 
 class LocalToCloudCopier(BaseLocalCopier):
@@ -131,7 +158,7 @@ class LocalToCloudCopier(BaseLocalCopier):
     Supports compression and extraction (temp_dir is used to store intermediate results)
     """
 
-    async def _extract_compress_and_copy(self) -> str:
+    async def _recompress_and_copy(self) -> str:
         raise NotImplementedError
 
     async def _extract_and_copy(self) -> str:
@@ -182,7 +209,7 @@ class CloudToLocalCopier(BaseLocalCopier):
     Supports compression and extraction (temp_dir is used to store intermediate results)
     """
 
-    async def _copy_and_extract_compress(self) -> str:
+    async def _copy_and_recompress(self) -> str:
         raise NotImplementedError
 
     async def _copy_and_extract(self) -> str:

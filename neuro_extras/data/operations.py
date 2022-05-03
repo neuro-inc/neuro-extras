@@ -75,7 +75,7 @@ class CopyOperation:
                 f"Copy from {self.source_type.name} to "
                 f"{self.destination_type.name} is supported"
             )
-        if self.compress and self.extract:
+        if self.compress and self.extract and False:
             # TODO: (A.K.) Add support for (extraction -> compression)
             # if both sources are archives
             raise ValueError("Compression and extraction are mutually exclusive")
