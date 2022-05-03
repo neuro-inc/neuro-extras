@@ -142,7 +142,7 @@ class RemoteCopier(Copier):
             extract=extract,
             compress=compress,
         )
-        all_volumes = (volumes if volumes else []) + data_mounts
+        all_volumes = volumes + data_mounts if volumes else data_mounts
         env_parse_result = neuro_client.parse.envs(env if env else [])
         volume_parse_result = neuro_client.parse.volumes(all_volumes)
         preset_name = preset or get_default_preset(neuro_client)

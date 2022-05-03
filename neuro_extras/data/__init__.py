@@ -1,7 +1,7 @@
 import asyncio
 import logging
 from pathlib import Path
-from typing import List, Optional
+from typing import Optional, Sequence
 
 import click
 from yarl import URL
@@ -136,8 +136,8 @@ def data_cp(
     destination: str,
     extract: bool,
     compress: bool,
-    volume: List[str],
-    env: List[str],
+    volume: Sequence[str],
+    env: Sequence[str],
     use_temp_dir: bool,
     preset: Optional[str] = None,
     life_span: Optional[int] = None,
@@ -155,8 +155,8 @@ def data_cp(
             destination=destination,
             compress=compress,
             extract=extract,
-            volumes=volume,
-            env=env,
+            volumes=list(volume),
+            env=list(env),
             life_span=life_span,
             preset=preset,
         )
