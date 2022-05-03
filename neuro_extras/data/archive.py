@@ -202,7 +202,6 @@ class ArchiveManager(BaseArchiveManager):
             ArchiveType.GZ: GzipManager(),
             ArchiveType.ZIP: ZipManager(),
         }
-        logger.info(f"Resolving archive manager for {archive}...")
         archive_type = ArchiveType.get_type(archive)
         if archive_type == ArchiveType.UNSUPPORTED:
             supported_extensions = list(ArchiveType.get_extension_mapping())

@@ -243,48 +243,78 @@ class CloudToLocalCopier(BaseLocalCopier):
     """
 
     async def _copy_and_recompress(self) -> str:
-        raise NotImplementedError
+        both_are_archives, both_of_same_type = BaseLocalCopier.check_both_are_archives(
+            self.source, self.destination
+        )
+        if not both_are_archives:
+            raise ValueError(
+                "Can't perform recompression - "
+                "source and destination should be both supported archives"
+            )
+        if both_of_same_type:
+            logger.info(
+                "Skipping compression step - "
+                "source and destination are archives of the same type"
+            )
+            return await self._copy()
+        temp_source_archive = self.temp_dir / self.source_filename  # type: ignore
+        copier_implementation = BaseLocalCopier.get_copier(
+            source=self.source,
+            destination=str(temp_source_archive),
+            type=self.source_type,
+        )
+        temp_location = await copier_implementation.perform_copy()
+        local_copier = LocalToLocalCopier(
+            source=temp_location,
+            destination=self.destination,
+            extract=True,
+            compress=True,
+            temp_dir=self.temp_dir,
+        )
+        logger.info(f"Using {local_copier} to perform recompression locally")
+        return await local_copier.perform_copy()
 
     async def _copy_and_extract(self) -> str:
-        raise NotImplementedError
+        if self.source_filename is None:
+            raise ValueError(f"Can't infer archive type from source {self.source}")
+        temp_archive = str(self.temp_dir / self.source_filename)
+        copier_implementation = BaseLocalCopier.get_copier(
+            source=self.source, destination=temp_archive, type=self.source_type
+        )
+        archive = await copier_implementation.perform_copy()
+        extraction_result = await self.archive_manager.extract(
+            source=Path(archive), destination=Path(self.destination)
+        )
+        return str(extraction_result)
 
     async def _copy_and_compress(self) -> str:
-        raise NotImplementedError
+        if self.destination_filename is None:
+            raise ValueError(
+                f"Can't infer archive type from destination {self.destination}"
+            )
+        copier_implementation = BaseLocalCopier.get_copier(
+            source=self.source,
+            destination=str(self.temp_dir),
+            type=self.source_type,
+        )
+        directory = await copier_implementation.perform_copy()
+        compression_result = await self.archive_manager.compress(
+            source=Path(directory), destination=Path(self.destination)
+        )
+        return str(compression_result)
 
     async def _copy(self) -> str:
-        raise NotImplementedError
+        copier_implementation = BaseLocalCopier.get_copier(
+            source=self.source, destination=self.destination, type=self.source_type
+        )
+        return await copier_implementation.perform_copy()
 
     async def perform_copy(self) -> str:
-        # TODO: replace with calls to corresponing private methods
-        if self.extract:
-            if self.source_filename is None:
-                raise ValueError(f"Can't infer archive type from source {self.source}")
-            temp_archive = str(self.temp_dir / self.source_filename)
-            copier_implementation = BaseLocalCopier.get_copier(
-                source=self.source, destination=temp_archive, type=self.source_type
-            )
-            archive = await copier_implementation.perform_copy()
-            extraction_result = await self.archive_manager.extract(
-                source=Path(archive), destination=Path(self.destination)
-            )
-            return str(extraction_result)
+        if self.extract and self.compress:
+            return await self._copy_and_recompress()
+        elif self.extract:
+            return await self._copy_and_extract()
         elif self.compress:
-            if self.destination_filename is None:
-                raise ValueError(
-                    f"Can't infer archive type from destination {self.destination}"
-                )
-            copier_implementation = BaseLocalCopier.get_copier(
-                source=self.source,
-                destination=str(self.temp_dir),
-                type=self.source_type,
-            )
-            directory = await copier_implementation.perform_copy()
-            compression_result = await self.archive_manager.compress(
-                source=Path(directory), destination=Path(self.destination)
-            )
-            return str(compression_result)
+            return await self._copy_and_compress()
         else:
-            copier_implementation = BaseLocalCopier.get_copier(
-                source=self.source, destination=self.destination, type=self.source_type
-            )
-            return await copier_implementation.perform_copy()
+            return await self._copy()
