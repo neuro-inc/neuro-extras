@@ -4,13 +4,13 @@ from urllib import parse
 
 from yarl import URL
 
-from .common import CLICopier, UrlType
+from .common import CLIRunner, Copier, UrlType
 
 
 logger = logging.getLogger(__name__)
 
 
-class AzureCopier(CLICopier):
+class AzureCopier(Copier, CLIRunner):
     """Copier, that is capable of copying to/from Azure storage"""
 
     @staticmethod

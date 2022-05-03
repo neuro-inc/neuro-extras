@@ -116,6 +116,8 @@ class CopyOperation:
             and destination_type.PLATFORM == UrlType.PLATFORM
             or source_type == UrlType.PLATFORM
             and destination_type == UrlType.CLOUD
+            or source_type == UrlType.PLATFORM
+            and destination_type == UrlType.PLATFORM
         ):
             return RemoteCopier(
                 source=source,
@@ -170,8 +172,7 @@ class CopyOperation:
             # through neuro storage cp
             (UrlType.PLATFORM, UrlType.LOCAL_FS),
             (UrlType.LOCAL_FS, UrlType.PLATFORM),
-            # TODO: (A.K.) check if this should actually be prohibited
-            (UrlType.STORAGE, UrlType.DISK),
-            (UrlType.DISK, UrlType.STORAGE),
+            (UrlType.STORAGE, UrlType.STORAGE),
+            (UrlType.DISK, UrlType.DISK),
             (UrlType.SUPPORTED, UrlType.WEB),
         ]

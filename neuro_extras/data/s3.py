@@ -1,12 +1,12 @@
 import logging
 
-from .common import CLICopier, UrlType
+from .common import CLIRunner, Copier, UrlType
 
 
 logger = logging.getLogger(__name__)
 
 
-class S3Copier(CLICopier):
+class S3Copier(Copier, CLIRunner):
     """Copier, that is capable of copying to/from Amazon S3"""
 
     async def perform_copy(self) -> str:

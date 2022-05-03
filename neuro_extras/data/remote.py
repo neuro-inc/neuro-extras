@@ -127,6 +127,7 @@ class RemoteCopier(Copier):
 
         Copy job will copy data from `source` to `destination`"""
         image = neuro_client.parse.remote_image(NEURO_EXTRAS_IMAGE)
+
         (
             patched_source,
             patched_destination,
@@ -163,12 +164,11 @@ class RemoteCopier(Copier):
     ) -> str:
         command_prefix = ["neuro-extras", "data", "cp"]
         args = [source, destination]
+        flags = []
         if compress:
-            flags = ["-c"]
-        elif extract:
-            flags = ["-x"]
-        else:
-            flags = []
+            flags.append("-c")
+        if extract:
+            flags.append("-x")
         full_command = command_prefix + flags + args
         return " ".join(full_command)
 

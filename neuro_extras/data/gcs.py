@@ -1,12 +1,12 @@
 import logging
 
-from .common import CLICopier, UrlType
+from .common import CLIRunner, Copier, UrlType
 
 
 logger = logging.getLogger(__name__)
 
 
-class GCSCopier(CLICopier):
+class GCSCopier(Copier, CLIRunner):
     """Copier, that is capable of copying to/from Google Cloud Storage"""
 
     async def perform_copy(self) -> str:

@@ -130,9 +130,3 @@ class CLIRunner:
         status_code = await process.wait()
         if status_code != 0:
             raise RuntimeError(process.stderr)
-
-
-class CLICopier(Copier, CLIRunner):
-    """Copier, that uses shell commands to perform copy"""
-
-    # TODO: (A.K.) Move from CLICopier to CLIRunner inheritance or composition

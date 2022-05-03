@@ -162,7 +162,7 @@ def data_cp(
         )
         asyncio.run(operation.run())
     except Exception as e:
-        logger.exception(e)
+        # logger.exception(e)
         raise click.ClickException(f"{e.__class__.__name__}: {e}")
 
 
