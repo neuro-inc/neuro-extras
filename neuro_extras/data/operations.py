@@ -44,11 +44,11 @@ class CopyOperation:
         self.env = env
         self.life_span = life_span
         self.preset = preset
-        self._ensure_can_execute()
         self.source_type = UrlType.get_type(source)
         self.destination_type = UrlType.get_type(destination)
         self.source_filename = get_filename_from_url(source)
         self.destination_filename = get_filename_from_url(destination)
+        self._ensure_can_execute()
 
     def _ensure_can_execute(self) -> None:
         """Raise exception if operation is unsupported"""
