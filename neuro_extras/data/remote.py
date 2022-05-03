@@ -76,7 +76,10 @@ class RemoteCopier(Copier):
         """
 
         def map_singe_url_into_volumes(
-            url: str, storage_mount_prefix: str, disk_mount_prefix: str
+            url: str,
+            storage_mount_prefix: str,
+            disk_mount_prefix: str,
+            mode: str = "rw",
         ) -> Tuple[str, List[str]]:
             volumes = []
             url_type = UrlType.get_type(url)
@@ -86,13 +89,13 @@ class RemoteCopier(Copier):
                     new_url = f"{storage_mount_prefix}/{filename}"
                 else:
                     new_url = f"{storage_mount_prefix}/"
-                volumes.append(f"{url}:{new_url}")
+                volumes.append(f"{url}:{new_url}:{mode}")
             elif url_type == UrlType.DISK:
                 if filename:
                     new_url = f"{disk_mount_prefix}/{filename}"
                 else:
                     new_url = f"{disk_mount_prefix}/"
-                volumes.append(f"{url}:{new_url}")
+                volumes.append(f"{url}:{new_url}:{mode}")
             else:
                 new_url = url
             return new_url, volumes
@@ -185,6 +188,7 @@ class RemoteCopier(Copier):
             preset_name=self.job_config.preset_name,
             life_span=self.job_config.life_span,
         )
+        logger.info(f"Started {job}")
         exit_code = await _attach_job_stdout(job, self.neuro_client, name="copy")
         if exit_code == EX_OK:
             logger.info("Copy job finished")
