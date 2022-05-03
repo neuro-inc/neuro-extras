@@ -4,7 +4,7 @@ from enum import Flag, auto
 from pathlib import Path
 from typing import Any, Dict, List
 
-from .common import CLIRunner
+from .common import CLIRunner, get_filename_from_url
 
 
 logger = logging.getLogger(__name__)
@@ -213,7 +213,31 @@ class ArchiveManager(BaseArchiveManager):
             manager for type, manager in mapping.items() if type == archive_type
         )
 
+    async def _copy(self, source: Path, destination: Path) -> Path:
+        command = "cp"
+        args = [str(source), str(destination)]
+        runner = CLIRunner()
+        await runner.run_command(command=command, args=args)
+        return destination
+
     async def compress(self, source: Path, destination: Path) -> Path:
+        source_filename = get_filename_from_url(str(source))
+        destination_filename = get_filename_from_url(str(destination))
+        if source_filename is not None and destination_filename is not None:
+            source_type = ArchiveType.get_type(source)
+            destination_type = ArchiveType.get_type(destination)
+            both_archives = ArchiveType.UNSUPPORTED not in (
+                source_type,
+                destination_type,
+            )
+            same_type = source_type == destination_type
+            if both_archives and same_type:
+                logger.info(
+                    "Skipping compression step - "
+                    "source is already archive of the same type"
+                )
+                return await self._copy(source=source, destination=destination)
+
         manager_implementation = ArchiveManager.get_archive_manager(destination)
         logger.info(
             f"Compressing {source} into {destination} "

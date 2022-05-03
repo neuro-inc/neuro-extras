@@ -55,6 +55,6 @@ class AzureCopier(Copier, CLIRunner):
         source = AzureCopier.patch_azure_url_for_rclone(self.source)
         destination = AzureCopier.patch_azure_url_for_rclone(self.destination)
         command = "rclone"
-        args = ["copyto", "--azureblob-sas-url", sas_url, source, destination]
+        args = ["copyto", "-v", "--azureblob-sas-url", sas_url, source, destination]
         await self.run_command(command=command, args=args)
         return self.destination

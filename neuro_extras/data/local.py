@@ -292,9 +292,13 @@ class CloudToLocalCopier(BaseLocalCopier):
             raise ValueError(
                 f"Can't infer archive type from destination {self.destination}"
             )
+        if self.source_filename:
+            destination_path = self.temp_dir / self.source_filename
+        else:
+            destination_path = self.temp_dir / "source"
         copier_implementation = BaseLocalCopier.get_copier(
             source=self.source,
-            destination=str(self.temp_dir),
+            destination=str(destination_path),
             type=self.source_type,
         )
         directory = await copier_implementation.perform_copy()
