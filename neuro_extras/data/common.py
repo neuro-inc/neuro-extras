@@ -4,7 +4,6 @@ import asyncio
 import logging
 import os
 from enum import Flag, auto
-from functools import cached_property
 from typing import Any, Dict, List, Optional
 
 from yarl import URL
@@ -90,24 +89,10 @@ class Copier(metaclass=abc.ABCMeta):
     def __init__(self, source: str, destination: str) -> None:
         self.source = source
         self.destination = destination
-
-    @cached_property
-    def source_type(self) -> UrlType:
-        return UrlType.get_type(self.source)
-
-    @cached_property
-    def source_filename(self) -> Optional[str]:
-        """Name part of the source url if it is a file, None otherwise"""
-        return get_filename_from_url(self.source)
-
-    @cached_property
-    def destination_type(self) -> UrlType:
-        return UrlType.get_type(self.destination)
-
-    @cached_property
-    def destination_filename(self) -> Optional[str]:
-        """Name part of the destination url if it is a file, None otherwise"""
-        return get_filename_from_url(self.destination)
+        self.source_type = UrlType.get_type(source)
+        self.destination_type = UrlType.get_type(destination)
+        self.source_filename = get_filename_from_url(source)
+        self.destination_filename = get_filename_from_url(destination)
 
     async def perform_copy(self) -> str:
         """Copy data from self.source to self.destination

@@ -4,14 +4,13 @@ Currently provides:
 - CopyOperation
 """
 import logging
-from functools import cached_property
 from pathlib import Path
 from typing import List, Optional, Tuple
 
 from neuro_sdk import Client
 
 from ..utils import get_neuro_client
-from .common import Copier, UrlType
+from .common import Copier, UrlType, get_filename_from_url
 from .local import CloudToLocalCopier, LocalToCloudCopier, LocalToLocalCopier
 from .remote import RemoteCopier
 from .utils import provide_temp_dir
@@ -46,14 +45,10 @@ class CopyOperation:
         self.life_span = life_span
         self.preset = preset
         self._ensure_can_execute()
-
-    @cached_property
-    def source_type(self) -> UrlType:
-        return UrlType.get_type(self.source)
-
-    @cached_property
-    def destination_type(self) -> UrlType:
-        return UrlType.get_type(self.destination)
+        self.source_type = UrlType.get_type(source)
+        self.destination_type = UrlType.get_type(destination)
+        self.source_filename = get_filename_from_url(source)
+        self.destination_filename = get_filename_from_url(destination)
 
     def _ensure_can_execute(self) -> None:
         """Raise exception if operation is unsupported"""
@@ -75,10 +70,6 @@ class CopyOperation:
                 f"Copy from {self.source_type.name} to "
                 f"{self.destination_type.name} is supported"
             )
-        if self.compress and self.extract and False:
-            # TODO: (A.K.) Add support for (extraction -> compression)
-            # if both sources are archives
-            raise ValueError("Compression and extraction are mutually exclusive")
 
     @staticmethod
     def get_copier(
