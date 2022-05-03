@@ -6,8 +6,8 @@ from neuro_sdk import Client, DiskVolume, RemoteImage, SecretFile, Volume
 from yarl import URL
 
 from ..common import EX_OK, NEURO_EXTRAS_IMAGE, _attach_job_stdout
-from .common import Copier, UrlType
-from .utils import get_default_preset, get_filename_from_url
+from .common import Copier, UrlType, get_filename_from_url
+from .utils import get_default_preset
 
 
 logger = logging.getLogger(__name__)

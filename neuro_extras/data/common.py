@@ -2,9 +2,10 @@
 import abc
 import asyncio
 import logging
+import os
 from enum import Flag, auto
 from functools import cached_property
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from yarl import URL
 
@@ -64,6 +65,25 @@ class UrlType(int, Flag):  # type: ignore
         return scheme_mapping.get(url_scheme, UrlType.UNSUPPORTED)
 
 
+def get_filename_from_url(url: str) -> Optional[str]:
+    """Get filename from url, or None if directory url is passed
+
+    Uses pathlib for local files and URL otherwise
+    """
+    url_type = UrlType.get_type(url)
+    if url_type == UrlType.LOCAL_FS:
+        # use pathlib
+        head, tail = os.path.split(url)
+        return tail if tail else None
+    else:
+        parsed_url = URL(url)
+        parts = parsed_url.path.split("/")
+        if parts:
+            return parts[-1] if parts[-1] else None
+        else:
+            return None
+
+
 class Copier(metaclass=abc.ABCMeta):
     """Base interface for copying data between a variety of sources"""
 
@@ -76,8 +96,18 @@ class Copier(metaclass=abc.ABCMeta):
         return UrlType.get_type(self.source)
 
     @cached_property
+    def source_filename(self) -> Optional[str]:
+        """Name part of the source url if it is a file, None otherwise"""
+        return get_filename_from_url(self.source)
+
+    @cached_property
     def destination_type(self) -> UrlType:
         return UrlType.get_type(self.destination)
+
+    @cached_property
+    def destination_filename(self) -> Optional[str]:
+        """Name part of the destination url if it is a file, None otherwise"""
+        return get_filename_from_url(self.destination)
 
     async def perform_copy(self) -> str:
         """Copy data from self.source to self.destination
