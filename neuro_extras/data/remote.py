@@ -1,5 +1,5 @@
 import logging
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from typing import List, Mapping, Optional, Tuple
 
 from neuro_sdk import Client, DiskVolume, RemoteImage, SecretFile, Volume
@@ -174,8 +174,17 @@ class RemoteCopier(Copier):
 
     async def perform_copy(self) -> str:
         logger.info(f"Starting job from config: {self.job_config}")
-        kwargs = asdict(self.job_config)
-        job = await self.neuro_client.jobs.start(**kwargs)
+        job = await self.neuro_client.jobs.start(
+            image=self.job_config.image,
+            command=self.job_config.command,
+            env=self.job_config.env,
+            secret_env=self.job_config.secret_env,
+            volumes=self.job_config.volumes,
+            secret_files=self.job_config.secret_files,
+            disk_volumes=self.job_config.disk_volumes,
+            preset_name=self.job_config.preset_name,
+            life_span=self.job_config.life_span,
+        )
         exit_code = await _attach_job_stdout(job, self.neuro_client, name="copy")
         if exit_code == EX_OK:
             logger.info("Copy job finished")
