@@ -24,7 +24,7 @@ class RemoteJobConfig:
     volumes: List[Volume]
     secret_files: List[SecretFile]
     disk_volumes: List[DiskVolume]
-    preset_name: Optional[str]
+    preset_name: str
     life_span: Optional[float]
 
 
