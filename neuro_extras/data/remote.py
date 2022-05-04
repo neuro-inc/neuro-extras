@@ -191,6 +191,7 @@ class RemoteCopier(Copier):
             disk_volumes=self.job_config.disk_volumes,
             preset_name=self.job_config.preset_name,
             life_span=self.job_config.life_span,
+            pass_config=True,
         )
         logger.info(f"Started {job}")
         exit_code = await _attach_job_stdout(job, self.neuro_client, name="copy")

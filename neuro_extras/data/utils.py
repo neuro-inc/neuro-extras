@@ -15,5 +15,5 @@ def get_default_preset(neuro_client: Client) -> str:
 def provide_temp_dir(
     dir: Path = Path.home() / ".neuro-tmp",
 ) -> TemporaryDirectory:  # type: ignore
-    # TODO: (A.K.) use .neuro-tmp/ or update tests
+    dir.mkdir(exist_ok=True, parents=True)
     return TemporaryDirectory(dir=dir)
