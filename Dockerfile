@@ -46,7 +46,11 @@ RUN MULTIDICT_NO_EXTENSIONS=1 YARL_NO_EXTENSIONS=1 pip install --user \
     $NEURO_EXTRAS_PACKAGE && \
     # neuro-flow is used in outforz, not in reqs file since NF itself requires NE
     pipx install neuro-flow && \
-    pipx install awscli # isolated env since it has conflicts with neuro-cli
+    # isolated env since it has conflicts with neuro-cli
+    pipx install awscli && \
+    # pipx reinstallation is required untill https://github.com/neuro-inc/neuro-cli/pull/2671 is resolved
+    pipx runpip neuro-flow uninstall -y click && \
+	pipx runpip neuro-flow install "click==8.1.2"
 RUN neuro-extras init-aliases
 
 RUN mkdir -p /root/.ssh
