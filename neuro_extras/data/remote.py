@@ -6,7 +6,13 @@ from neuro_sdk import Client, DiskVolume, RemoteImage, SecretFile, Volume
 from yarl import URL
 
 from ..common import EX_OK, NEURO_EXTRAS_IMAGE, _attach_job_stdout
-from .common import Copier, UrlType, get_filename_from_url
+from .common import (
+    Copier,
+    UrlType,
+    get_filename_from_url,
+    parse_resource_spec,
+    strip_filename_from_url,
+)
 from .utils import get_default_preset
 
 
@@ -79,27 +85,34 @@ class RemoteCopier(Copier):
             url: str,
             storage_mount_prefix: str,
             disk_mount_prefix: str,
-            mode: str = "rw",
+            mount_files: bool = True,
+            mount_mode: str = "rw",
         ) -> Tuple[str, List[str]]:
             volumes = []
             url_type = UrlType.get_type(url)
             filename = get_filename_from_url(url)
             if url_type == UrlType.STORAGE:
                 if filename:
+                    if mount_files:
+                        resource_url = url
+                        mountpoint = f"{storage_mount_prefix}/{filename}"
+                    else:
+                        resource_url = strip_filename_from_url(url=url)
+                        mountpoint = f"{storage_mount_prefix}/"
                     new_url = f"{storage_mount_prefix}/{filename}"
                 else:
-                    new_url = f"{storage_mount_prefix}/"
-                volumes.append(f"{url}:{new_url}:{mode}")
+                    resource_url = url
+                    mountpoint = f"{storage_mount_prefix}/"
+                    new_url = mountpoint
+                volumes.append(f"{resource_url}:{mountpoint}:{mount_mode}")
             elif url_type == UrlType.DISK:
-                # disk url has directory specification
-                disk_spec = url.split(":")
-                if len(disk_spec) == 3:  # disk:<disk-uid>:<folder>
-                    schema, disk, subfolder = url.split(":")
-                    volumes.append(f"{schema}:{disk}:{disk_mount_prefix}:{mode}")
-                    new_url = f"{disk_mount_prefix}/{subfolder}"
-                else:  # disk:<disk-uid>
-                    new_url = f"{disk_mount_prefix}"
-                    volumes.append(f"{url}:{new_url}:{mode}")
+                schema, disk_id, path_on_disk, _ = parse_resource_spec(url)
+                resource_url = f"{schema}:{disk_id}"
+                mountpoint = f"{disk_mount_prefix}/"
+                new_url = (
+                    f"{disk_mount_prefix}{path_on_disk}" if path_on_disk else mountpoint
+                )
+                volumes.append(f"{resource_url}:{mountpoint}:{mount_mode}")
             else:
                 new_url = url
             return new_url, volumes
@@ -114,6 +127,7 @@ class RemoteCopier(Copier):
             url=destination,
             storage_mount_prefix=destination_storage_mount_prefix,
             disk_mount_prefix=destination_disk_mount_prefix,
+            mount_files=False,
         )
 
         return new_source, new_destination, source_mounts + destination_mounts

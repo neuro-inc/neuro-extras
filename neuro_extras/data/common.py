@@ -3,8 +3,9 @@ import abc
 import asyncio
 import logging
 import os
+import re
 from enum import Flag, auto
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from yarl import URL
 
@@ -81,6 +82,32 @@ def get_filename_from_url(url: str) -> Optional[str]:
             return parts[-1] if parts[-1] else None
         else:
             return None
+
+
+def strip_filename_from_url(url: str) -> str:
+    filename = get_filename_from_url(url)
+    if filename is None:
+        return url
+    pattern = f"{filename}$"
+    return re.sub(pattern=pattern, repl="", string=url)
+
+
+def parse_resource_spec(url: str) -> Tuple[str, str, Optional[str], Optional[str]]:
+    """Parse schema, resource_id, subpath, mode from platform resource"""
+    parts = url.split(":")
+    if parts[-1] in ("ro", "rw"):
+        mode = parts[-1]
+        schema, resouce_id, subpath, _ = parse_resource_spec(":".join(parts[:-1]))
+    elif len(parts) == 2:
+        schema, resouce_id = parts
+        subpath = None
+        mode = None
+    elif len(parts) == 3:
+        schema, resouce_id, subpath = parts
+        mode = None
+    else:
+        raise ValueError(f"Coudn't parse resource spec from {url}")
+    return schema, resouce_id, subpath, mode
 
 
 class Copier(metaclass=abc.ABCMeta):
