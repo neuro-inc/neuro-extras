@@ -127,6 +127,7 @@ class TarManager(BaseArchiveManager, CLIRunner):
             args = ["jxvf", str(source), f"-C", str(destination)]
         else:
             args = ["xvf", str(source), f"-C", str(destination)]
+        destination.mkdir(exist_ok=True, parents=True)
         await self.run_command(command=command, args=args)
         return destination
 
@@ -157,6 +158,7 @@ class GzipManager(BaseArchiveManager, CLIRunner):
                 f"{ArchiveType.get_extensions_for_type(ArchiveType.GZ)}"
             )
         args = ["--keep", str(source), str(destination)]
+        destination.mkdir(exist_ok=True, parents=True)
         await self.run_command(command=command, args=args)
         return destination
 
@@ -188,6 +190,7 @@ class ZipManager(BaseArchiveManager, CLIRunner):
                 f"{ArchiveType.get_extensions_for_type(ArchiveType.ZIP)}"
             )
         args = [str(source), "-d", str(destination)]
+        destination.mkdir(exist_ok=True, parents=True)
         await self.run_command(command=command, args=args)
         return destination
 
