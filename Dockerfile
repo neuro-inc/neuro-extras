@@ -41,7 +41,7 @@ ARG NEURO_EXTRAS_PACKAGE=neuro-extras
 
 ENV PATH=/root/.local/bin:$PATH
 
-RUN pip3 install --no-cache-dir -U pip pipx
+RUN pip3 install --no-cache-dir -U pip pipx click==8.1.2 # TODO remove click pinned version
 RUN MULTIDICT_NO_EXTENSIONS=1 YARL_NO_EXTENSIONS=1 pip install --user \
     $NEURO_EXTRAS_PACKAGE && \
     # neuro-flow is used in outforz, not in reqs file since NF itself requires NE
