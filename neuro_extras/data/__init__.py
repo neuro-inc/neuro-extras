@@ -111,9 +111,9 @@ def data_transfer(source: str, destination: str) -> None:
     is_flag=True,
     help=(
         "DEPRECATED - need for temp dir is automatically detected, "
-        "this flag will be removed in a future release.\n"
+        "this flag will be removed in a future release. "
         "Download and extract / compress data (if needed) "
-        " inside the temporal directory. "
+        "inside the temporary directory. "
         "Afterwards move resulted file(s) into the DESTINATION. "
         "NOTE: use it if 'storage:' is involved and "
         "extraction or compression is performed to speedup the process."
