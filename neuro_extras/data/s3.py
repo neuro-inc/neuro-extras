@@ -1,15 +1,13 @@
-import logging
+"""Module for copying files from/to S3"""
 
 from .common import CLIRunner, Copier, UrlType
-
-
-logger = logging.getLogger(__name__)
 
 
 class S3Copier(Copier, CLIRunner):
     """Copier, that is capable of copying to/from Amazon S3"""
 
     async def perform_copy(self) -> str:
+        """Perform copy through running aws cli and return the url to destinaton"""
         if UrlType.S3 not in (self.source_type, self.destination_type):
             raise ValueError(
                 "Unsupported source and destination - "

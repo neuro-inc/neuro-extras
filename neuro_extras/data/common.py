@@ -5,8 +5,11 @@ import logging
 import os
 import re
 from enum import Flag, auto
+from pathlib import Path
+from tempfile import TemporaryDirectory
 from typing import Any, Dict, List, Optional, Tuple
 
+from neuro_sdk import Client
 from yarl import URL
 
 
@@ -65,51 +68,6 @@ class UrlType(int, Flag):  # type: ignore
         return scheme_mapping.get(url_scheme, UrlType.UNSUPPORTED)
 
 
-def get_filename_from_url(url: str) -> Optional[str]:
-    """Get filename from url, or None if directory url is passed
-
-    Uses pathlib for local files and URL otherwise
-    """
-    url_type = UrlType.get_type(url)
-    if url_type == UrlType.LOCAL_FS:
-        # use pathlib
-        head, tail = os.path.split(url)
-        return tail if tail else None
-    else:
-        parsed_url = URL(url)
-        parts = parsed_url.path.split("/")
-        if parts:
-            return parts[-1] if parts[-1] else None
-        else:
-            return None
-
-
-def strip_filename_from_url(url: str) -> str:
-    filename = get_filename_from_url(url)
-    if filename is None:
-        return url
-    pattern = f"{filename}$"
-    return re.sub(pattern=pattern, repl="", string=url)
-
-
-def parse_resource_spec(url: str) -> Tuple[str, str, Optional[str], Optional[str]]:
-    """Parse schema, resource_id, subpath, mode from platform resource"""
-    parts = url.split(":")
-    if parts[-1] in ("ro", "rw"):
-        mode = parts[-1]
-        schema, resouce_id, subpath, _ = parse_resource_spec(":".join(parts[:-1]))
-    elif len(parts) == 2:
-        schema, resouce_id = parts
-        subpath = None
-        mode = None
-    elif len(parts) == 3:
-        schema, resouce_id, subpath = parts
-        mode = None
-    else:
-        raise ValueError(f"Coudn't parse resource spec from {url}")
-    return schema, resouce_id, subpath, mode
-
-
 class Copier(metaclass=abc.ABCMeta):
     """Base interface for copying data between a variety of sources"""
 
@@ -143,3 +101,62 @@ class CLIRunner:
         status_code = await process.wait()
         if status_code != 0:
             raise RuntimeError(process.stderr)
+
+
+def get_filename_from_url(url: str) -> Optional[str]:
+    """Get filename from url, or None if directory url is passed
+
+    Uses pathlib for local files and URL otherwise
+    """
+    url_type = UrlType.get_type(url)
+    if url_type == UrlType.LOCAL_FS:
+        # use pathlib
+        head, tail = os.path.split(url)
+        return tail if tail else None
+    else:
+        parsed_url = URL(url)
+        parts = parsed_url.path.split("/")
+        if parts:
+            return parts[-1] if parts[-1] else None
+        else:
+            return None
+
+
+def strip_filename_from_url(url: str) -> str:
+    """Return a url to the parent folder if the url points to a file"""
+    filename = get_filename_from_url(url)
+    if filename is None:
+        return url
+    pattern = f"{filename}$"
+    return re.sub(pattern=pattern, repl="", string=url)
+
+
+def parse_resource_spec(url: str) -> Tuple[str, str, Optional[str], Optional[str]]:
+    """Parse schema, resource_id, subpath, mode from platform resource"""
+    parts = url.split(":")
+    if parts[-1] in ("ro", "rw"):
+        mode = parts[-1]
+        schema, resouce_id, subpath, _ = parse_resource_spec(":".join(parts[:-1]))
+    elif len(parts) == 2:
+        schema, resouce_id = parts
+        subpath = None
+        mode = None
+    elif len(parts) == 3:
+        schema, resouce_id, subpath = parts
+        mode = None
+    else:
+        raise ValueError(f"Coudn't parse resource spec from {url}")
+    return schema, resouce_id, subpath, mode
+
+
+def get_default_preset(neuro_client: Client) -> str:
+    """Get default preset name via Neu.ro client"""
+    return next(iter(neuro_client.presets.keys()))
+
+
+def provide_temp_dir(
+    dir: Path = Path.home() / ".neuro-tmp",
+) -> TemporaryDirectory:  # type: ignore
+    """Provide temp directory"""
+    dir.mkdir(exist_ok=True, parents=True)
+    return TemporaryDirectory(dir=dir)

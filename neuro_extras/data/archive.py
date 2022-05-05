@@ -1,3 +1,4 @@
+"""Module for archive management operations (compression and extraction)"""
 import abc
 import logging
 from enum import Flag, auto
@@ -11,6 +12,13 @@ logger = logging.getLogger(__name__)
 
 
 class ArchiveType(int, Flag):  # type: ignore
+    """Int Flag for archive types
+
+    Supports fuzzy checks:
+    >>> assert ArchiveType.TAR_GZ == ArchiveType.TAR
+    >>> assert (ArchiveType.GZ | ArchiveType.ZIP) == ArchiveType.SUPPORTED
+    """
+
     TAR_PLAIN = auto()
     TAR_GZ = auto()
     TAR_BZ = auto()
@@ -22,6 +30,8 @@ class ArchiveType(int, Flag):  # type: ignore
 
     @staticmethod
     def get_extensions_for_type(type: "ArchiveType") -> List[str]:
+        """Get list of file extensions, that correspond
+        to the provided archive type"""
         return [
             ext
             for ext, type_ in ArchiveType.get_extension_mapping().items()
@@ -52,7 +62,7 @@ class ArchiveType(int, Flag):  # type: ignore
 
     @staticmethod
     def get_type(archive: Path) -> "ArchiveType":
-
+        """Determine archive type from file extension"""
         suffixes = archive.suffixes[-2:]  # keep only at most 2 suffixes
         if not suffixes:
             return ArchiveType.UNSUPPORTED
@@ -66,18 +76,23 @@ class ArchiveType(int, Flag):  # type: ignore
             )
 
 
-class BaseArchiveManager(metaclass=abc.ABCMeta):
+class ArchiveManager(metaclass=abc.ABCMeta):
     """Interface for archive management"""
 
     async def compress(self, source: Path, destination: Path) -> Path:
+        """Compress source into destination"""
         raise NotImplementedError
 
     async def extract(self, source: Path, destination: Path) -> Path:
+        """Extract source into destination"""
         raise NotImplementedError
 
 
-class TarManager(BaseArchiveManager, CLIRunner):
+class TarManager(ArchiveManager, CLIRunner):
+    """Utility class for handling tar archives"""
+
     async def compress(self, source: Path, destination: Path) -> Path:
+        """Compress source into destination using tar command"""
         command = "tar"
         archive_type = ArchiveType.get_type(destination)
         if archive_type == (~ArchiveType.TAR):
@@ -87,31 +102,23 @@ class TarManager(BaseArchiveManager, CLIRunner):
                 f"Supported types: "
                 f"{ArchiveType.get_extensions_for_type(ArchiveType.TAR)}"
             )
-        if archive_type == ArchiveType.TAR_GZ:
-            args = [
-                "zcf",
-                str(destination),
-                f"--exclude={destination.name}",
-                str(source),
-            ]
-        elif archive_type == ArchiveType.TAR_BZ:
-            args = [
-                "jcf",
-                str(destination),
-                f"--exclude={destination.name}",
-                str(source),
-            ]
-        else:
-            args = [
-                "cf",
-                str(destination),
-                f"--exclude={destination.name}",
-                str(source),
-            ]
+        mapping = {
+            ArchiveType.TAR_GZ: "zcf",
+            ArchiveType.TAR_BZ: "jcf",
+            ArchiveType.TAR_PLAIN: "cf",
+        }
+        subcommand = mapping[archive_type]
+        args = [
+            subcommand,
+            str(destination),
+            f"--exclude={destination.name}",
+            str(source),
+        ]
         await self.run_command(command=command, args=args)
         return destination
 
     async def extract(self, source: Path, destination: Path) -> Path:
+        """Extract source into destination using tar command"""
         command = "tar"
         archive_type = ArchiveType.get_type(source)
         if archive_type == (~ArchiveType.TAR):
@@ -121,19 +128,23 @@ class TarManager(BaseArchiveManager, CLIRunner):
                 f"Supported types: "
                 f"{ArchiveType.get_extensions_for_type(ArchiveType.TAR)}"
             )
-        if archive_type == ArchiveType.TAR_GZ:
-            args = ["zxvf", str(source), f"-C", str(destination)]
-        elif archive_type == ArchiveType.TAR_BZ:
-            args = ["jxvf", str(source), f"-C", str(destination)]
-        else:
-            args = ["xvf", str(source), f"-C", str(destination)]
+        mapping = {
+            ArchiveType.TAR_GZ: "zxvf",
+            ArchiveType.TAR_BZ: "jxvf",
+            ArchiveType.TAR_PLAIN: "xvf",
+        }
+        subcommand = mapping[archive_type]
+        args = [subcommand, str(source), f"-C", str(destination)]
         destination.mkdir(exist_ok=True, parents=True)
         await self.run_command(command=command, args=args)
         return destination
 
 
-class GzipManager(BaseArchiveManager, CLIRunner):
+class GzipManager(ArchiveManager, CLIRunner):
+    """Utility class for handling gzip archives"""
+
     async def compress(self, source: Path, destination: Path) -> Path:
+        """Compress source into destination using gzip command"""
         command = "gzip"
         archive_type = ArchiveType.get_type(destination)
         if archive_type == (~ArchiveType.GZ):
@@ -148,6 +159,7 @@ class GzipManager(BaseArchiveManager, CLIRunner):
         return destination
 
     async def extract(self, source: Path, destination: Path) -> Path:
+        """Extract source into destination using gunzip command"""
         command = "gunzip"
         archive_type = ArchiveType.get_type(destination)
         if archive_type == (~ArchiveType.GZ):
@@ -163,8 +175,11 @@ class GzipManager(BaseArchiveManager, CLIRunner):
         return destination
 
 
-class ZipManager(BaseArchiveManager, CLIRunner):
+class ZipManager(ArchiveManager, CLIRunner):
+    """Utility class for handling zip archives"""
+
     async def compress(self, source: Path, destination: Path) -> Path:
+        """Compress source into destination using zip command"""
         command = "zip"
         archive_type = ArchiveType.get_type(destination)
         if archive_type == (~ArchiveType.ZIP):
@@ -180,6 +195,7 @@ class ZipManager(BaseArchiveManager, CLIRunner):
         return destination
 
     async def extract(self, source: Path, destination: Path) -> Path:
+        """Extract source into destination using unzip command"""
         command = "unzip"
         archive_type = ArchiveType.get_type(destination)
         if archive_type == (~ArchiveType.ZIP):
@@ -195,67 +211,66 @@ class ZipManager(BaseArchiveManager, CLIRunner):
         return destination
 
 
-class ArchiveManager(BaseArchiveManager):
-    """Utility class for compression and extraction operations"""
+def _get_archive_manager(archive: Path) -> ArchiveManager:
+    """Resolve appropriate archive manager"""
+    mapping = {
+        ArchiveType.TAR: TarManager(),
+        ArchiveType.GZ: GzipManager(),
+        ArchiveType.ZIP: ZipManager(),
+    }
+    archive_type = ArchiveType.get_type(archive)
+    if archive_type == ArchiveType.UNSUPPORTED:
+        supported_extensions = list(ArchiveType.get_extension_mapping())
+        raise ValueError(
+            f"Unsupported archive type for file {archive}, "
+            f"supported types are {supported_extensions}"
+        )
+    return next(manager for type, manager in mapping.items() if type == archive_type)
 
-    @staticmethod
-    def get_archive_manager(archive: Path) -> BaseArchiveManager:
-        mapping = {
-            ArchiveType.TAR: TarManager(),
-            ArchiveType.GZ: GzipManager(),
-            ArchiveType.ZIP: ZipManager(),
-        }
-        archive_type = ArchiveType.get_type(archive)
-        if archive_type == ArchiveType.UNSUPPORTED:
-            supported_extensions = list(ArchiveType.get_extension_mapping())
-            raise ValueError(
-                f"Unsupported archive type for file {archive}, "
-                f"supported types are {supported_extensions}"
+
+async def copy(source: Path, destination: Path) -> Path:
+    """Copy source into destination"""
+    command = "cp"
+    args = [str(source), str(destination)]
+    runner = CLIRunner()
+    await runner.run_command(command=command, args=args)
+    return destination
+
+
+async def compress(source: Path, destination: Path) -> Path:
+    """Compress source into destination while
+    inferring arhive type from destination"""
+    source_filename = get_filename_from_url(str(source))
+    destination_filename = get_filename_from_url(str(destination))
+    if source_filename is not None and destination_filename is not None:
+        source_type = ArchiveType.get_type(source)
+        destination_type = ArchiveType.get_type(destination)
+        both_archives = ArchiveType.UNSUPPORTED not in (
+            source_type,
+            destination_type,
+        )
+        same_type = source_type == destination_type
+        if both_archives and same_type:
+            logger.info(
+                "Skipping compression step - "
+                "source is already archive of the same type"
             )
-        return next(
-            manager for type, manager in mapping.items() if type == archive_type
-        )
+            return await copy(source=source, destination=destination)
 
-    async def _copy(self, source: Path, destination: Path) -> Path:
-        command = "cp"
-        args = [str(source), str(destination)]
-        runner = CLIRunner()
-        await runner.run_command(command=command, args=args)
-        return destination
+    manager_implementation = _get_archive_manager(destination)
+    logger.info(
+        f"Compressing {source} into {destination} "
+        f"with {manager_implementation.__class__.__name__}"
+    )
+    return await manager_implementation.compress(source=source, destination=destination)
 
-    async def compress(self, source: Path, destination: Path) -> Path:
-        source_filename = get_filename_from_url(str(source))
-        destination_filename = get_filename_from_url(str(destination))
-        if source_filename is not None and destination_filename is not None:
-            source_type = ArchiveType.get_type(source)
-            destination_type = ArchiveType.get_type(destination)
-            both_archives = ArchiveType.UNSUPPORTED not in (
-                source_type,
-                destination_type,
-            )
-            same_type = source_type == destination_type
-            if both_archives and same_type:
-                logger.info(
-                    "Skipping compression step - "
-                    "source is already archive of the same type"
-                )
-                return await self._copy(source=source, destination=destination)
 
-        manager_implementation = ArchiveManager.get_archive_manager(destination)
-        logger.info(
-            f"Compressing {source} into {destination} "
-            f"with {manager_implementation.__class__.__name__}"
-        )
-        return await manager_implementation.compress(
-            source=source, destination=destination
-        )
-
-    async def extract(self, source: Path, destination: Path) -> Path:
-        manager_implementation = ArchiveManager.get_archive_manager(source)
-        logger.info(
-            f"Extracting {source} into {destination} "
-            f"with {manager_implementation.__class__.__name__}"
-        )
-        return await manager_implementation.extract(
-            source=source, destination=destination
-        )
+async def extract(source: Path, destination: Path) -> Path:
+    """Extract source into destination while
+    inferring arhive type from source"""
+    manager_implementation = _get_archive_manager(source)
+    logger.info(
+        f"Extracting {source} into {destination} "
+        f"with {manager_implementation.__class__.__name__}"
+    )
+    return await manager_implementation.extract(source=source, destination=destination)

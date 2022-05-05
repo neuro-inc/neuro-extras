@@ -1,15 +1,12 @@
-import logging
-
+"""Module for copying files from/to Google Cloud Storage"""
 from .common import CLIRunner, Copier, UrlType
-
-
-logger = logging.getLogger(__name__)
 
 
 class GCSCopier(Copier, CLIRunner):
     """Copier, that is capable of copying to/from Google Cloud Storage"""
 
     async def perform_copy(self) -> str:
+        """Perform copy through running gsutil and return the url to destinaton"""
         if UrlType.GCS not in (self.source_type, self.destination_type):
             raise ValueError(
                 "Unsupported source and destination - "

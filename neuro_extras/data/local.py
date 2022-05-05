@@ -13,7 +13,7 @@ from typing import Optional, Tuple, Type
 from neuro_extras.data.fs import LocalFSCopier
 from neuro_extras.data.web import WebCopier
 
-from .archive import ArchiveManager, ArchiveType
+from .archive import ArchiveType, compress, extract
 from .azure import AzureCopier
 from .common import Copier, UrlType, get_filename_from_url
 from .gcs import GCSCopier
@@ -35,7 +35,6 @@ class BaseLocalCopier(Copier):
         temp_dir: Path = Path(tempfile.gettempdir()),
     ) -> None:
         super().__init__(source=source, destination=destination)
-        self.archive_manager = ArchiveManager()
         self.compress = compress
         self.extract = extract
         self.temp_dir = temp_dir
@@ -101,10 +100,10 @@ class LocalToLocalCopier(BaseLocalCopier):
             )
             return await self._copy()
         temp_extraction_destination = self.temp_dir / "extracted"
-        extracted_folder = await self.archive_manager.extract(
+        extracted_folder = await extract(
             source=Path(self.source), destination=temp_extraction_destination
         )
-        new_archive = await self.archive_manager.compress(
+        new_archive = await compress(
             source=extracted_folder, destination=Path(self.destination)
         )
         return str(new_archive)
@@ -112,7 +111,7 @@ class LocalToLocalCopier(BaseLocalCopier):
     async def _extract(self) -> str:
         if self.source_filename is None:
             raise ValueError(f"Can't infer archive type from source {self.source}")
-        extracted_folder = await self.archive_manager.extract(
+        extracted_folder = await extract(
             source=Path(self.source), destination=Path(self.destination)
         )
         return str(extracted_folder)
@@ -122,7 +121,7 @@ class LocalToLocalCopier(BaseLocalCopier):
             raise ValueError(
                 f"Can't infer archive type from destination {self.destination}"
             )
-        compressed_file = await self.archive_manager.compress(
+        compressed_file = await compress(
             source=Path(self.source), destination=Path(self.destination)
         )
         return str(compressed_file)
@@ -190,7 +189,7 @@ class LocalToCloudCopier(BaseLocalCopier):
     async def _extract_and_copy(self) -> str:
         if self.source_filename is None:
             raise ValueError(f"Can't infer archive type from source {self.source}")
-        extracted_folder = await self.archive_manager.extract(
+        extracted_folder = await extract(
             source=Path(self.source), destination=self.temp_dir
         )
         copy_source = str(extracted_folder)
@@ -204,7 +203,7 @@ class LocalToCloudCopier(BaseLocalCopier):
             raise ValueError(
                 f"Can't infer archive type from destination {self.destination}"
             )
-        compressed_file = await self.archive_manager.compress(
+        compressed_file = await compress(
             source=Path(self.source),
             destination=self.temp_dir / self.destination_filename,
         )
@@ -282,7 +281,7 @@ class CloudToLocalCopier(BaseLocalCopier):
             source=self.source, destination=temp_archive, type=self.source_type
         )
         archive = await copier_implementation.perform_copy()
-        extraction_result = await self.archive_manager.extract(
+        extraction_result = await extract(
             source=Path(archive), destination=Path(self.destination)
         )
         return str(extraction_result)
@@ -302,7 +301,7 @@ class CloudToLocalCopier(BaseLocalCopier):
             type=self.source_type,
         )
         directory = await copier_implementation.perform_copy()
-        compression_result = await self.archive_manager.compress(
+        compression_result = await compress(
             source=Path(directory), destination=Path(self.destination)
         )
         return str(compression_result)

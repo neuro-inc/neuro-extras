@@ -1,6 +1,6 @@
 """Module for data operations
 
-Currently provides:
+Provides:
 - CopyOperation
 """
 import logging
@@ -10,10 +10,9 @@ from typing import List, Optional, Tuple
 from neuro_sdk import Client
 
 from ..utils import get_neuro_client
-from .common import Copier, UrlType, get_filename_from_url
+from .common import Copier, UrlType, get_filename_from_url, provide_temp_dir
 from .local import CloudToLocalCopier, LocalToCloudCopier, LocalToLocalCopier
 from .remote import RemoteCopier
-from .utils import provide_temp_dir
 
 
 logger = logging.getLogger(__name__)
@@ -23,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 class CopyOperation:
     """Abstraction of data copying between two locations
-    with support of compression and extraction"""
+    with support for compression and extraction"""
 
     def __init__(
         self,
@@ -51,7 +50,12 @@ class CopyOperation:
         self._ensure_can_execute()
 
     def _ensure_can_execute(self) -> None:
-        """Raise exception if operation is unsupported"""
+        """Raise exception if operation is unsupported
+
+        Possible reasons:
+        - at least one of the source or destination is of unsupported type
+        - pair (source, destination) is explicitly forbidden
+        """
         if self.source_type == UrlType.UNSUPPORTED:
             raise ValueError(f"Unsupported source: {self.source}")
         if self.destination_type == UrlType.UNSUPPORTED:
@@ -71,75 +75,15 @@ class CopyOperation:
                 f"{self.destination_type.name} is supported"
             )
 
-    @staticmethod
-    def get_copier(
-        source: str,
-        destination: str,
-        compress: bool,
-        extract: bool,
-        temp_dir: Path,
-        neuro_client: Client,
-        volumes: Optional[List[str]] = None,
-        env: Optional[List[str]] = None,
-        preset: Optional[str] = None,
-        life_span: Optional[float] = None,
-    ) -> Copier:
-        source_type = UrlType.get_type(source)
-        destination_type = UrlType.get_type(destination)
-        if source_type == UrlType.LOCAL_FS and destination_type == UrlType.CLOUD:
-            return LocalToCloudCopier(
-                source=source,
-                destination=destination,
-                compress=compress,
-                extract=extract,
-                temp_dir=temp_dir,
-            )
-        elif source_type == UrlType.CLOUD and destination_type == UrlType.LOCAL_FS:
-            return CloudToLocalCopier(
-                source=source,
-                destination=destination,
-                compress=compress,
-                extract=extract,
-                temp_dir=temp_dir,
-            )
-        elif (
-            source_type == UrlType.CLOUD
-            and destination_type.PLATFORM == UrlType.PLATFORM
-            or source_type == UrlType.PLATFORM
-            and destination_type == UrlType.CLOUD
-            or source_type == UrlType.PLATFORM
-            and destination_type == UrlType.PLATFORM
-        ):
-            return RemoteCopier(
-                source=source,
-                destination=destination,
-                neuro_client=neuro_client,
-                compress=compress,
-                extract=extract,
-                volumes=volumes,
-                preset=preset,
-                env=env,
-                life_span=life_span,
-            )
-        elif source_type == UrlType.LOCAL_FS and destination_type.LOCAL_FS:
-            return LocalToLocalCopier(
-                source=source,
-                destination=destination,
-                compress=compress,
-                extract=extract,
-                temp_dir=temp_dir,
-            )
-        else:
-            raise NotImplementedError(
-                f"No copier found, that supports copy "
-                f"from {source_type.name} to {destination_type.name}"
-            )
-
     async def run(self) -> None:
+        """Run copy operation.
+
+        Uses appropriate copier instance, that supports source and destionation
+        """
         async with get_neuro_client() as neuro_client:
             with provide_temp_dir() as temp_dir:
                 logger.info("Resolving copier...")
-                copier = CopyOperation.get_copier(
+                copier = _get_copier(
                     source=self.source,
                     destination=self.destination,
                     compress=self.compress,
@@ -156,7 +100,7 @@ class CopyOperation:
 
     @staticmethod
     def get_forbidden_combinations() -> List[Tuple[UrlType, UrlType]]:
-        # TODO: (A.K.) expand list
+        """Get forbidden combinations of source and destination types"""
         return [
             (UrlType.CLOUD, UrlType.CLOUD),
             # TODO: (A.K.) implement platform-to-local and vice-versa
@@ -167,3 +111,69 @@ class CopyOperation:
             (UrlType.DISK, UrlType.DISK),
             (UrlType.SUPPORTED, UrlType.WEB),
         ]
+
+
+def _get_copier(
+    source: str,
+    destination: str,
+    compress: bool,
+    extract: bool,
+    temp_dir: Path,
+    neuro_client: Client,
+    volumes: Optional[List[str]] = None,
+    env: Optional[List[str]] = None,
+    preset: Optional[str] = None,
+    life_span: Optional[float] = None,
+) -> Copier:
+    """Resolve an instance of Copier, which is able to copy
+    from source to destination with provided params"""
+    source_type = UrlType.get_type(source)
+    destination_type = UrlType.get_type(destination)
+    if source_type == UrlType.LOCAL_FS and destination_type == UrlType.CLOUD:
+        return LocalToCloudCopier(
+            source=source,
+            destination=destination,
+            compress=compress,
+            extract=extract,
+            temp_dir=temp_dir,
+        )
+    elif source_type == UrlType.CLOUD and destination_type == UrlType.LOCAL_FS:
+        return CloudToLocalCopier(
+            source=source,
+            destination=destination,
+            compress=compress,
+            extract=extract,
+            temp_dir=temp_dir,
+        )
+    elif (
+        source_type == UrlType.CLOUD
+        and destination_type.PLATFORM == UrlType.PLATFORM
+        or source_type == UrlType.PLATFORM
+        and destination_type == UrlType.CLOUD
+        or source_type == UrlType.PLATFORM
+        and destination_type == UrlType.PLATFORM
+    ):
+        return RemoteCopier(
+            source=source,
+            destination=destination,
+            neuro_client=neuro_client,
+            compress=compress,
+            extract=extract,
+            volumes=volumes,
+            preset=preset,
+            env=env,
+            life_span=life_span,
+        )
+    elif source_type == UrlType.LOCAL_FS and destination_type.LOCAL_FS:
+        return LocalToLocalCopier(
+            source=source,
+            destination=destination,
+            compress=compress,
+            extract=extract,
+            temp_dir=temp_dir,
+        )
+    else:
+        raise NotImplementedError(
+            f"No copier found, that supports copy "
+            f"from {source_type.name} to {destination_type.name}"
+        )
