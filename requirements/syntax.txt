@@ -4,4 +4,4 @@ pre-commit==2.18.1
 
 # mypy stubs and typesheds (https://mypy.readthedocs.io/en/latest/getting_started.html#library-stubs-and-typeshed)
 types-PyYAML==6.0.5
-types-toml==0.10.4
+types-toml==0.10.7
