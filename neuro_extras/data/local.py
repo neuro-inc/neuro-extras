@@ -6,6 +6,7 @@ Contains:
 - CloudToLocalCopier
 """
 import logging
+import os
 import tempfile
 from pathlib import Path
 from typing import Optional, Tuple, Type
@@ -15,7 +16,7 @@ from neuro_extras.data.web import WebCopier
 
 from .archive import ArchiveType, compress, extract
 from .azure import AzureCopier
-from .common import Copier, UrlType, get_filename_from_url
+from .common import Copier, UrlType, ensure_parent_folder_exists, get_filename_from_url
 from .gcs import GCSCopier
 from .s3 import S3Copier
 
@@ -138,6 +139,7 @@ class LocalToLocalCopier(BaseLocalCopier):
         Delegates copy implementation to appropriate LocalFSCopier.
         Uses ArchiveManager to handle compression/extraction.
         """
+        ensure_parent_folder_exists(self.destination)
         if self.extract and self.compress:
             return await self._recompress()
         elif self.extract:
@@ -192,7 +194,7 @@ class LocalToCloudCopier(BaseLocalCopier):
         extracted_folder = await extract(
             source=Path(self.source), destination=self.temp_dir
         )
-        copy_source = str(extracted_folder)
+        copy_source = str(extracted_folder) + os.sep
         copier_implementation = BaseLocalCopier.get_copier(
             source=copy_source, destination=self.destination, type=self.destination_type
         )
@@ -291,13 +293,15 @@ class CloudToLocalCopier(BaseLocalCopier):
             raise ValueError(
                 f"Can't infer archive type from destination {self.destination}"
             )
+        self.temp_dir.mkdir(exist_ok=True, parents=True)
         if self.source_filename:
-            destination_path = self.temp_dir / self.source_filename
+            destination_path = str(self.temp_dir / self.source_filename)
         else:
-            destination_path = self.temp_dir / "source"
+            (self.temp_dir / "source").mkdir(exist_ok=True, parents=True)
+            destination_path = str(self.temp_dir / "source") + os.sep
         copier_implementation = BaseLocalCopier.get_copier(
             source=self.source,
-            destination=str(destination_path),
+            destination=destination_path,
             type=self.source_type,
         )
         directory = await copier_implementation.perform_copy()
@@ -313,6 +317,7 @@ class CloudToLocalCopier(BaseLocalCopier):
         return await copier_implementation.perform_copy()
 
     async def perform_copy(self) -> str:
+        ensure_parent_folder_exists(self.destination)
         if self.extract and self.compress:
             return await self._copy_and_recompress()
         elif self.extract:

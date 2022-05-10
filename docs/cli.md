@@ -129,8 +129,8 @@ neuro-extras data cp [OPTIONS] SOURCE DESTINATION
 
 | Name | Description |
 | :--- | :--- |
-| _-x, --extract_ | Perform extraction of SOURCE into the DESTINATION directory. The archive type is derived from the file name. Supported types: .tar.gz, .tgz, .tar.bz2, .tbz2, .tbz, .tar, .gz, .zip. |
-| _-c, --compress_ | Perform compression of SOURCE into the DESTINATION file. The archive type is derived from the file name. Supported types: .tar.gz, .tgz, .tar.bz2, .tbz2, .tbz, .tar, .gz, .zip. |
+| _-x, --extract_ | Perform extraction of SOURCE into the DESTINATION directory. The archive type is derived from the file name. Supported types: .tar.gz, .tgz, .tar.bz2, .bz2, .tbz, .tar, .gz, .zip. |
+| _-c, --compress_ | Perform compression of SOURCE into the DESTINATION file. The archive type is derived from the file name. Supported types: .tar.gz, .tgz, .tar.bz2, .bz2, .tbz, .tar, .gz, .zip. |
 | _-v, --volume MOUNT_ | Mounts directory from vault into container. Use multiple options to mount more than one volume. |
 | _-e, --env VAR=VAL_ | Set environment variable in container. Use multiple options to define more than one variable. |
 | _-t, --use-temp-dir_ | DEPRECATED - need for temp dir is automatically detected, this flag will be removed in a future release. Download and extract / compress data \(if needed\) inside the temporary directory. Afterwards move resulted file\(s\) into the DESTINATION. NOTE: use it if 'storage:' is involved and extraction or compression is performed to speedup the process. |

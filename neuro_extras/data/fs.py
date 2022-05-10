@@ -1,5 +1,7 @@
 """Module for copying files on local filesystem"""
-from .common import CLIRunner, Copier, UrlType
+from pathlib import Path
+
+from .common import CLIRunner, Copier, UrlType, strip_filename_from_url
 
 
 class LocalFSCopier(Copier, CLIRunner):
@@ -12,12 +14,14 @@ class LocalFSCopier(Copier, CLIRunner):
             and self.destination_type == UrlType.LOCAL_FS
         ):
             raise ValueError("Only local filesystem is supported")
+        destination_parent_folder = Path(strip_filename_from_url(self.destination))
+        destination_parent_folder.mkdir(exist_ok=True, parents=True)
         command = "rclone"
         args = [
             "copyto",  # TODO: investigate usage of 'sync' for potential speedup.
             "--checkers=16",  # https://rclone.org/docs/#checkers-n , default is 8
             "--transfers=8",  # https://rclone.org/docs/#transfers-n , default is 4.
-            "--verbose=1",  # default is 0, set 2 for debug
+            "--verbose=2",  # default is 0, set 2 for debug
             self.source,
             self.destination,
         ]

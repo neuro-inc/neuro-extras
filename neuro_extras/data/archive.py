@@ -1,11 +1,12 @@
 """Module for archive management operations (compression and extraction)"""
 import abc
 import logging
+import re
 from enum import Flag, auto
 from pathlib import Path
 from typing import Any, Dict, List
 
-from .common import CLIRunner, get_filename_from_url
+from .common import CLIRunner, ensure_parent_folder_exists, get_filename_from_url
 
 
 logger = logging.getLogger(__name__)
@@ -45,7 +46,7 @@ class ArchiveType(int, Flag):  # type: ignore
             ".tar.gz": ArchiveType.TAR_GZ,
             ".tgz": ArchiveType.TAR_GZ,
             ".tar.bz2": ArchiveType.TAR_BZ,
-            ".tbz2": ArchiveType.TAR_BZ,
+            ".bz2": ArchiveType.TAR_BZ,
             ".tbz": ArchiveType.TAR_BZ,
             ".tar": ArchiveType.TAR_PLAIN,
             ".gz": ArchiveType.GZ,
@@ -154,8 +155,16 @@ class GzipManager(ArchiveManager, CLIRunner):
                 f"Supported types: "
                 f"{ArchiveType.get_extensions_for_type(ArchiveType.GZ)}"
             )
-        args = ["-r", str(destination), str(source)]
+        if source.is_dir():
+            raise ValueError(
+                "gzip does not support folder compression, use tar instead"
+            )
+        args = ["-rkvf", str(source)]
         await self.run_command(command=command, args=args)
+        # gzip does not support setting destination
+        temp_destination = str(source) + ".gz"
+        # TODO: add support for non-unix OS
+        await self.run_command("mv", [temp_destination, str(destination)])
         return destination
 
     async def extract(self, source: Path, destination: Path) -> Path:
@@ -169,9 +178,10 @@ class GzipManager(ArchiveManager, CLIRunner):
                 f"Supported types: "
                 f"{ArchiveType.get_extensions_for_type(ArchiveType.GZ)}"
             )
-        args = ["--keep", str(source), str(destination)]
-        destination.mkdir(exist_ok=True, parents=True)
+        args = ["--keep", str(source)]
         await self.run_command(command=command, args=args)
+        temp_destination = re.sub(r"\.gz$", "", str(source))  # gzip extracts inplace
+        await self.run_command("mv", [temp_destination, str(destination)])
         return destination
 
 
@@ -190,7 +200,7 @@ class ZipManager(ArchiveManager, CLIRunner):
                 f"{ArchiveType.get_extensions_for_type(ArchiveType.ZIP)}"
             )
         # check if works as expected
-        args = ["-r", str(destination), str(source)]
+        args = ["-rv", str(destination), str(source)]
         await self.run_command(command=command, args=args)
         return destination
 
@@ -240,6 +250,7 @@ async def copy(source: Path, destination: Path) -> Path:
 async def compress(source: Path, destination: Path) -> Path:
     """Compress source into destination while
     inferring arhive type from destination"""
+    ensure_parent_folder_exists(str(destination))
     source_filename = get_filename_from_url(str(source))
     destination_filename = get_filename_from_url(str(destination))
     if source_filename is not None and destination_filename is not None:
@@ -268,6 +279,7 @@ async def compress(source: Path, destination: Path) -> Path:
 async def extract(source: Path, destination: Path) -> Path:
     """Extract source into destination while
     inferring arhive type from source"""
+    ensure_parent_folder_exists(str(destination))
     manager_implementation = _get_archive_manager(source)
     logger.info(
         f"Extracting {source} into {destination} "

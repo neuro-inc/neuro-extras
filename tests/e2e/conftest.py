@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import os
+import re
 import subprocess
 import uuid
 from contextlib import contextmanager
@@ -20,7 +21,7 @@ from typing import (
 
 import neuro_sdk  # NOTE: don't use async test functions (issue #129)
 import pytest
-from tenacity import retry, stop_after_attempt, stop_after_delay
+import toml
 from typing_extensions import Protocol
 
 from neuro_extras.common import NEURO_EXTRAS_IMAGE
@@ -28,6 +29,10 @@ from neuro_extras.config import _build_registy_auth
 from neuro_extras.image_builder import KANIKO_AUTH_PREFIX
 from neuro_extras.utils import setup_child_watcher
 
+
+UUID4_PATTERN = r"[0-9a-f]{8}-[0-9a-f]{4}-[4][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}"
+DISK_ID_PATTERN = rf"disk-{UUID4_PATTERN}"
+DISK_ID_REGEX = re.compile(DISK_ID_PATTERN)
 
 logger = logging.getLogger(__name__)
 
@@ -158,22 +163,118 @@ def project_dir() -> Iterator[Path]:
             os.chdir(old_cwd)
 
 
+# @retry(stop=stop_after_attempt(5) | stop_after_delay(5 * 10))
+def run_cli(args: List[str]) -> "CompletedProcess[str]":
+    proc = subprocess.run(
+        args,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if proc.returncode:
+        logger.warning(f"Got '{proc.returncode}' for '{' '.join(args)}'")
+    logger.info(f"stdout of {args}: {proc.stdout}")
+    if proc.stderr:
+        logger.warning(f"stderr of {args}: {proc.stderr}")
+    return proc
+
+
 @pytest.fixture
 def cli_runner(project_dir: Path) -> CLIRunner:
-    @retry(stop=stop_after_attempt(5) | stop_after_delay(5 * 10))
-    def _run_cli(
-        args: List[str], enable_retry: bool = False
-    ) -> "CompletedProcess[str]":
-        proc = subprocess.run(
-            args,
-            check=enable_retry,
-            capture_output=True,
-            text=True,
-        )
-        if proc.returncode:
-            logger.warning(f"Got '{proc.returncode}' for '{' '.join(args)}'")
-        logger.warning(proc.stderr)
-        logger.info(proc.stdout)
-        return proc
+    return run_cli  # type: ignore
 
-    return _run_cli
+
+@pytest.fixture
+def remote_project_dir(project_dir: Path) -> Path:
+    local_conf = project_dir / ".neuro.toml"
+    remote_project_dir = "e2e-test-remote-dir"
+    local_conf.write_text(
+        toml.dumps({"extra": {"remote-project-dir": remote_project_dir}})
+    )
+    return Path(remote_project_dir)
+
+
+@pytest.fixture
+def args_data_cp_from_cloud(cli_runner: CLIRunner) -> Callable[..., List[str]]:
+    def _f(
+        bucket: str,
+        src: str,
+        dst: str,
+        extract: bool,
+        compress: bool,
+        use_temp_dir: bool,
+    ) -> List[str]:
+        args = ["neuro-extras", "data", "cp", src, dst]
+        if (
+            src.startswith("storage:")
+            or dst.startswith("storage:")
+            or src.startswith("disk:")
+            or dst.startswith("disk:")
+        ):
+            if bucket.startswith("gs://"):
+                args.extend(
+                    [
+                        "-v",
+                        "secret:neuro-extras-gcp:/gcp-creds.txt",
+                        "-e",
+                        "GOOGLE_APPLICATION_CREDENTIALS=/gcp-creds.txt",
+                    ]
+                )
+            elif bucket.startswith("s3://"):
+                args.extend(
+                    [
+                        "-v",
+                        "secret:neuro-extras-aws:/aws-creds.txt",
+                        "-e",
+                        "AWS_CONFIG_FILE=/aws-creds.txt",
+                    ]
+                )
+            elif bucket.startswith("azure+https://"):
+                args.extend(
+                    [
+                        "-e",
+                        "AZURE_SAS_TOKEN=secret:azure_sas_token",
+                    ]
+                )
+            elif bucket.startswith("https://") or bucket.startswith("http://"):
+                # No additional arguments required
+                pass
+            else:
+                raise NotImplementedError(bucket)
+        if extract:
+            args.append("-x")
+        if compress:
+            args.append("-c")
+        if use_temp_dir:
+            args.append("-t")
+        logger.info("args = %s", args)
+        return args
+
+    return _f
+
+
+@pytest.fixture
+def disk(cli_runner: CLIRunner) -> Iterator[str]:
+    # Create disk
+    res = cli_runner(["neuro", "disk", "create", "100M"])
+    assert res.returncode == 0, res
+    disk_id = None
+    try:
+        output_lines = "\n".join(res.stdout.splitlines())
+
+        search = DISK_ID_REGEX.search(output_lines)
+        if search:
+            disk_id = search.group()
+        else:
+            raise Exception("Can't find disk ID in neuro output: \n" + res.stdout)
+
+        yield f"disk:{disk_id}"
+
+    finally:
+        try:
+            # Delete disk
+            if disk_id is not None:
+                res = cli_runner(["neuro", "disk", "rm", disk_id])
+                assert res.returncode == 0, res
+        except BaseException as e:
+            logger.warning(f"Finalization error: {e}")
