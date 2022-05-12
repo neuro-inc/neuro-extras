@@ -1,15 +1,11 @@
 """Module for common functionality and key abstractions related to data copy"""
 import abc
-import asyncio
 import logging
 import os
 import re
 from enum import Flag, auto
-from pathlib import Path
-from tempfile import TemporaryDirectory
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, Optional
 
-from neuro_sdk import Client
 from yarl import URL
 
 
@@ -78,29 +74,16 @@ class Copier(metaclass=abc.ABCMeta):
         self.destination_type = UrlType.get_type(destination)
         self.source_filename = get_filename_from_url(source)
         self.destination_filename = get_filename_from_url(destination)
+        self._ensure_can_execute()
+
+    def _ensure_can_execute(self) -> None:
+        """Raise error if copy cannot be executed"""
+        raise NotImplementedError
 
     async def perform_copy(self) -> str:
         """Copy data from self.source to self.destination
         and return path to the copied resource"""
         raise NotImplementedError
-
-
-class CLIRunner:
-    """Utility class for running shell commands"""
-
-    async def run_command(self, command: str, args: List[str]) -> None:
-        """Execute command with args
-
-        If resulting statuscode is non-zero, RuntimeError is thrown
-        with stderr as a message.
-        """
-        logger.info(f"Executing: {[command] + args}")
-        # logger.warn(f"Calling echo instead of actual command!")
-        # process = await asyncio.create_subprocess_exec("echo", *([command] + args))
-        process = await asyncio.create_subprocess_exec(command, *args)
-        status_code = await process.wait()
-        if status_code != 0:
-            raise RuntimeError(process.stderr)
 
 
 def get_filename_from_url(url: str) -> Optional[str]:
@@ -129,34 +112,3 @@ def strip_filename_from_url(url: str) -> str:
         return url
     pattern = f"{filename}$"
     return re.sub(pattern=pattern, repl="", string=url)
-
-
-def parse_resource_spec(url: str) -> Tuple[str, str, Optional[str], Optional[str]]:
-    """Parse schema, resource_id, subpath, mode from platform resource"""
-    parts = url.split(":")
-    if parts[-1] in ("ro", "rw"):
-        mode = parts[-1]
-        schema, resouce_id, subpath, _ = parse_resource_spec(":".join(parts[:-1]))
-    elif len(parts) == 2:
-        schema, resouce_id = parts
-        subpath = None
-        mode = None
-    elif len(parts) == 3:
-        schema, resouce_id, subpath = parts
-        mode = None
-    else:
-        raise ValueError(f"Coudn't parse resource spec from {url}")
-    return schema, resouce_id, subpath, mode
-
-
-def get_default_preset(neuro_client: Client) -> str:
-    """Get default preset name via Neu.ro client"""
-    return next(iter(neuro_client.presets.keys()))
-
-
-def provide_temp_dir(
-    dir: Path = Path.home() / ".neuro-tmp",
-) -> TemporaryDirectory:  # type: ignore
-    """Provide temp directory"""
-    dir.mkdir(exist_ok=True, parents=True)
-    return TemporaryDirectory(dir=dir)

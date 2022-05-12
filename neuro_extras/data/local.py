@@ -8,14 +8,14 @@ Contains:
 import logging
 import tempfile
 from pathlib import Path
-from typing import Optional, Tuple, Type
+from typing import Type
 
 from neuro_extras.data.fs import LocalFSCopier
 from neuro_extras.data.web import WebCopier
 
 from .archive import ArchiveType, compress, extract
 from .azure import AzureCopier
-from .common import Copier, UrlType, get_filename_from_url
+from .common import Copier, UrlType
 from .gcs import GCSCopier
 from .s3 import S3Copier
 
@@ -53,29 +53,35 @@ class BaseLocalCopier(Copier):
         cls: Type[Copier] = destination_copier_mapping[type]
         return cls(source=source, destination=destination)
 
-    @staticmethod
-    def check_both_are_archives(
-        source: str, destination: str
-    ) -> Tuple[bool, Optional[bool]]:
-        """Check if both urls point to archives and whether they are of the same type
-
-        Returns tuple (both_are_archives: bool, both_of_the_same_type: Optional[bool])
-        """
-        source_filename = get_filename_from_url(source)
-        destination_filename = get_filename_from_url(destination)
-        if None in (source_filename, destination_filename):
+    def _can_skip_recompression(self) -> bool:
+        """Check if both urls point to archives of same type"""
+        if None in (self.source_filename, self.destination_filename):
             # at least one is a directory
-            return (False, None)
+            return False
         source_archive_type = ArchiveType.get_type(
-            archive=Path(source_filename)  # type: ignore
+            archive=Path(self.source_filename)  # type: ignore
         )
         destination_archive_type = ArchiveType.get_type(
-            archive=Path(destination_filename)  # type: ignore
+            archive=Path(self.destination_filename)  # type: ignore
         )
         if ArchiveType.UNSUPPORTED in (source_archive_type, destination_archive_type):
             # at least one is not a supported archive
-            return (False, None)
-        return (True, source_archive_type == destination_archive_type)
+            return False
+        return source_archive_type == destination_archive_type
+
+    def _ensure_recompression_possible(self) -> None:
+        """Raise error if recompression is not possible"""
+        if None in (self.source_filename, self.source_filename):
+            # at least one is a directory
+            raise ValueError("Recompression is unsupported for directories")
+        source_archive_type = ArchiveType.get_type(
+            archive=Path(self.source_filename)  # type: ignore
+        )
+        destination_archive_type = ArchiveType.get_type(
+            archive=Path(self.destination_filename)  # type: ignore
+        )
+        if ArchiveType.UNSUPPORTED in (source_archive_type, destination_archive_type):
+            raise ValueError("Recompression is not possible for unsupported archives")
 
 
 class LocalToLocalCopier(BaseLocalCopier):
@@ -84,16 +90,19 @@ class LocalToLocalCopier(BaseLocalCopier):
     Supports compression and extraction.
     """
 
-    async def _recompress(self) -> str:
-        both_are_archives, both_of_same_type = BaseLocalCopier.check_both_are_archives(
-            self.source, self.destination
-        )
-        if not both_are_archives:
+    def _ensure_can_execute(self) -> None:
+        if not (
+            self.source_type == UrlType.LOCAL_FS
+            and self.destination_type == UrlType.LOCAL_FS
+        ):
             raise ValueError(
-                "Can't perform recompression - "
-                "source and destination should be both supported archives"
+                f"Can only copy from {UrlType.LOCAL_FS.name} "
+                f"to {UrlType.LOCAL_FS.name}"
             )
-        if both_of_same_type:
+
+    async def _recompress(self) -> str:
+        self._ensure_recompression_possible()
+        if self._can_skip_recompression():
             logger.info(
                 "Skipping compression step - "
                 "source and destination are archives of the same type"
@@ -154,16 +163,19 @@ class LocalToCloudCopier(BaseLocalCopier):
     Supports compression and extraction (temp_dir is used to store intermediate results)
     """
 
-    async def _recompress_and_copy(self) -> str:
-        both_are_archives, both_of_same_type = BaseLocalCopier.check_both_are_archives(
-            self.source, self.destination
-        )
-        if not both_are_archives:
+    def _ensure_can_execute(self) -> None:
+        if not (
+            self.source_type == UrlType.LOCAL_FS
+            and self.destination_type == UrlType.CLOUD
+        ):
             raise ValueError(
-                "Can't perform recompression - "
-                "source and destination should be both supported archives"
+                f"Can only copy from {UrlType.LOCAL_FS.name} "
+                f"to {UrlType.CLOUD.name}"
             )
-        if both_of_same_type:
+
+    async def _recompress_and_copy(self) -> str:
+        self._ensure_recompression_possible()
+        if self._can_skip_recompression():
             logger.info(
                 "Skipping compression step - "
                 "source and destination are archives of the same type"
@@ -179,7 +191,7 @@ class LocalToCloudCopier(BaseLocalCopier):
             compress=True,
             temp_dir=self.temp_dir,
         )
-        logger.info(f"Using {local_copier} to perform recompression locally")
+        logger.debug(f"Using {local_copier} to perform recompression locally")
         copy_source = await local_copier.perform_copy()
         copier_implementation = BaseLocalCopier.get_copier(
             source=copy_source, destination=self.destination, type=self.destination_type
@@ -241,16 +253,20 @@ class CloudToLocalCopier(BaseLocalCopier):
     Supports compression and extraction (temp_dir is used to store intermediate results)
     """
 
-    async def _copy_and_recompress(self) -> str:
-        both_are_archives, both_of_same_type = BaseLocalCopier.check_both_are_archives(
-            self.source, self.destination
-        )
-        if not both_are_archives:
+    def _ensure_can_execute(self) -> None:
+        if not (
+            self.source_type == UrlType.CLOUD
+            and self.destination_type == UrlType.LOCAL_FS
+        ):
             raise ValueError(
-                "Can't perform recompression - "
-                "source and destination should be both supported archives"
+                "Unsupported source and destination - "
+                f"can only copy between {UrlType.CLOUD.name} "
+                f"and {UrlType.LOCAL_FS.name}"
             )
-        if both_of_same_type:
+
+    async def _copy_and_recompress(self) -> str:
+        self._ensure_recompression_possible()
+        if self._can_skip_recompression():
             logger.info(
                 "Skipping compression step - "
                 "source and destination are archives of the same type"
@@ -270,7 +286,7 @@ class CloudToLocalCopier(BaseLocalCopier):
             compress=True,
             temp_dir=self.temp_dir,
         )
-        logger.info(f"Using {local_copier} to perform recompression locally")
+        logger.debug(f"Using {local_copier} to perform recompression locally")
         return await local_copier.perform_copy()
 
     async def _copy_and_extract(self) -> str:

@@ -6,14 +6,34 @@ import sys
 import threading
 import warnings
 from contextlib import asynccontextmanager
+from pathlib import Path
+from tempfile import TemporaryDirectory
 from types import TracebackType
-from typing import Any, AsyncIterator, Callable, Dict, List, Optional, Type
+from typing import Any, AsyncIterator, Callable, Dict, List, Optional, Tuple, Type
 
 import neuro_sdk
 from neuro_sdk import Client
 
 
 logger = logging.getLogger(__name__)
+
+
+class CLIRunner:
+    """Utility class for running shell commands"""
+
+    async def run_command(self, command: str, args: List[str]) -> None:
+        """Execute command with args
+
+        If resulting statuscode is non-zero, RuntimeError is thrown
+        with stderr as a message.
+        """
+        logger.info(f"Executing: {[command] + args}")
+        # logger.warn(f"Calling echo instead of actual command!")
+        # process = await asyncio.create_subprocess_exec("echo", *([command] + args))
+        process = await asyncio.create_subprocess_exec(command, *args)
+        status_code = await process.wait()
+        if status_code != 0:
+            raise RuntimeError(process.stderr)
 
 
 @asynccontextmanager
@@ -183,7 +203,7 @@ def setup_child_watcher() -> None:
             asyncio.set_child_watcher(ThreadedChildWatcher())
 
 
-def select_build_preset(
+def select_job_preset(
     preset: Optional[str], client: Client, min_cpu: float = 2, min_mem: int = 4096
 ) -> Optional[str]:
     """
@@ -245,3 +265,34 @@ def select_build_preset(
                     "to adjust the cluster configuration"
                 )
             return preset
+
+
+def parse_resource_spec(url: str) -> Tuple[str, str, Optional[str], Optional[str]]:
+    """Parse schema, resource_id, subpath, mode from platform resource"""
+    parts = url.split(":")
+    if parts[-1] in ("ro", "rw"):
+        mode = parts[-1]
+        schema, resouce_id, subpath, _ = parse_resource_spec(":".join(parts[:-1]))
+    elif len(parts) == 2:
+        schema, resouce_id = parts
+        subpath = None
+        mode = None
+    elif len(parts) == 3:
+        schema, resouce_id, subpath = parts
+        mode = None
+    else:
+        raise ValueError(f"Coudn't parse resource spec from {url}")
+    return schema, resouce_id, subpath, mode
+
+
+def get_default_preset(neuro_client: Client) -> str:
+    """Get default preset name via Neu.ro client"""
+    return next(iter(neuro_client.presets.keys()))
+
+
+def provide_temp_dir(
+    dir: Path = Path.home() / ".neuro-tmp",
+) -> TemporaryDirectory:  # type: ignore
+    """Provide temp directory"""
+    dir.mkdir(exist_ok=True, parents=True)
+    return TemporaryDirectory(dir=dir)

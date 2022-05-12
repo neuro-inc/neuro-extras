@@ -21,7 +21,7 @@ from .image_builder import (
     ImageBuilder,
     create_docker_config_auth,
 )
-from .utils import get_neuro_client, select_build_preset
+from .utils import get_neuro_client, select_job_preset
 
 
 logger = logging.getLogger(__name__)
@@ -340,7 +340,7 @@ async def _build_image(
                     f"Use -F/--force-overwrite flag to enforce overwriting."
                 )
 
-        preset = select_build_preset(
+        preset = select_job_preset(
             preset=preset,
             client=client,
             min_cpu=MIN_BUILD_PRESET_CPU,

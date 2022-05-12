@@ -5,7 +5,8 @@ from enum import Flag, auto
 from pathlib import Path
 from typing import Any, Dict, List
 
-from .common import CLIRunner, get_filename_from_url
+from ..utils import CLIRunner
+from .common import get_filename_from_url
 
 
 logger = logging.getLogger(__name__)
@@ -258,7 +259,7 @@ async def compress(source: Path, destination: Path) -> Path:
             return await copy(source=source, destination=destination)
 
     manager_implementation = _get_archive_manager(destination)
-    logger.info(
+    logger.debug(
         f"Compressing {source} into {destination} "
         f"with {manager_implementation.__class__.__name__}"
     )
@@ -269,7 +270,7 @@ async def extract(source: Path, destination: Path) -> Path:
     """Extract source into destination while
     inferring arhive type from source"""
     manager_implementation = _get_archive_manager(source)
-    logger.info(
+    logger.debug(
         f"Extracting {source} into {destination} "
         f"with {manager_implementation.__class__.__name__}"
     )

@@ -9,8 +9,8 @@ from typing import List, Optional, Tuple
 
 from neuro_sdk import Client
 
-from ..utils import get_neuro_client
-from .common import Copier, UrlType, get_filename_from_url, provide_temp_dir
+from ..utils import get_neuro_client, provide_temp_dir
+from .common import Copier, UrlType, get_filename_from_url
 from .local import CloudToLocalCopier, LocalToCloudCopier, LocalToLocalCopier
 from .remote import RemoteCopier
 
@@ -67,10 +67,12 @@ class CopyOperation:
         if is_forbidden_combination:
             raise ValueError(
                 f"Copy from {self.source_type.name} to "
-                f"{self.destination_type.name} is unsupported"
+                f"{self.destination_type.name} is unsupported. "
+                "Please, reach us at https://github.com/neuro-inc/neuro-extras/issues "
+                "describing your use case."
             )
         else:
-            logger.info(
+            logger.debug(
                 f"Copy from {self.source_type.name} to "
                 f"{self.destination_type.name} is supported"
             )
@@ -82,7 +84,7 @@ class CopyOperation:
         """
         async with get_neuro_client() as neuro_client:
             with provide_temp_dir() as temp_dir:
-                logger.info("Resolving copier...")
+                logger.debug("Resolving copier...")
                 copier = _get_copier(
                     source=self.source,
                     destination=self.destination,
@@ -95,7 +97,7 @@ class CopyOperation:
                     life_span=self.life_span,
                     preset=self.preset,
                 )
-                logger.info(f"Using {copier.__class__.__name__}")
+                logger.debug(f"Using {copier.__class__.__name__}")
                 await copier.perform_copy()
 
     @staticmethod
@@ -147,7 +149,7 @@ def _get_copier(
         )
     elif (
         source_type == UrlType.CLOUD
-        and destination_type.PLATFORM == UrlType.PLATFORM
+        and destination_type == UrlType.PLATFORM
         or source_type == UrlType.PLATFORM
         and destination_type == UrlType.CLOUD
         or source_type == UrlType.PLATFORM

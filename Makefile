@@ -1,6 +1,6 @@
 COLOR ?= auto
 PYTEST_FLAGS = -v
-PYTEST_PARALLEL = 5
+PYTEST_PARALLEL = auto
 
 .PHONY: setup
 setup:
