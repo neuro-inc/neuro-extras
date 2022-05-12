@@ -470,7 +470,7 @@ def args_data_cp_from_cloud(cli_runner: CLIRunner) -> Callable[..., List[str]]:
 )
 @pytest.mark.parametrize("archive_extension", TESTED_ARCHIVE_TYPES)
 @pytest.mark.parametrize("extract", [True, False])
-@pytest.mark.parametrize("use_temp_dir", [True, False])
+@pytest.mark.parametrize("use_temp_dir", [False])
 @pytest.mark.skipif(
     sys.platform == "win32",
     reason="Windows path are not supported yet + no utilities on windows",
@@ -508,7 +508,7 @@ def test_data_cp_from_cloud_to_local(
 @pytest.mark.parametrize(
     "bucket", [GCP_BUCKET, AWS_BUCKET, AZURE_BUCKET, HTTP_BUCKET, HTTPS_BUCKET]
 )
-@pytest.mark.parametrize("use_temp_dir", [True, False])
+@pytest.mark.parametrize("use_temp_dir", [False])
 @pytest.mark.parametrize(
     "from_extension, to_extension",
     list(zip(TESTED_ARCHIVE_TYPES, TESTED_ARCHIVE_TYPES[1:] + TESTED_ARCHIVE_TYPES[:1]))
