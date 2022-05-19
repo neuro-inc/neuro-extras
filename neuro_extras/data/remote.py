@@ -7,10 +7,10 @@ from neuro_sdk import Client, DiskVolume, RemoteImage, SecretFile, Volume
 from yarl import URL
 
 from ..common import EX_OK, NEURO_EXTRAS_IMAGE, _attach_job_stdout
+from ..utils import get_default_preset, select_job_preset
 from .common import (
     Copier,
     UrlType,
-    get_default_preset,
     get_filename_from_url,
     parse_resource_spec,
     strip_filename_from_url,
@@ -68,7 +68,9 @@ class RemoteJobConfig:
         all_volumes = volumes + data_mounts if volumes else data_mounts
         env_parse_result = neuro_client.parse.envs(env if env else [])
         volume_parse_result = neuro_client.parse.volumes(all_volumes)
-        preset_name = preset or get_default_preset(neuro_client)
+        preset_name = select_job_preset(
+            preset=preset, client=neuro_client
+        ) or get_default_preset(neuro_client)
         return RemoteJobConfig(
             image=image,
             command=command,
@@ -112,6 +114,17 @@ class RemoteCopier(Copier):
             preset=preset,
             life_span=life_span,
         )
+
+    def _ensure_can_execute(self) -> None:
+        if not (
+            self.source_type == UrlType.PLATFORM
+            and self.destination_type == UrlType.CLOUD
+            or self.source_type == UrlType.CLOUD
+            and self.destination_type == UrlType.PLATFORM
+        ):
+            raise ValueError(
+                f"Can only copy between {UrlType.PLATFORM} and {UrlType.CLOUD}"
+            )
 
     async def perform_copy(self) -> str:
         logger.info(f"Starting job from config: {self.job_config}")

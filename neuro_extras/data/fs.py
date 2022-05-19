@@ -1,19 +1,22 @@
 """Module for copying files on local filesystem"""
 from pathlib import Path
 
-from .common import CLIRunner, Copier, UrlType, strip_filename_from_url
+from ..utils import CLIRunner
+from .common import Copier, UrlType, strip_filename_from_url
 
 
 class LocalFSCopier(Copier, CLIRunner):
     """Copier implementation for local file system operations"""
 
-    async def perform_copy(self) -> str:
-        """Perform copy through running rclone and return the url to destinaton"""
+    def _ensure_can_execute(self) -> None:
         if not (
             self.source_type == UrlType.LOCAL_FS
             and self.destination_type == UrlType.LOCAL_FS
         ):
             raise ValueError("Only local filesystem is supported")
+
+    async def perform_copy(self) -> str:
+        """Perform copy through running rclone and return the url to destinaton"""
         destination_parent_folder = Path(strip_filename_from_url(self.destination))
         destination_parent_folder.mkdir(exist_ok=True, parents=True)
         command = "rclone"

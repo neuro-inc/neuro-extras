@@ -1,11 +1,21 @@
 """Module for copying files from HTTP(S) sources"""
 from yarl import URL
 
-from .common import CLIRunner, Copier, UrlType
+from ..utils import CLIRunner
+from .common import Copier, UrlType
 
 
 class WebCopier(Copier, CLIRunner):
     """Copier for downloading data from HTTP(S) sources"""
+
+    def _ensure_can_execute(self) -> None:
+        if not (
+            self.source_type == UrlType.WEB
+            and self.destination_type == UrlType.LOCAL_FS
+        ):
+            raise ValueError(
+                f"Can only copy from {UrlType.WEB.name} to {UrlType.LOCAL_FS.name}"
+            )
 
     async def perform_copy(self) -> str:
         """Perform copy through running rclone and return the url to destinaton"""

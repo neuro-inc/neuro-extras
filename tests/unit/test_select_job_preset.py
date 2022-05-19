@@ -4,7 +4,7 @@ import pytest
 from conftest import MockNeuroClient
 from neuro_sdk import Preset
 
-from neuro_extras.utils import select_build_preset
+from neuro_extras.utils import select_job_preset
 
 
 FAKE_PRESETS = {
@@ -19,7 +19,7 @@ FAKE_PRESETS = {
 
 def test_cheapest_preset_is_selected(mock_client: MockNeuroClient) -> None:
     mock_client.presets.update(FAKE_PRESETS)
-    selected_preset = select_build_preset(
+    selected_preset = select_job_preset(
         preset=None, client=mock_client, min_mem=4096, min_cpu=2
     )
     assert selected_preset == "cheap"
@@ -28,7 +28,7 @@ def test_cheapest_preset_is_selected(mock_client: MockNeuroClient) -> None:
 @pytest.mark.parametrize("preset", ["bad", "cheap_scheduled"])
 def test_user_selection_is_respected(mock_client: MockNeuroClient, preset: str) -> None:
     mock_client.presets.update(FAKE_PRESETS)
-    selected_preset = select_build_preset(
+    selected_preset = select_job_preset(
         preset=preset, client=mock_client, min_mem=4096, min_cpu=2
     )
     assert selected_preset == preset
@@ -39,7 +39,7 @@ def test_when_nothing_fits_first_preset_is_used(mock_client: MockNeuroClient) ->
         "bad": Preset(cpu=1, memory_mb=9999, credits_per_hour=Decimal("5")),
         "gpu": Preset(cpu=4, memory_mb=9999, credits_per_hour=Decimal("15"), gpu=1),
     }
-    selected_preset = select_build_preset(
+    selected_preset = select_job_preset(
         preset=None, client=mock_client, min_mem=4096, min_cpu=2
     )
     mock_client.presets.update(presets)

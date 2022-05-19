@@ -6,7 +6,8 @@ from enum import Flag, auto
 from pathlib import Path
 from typing import Any, Dict, List
 
-from .common import CLIRunner, ensure_parent_folder_exists, get_filename_from_url
+from ..utils import CLIRunner
+from .common import ensure_parent_folder_exists, get_filename_from_url
 
 
 logger = logging.getLogger(__name__)
@@ -269,7 +270,7 @@ async def compress(source: Path, destination: Path) -> Path:
             return await copy(source=source, destination=destination)
 
     manager_implementation = _get_archive_manager(destination)
-    logger.info(
+    logger.debug(
         f"Compressing {source} into {destination} "
         f"with {manager_implementation.__class__.__name__}"
     )
@@ -281,7 +282,7 @@ async def extract(source: Path, destination: Path) -> Path:
     inferring arhive type from source"""
     ensure_parent_folder_exists(str(destination))
     manager_implementation = _get_archive_manager(source)
-    logger.info(
+    logger.debug(
         f"Extracting {source} into {destination} "
         f"with {manager_implementation.__class__.__name__}"
     )
