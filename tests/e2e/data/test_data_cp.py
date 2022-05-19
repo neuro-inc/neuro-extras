@@ -1,5 +1,6 @@
 import logging
 import re
+import sys
 from tempfile import TemporaryDirectory
 from typing import Iterable, Iterator, List, Optional
 
@@ -119,6 +120,7 @@ def tempdir_fixture() -> Iterator[str]:
 @pytest.mark.parametrize(
     argnames="config", argvalues=[lazy_fixture("data_copy_config")]
 )
+@pytest.mark.skipif(sys.platform == "win32", reason="tools don't work on Windows")
 def test_data_copy(
     config: CopyTestConfig, tempdir_fixture: str, disk_fixture: str
 ) -> None:
