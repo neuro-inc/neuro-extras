@@ -2,6 +2,7 @@ import sys
 from pathlib import Path
 
 import pytest
+import toml
 
 from .conftest import CLIRunner
 
@@ -65,3 +66,13 @@ def test_upload_download_subdir(
     assert not file_in_root.exists(), "File in project root should not be downloaded"
     file_in_subdir = project_dir / subdir_name / test_file_name
     assert file_in_subdir.read_text() == test_file_content
+
+
+@pytest.fixture
+def remote_project_dir(project_dir: Path) -> Path:
+    local_conf = project_dir / ".neuro.toml"
+    remote_project_dir = "e2e-test-remote-dir"
+    local_conf.write_text(
+        toml.dumps({"extra": {"remote-project-dir": remote_project_dir}})
+    )
+    return Path(remote_project_dir)

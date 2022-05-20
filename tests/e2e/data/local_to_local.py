@@ -1,8 +1,8 @@
 from pathlib import Path
 from typing import List
 
+from ..conftest import get_tested_archive_types
 from .resources import TEMPDIR_PREFIX, CopyTestConfig, Resource
-from .utils import get_tested_archive_types
 
 
 def generate_local_to_local_copy_configs() -> List[CopyTestConfig]:

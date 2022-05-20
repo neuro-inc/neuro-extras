@@ -8,13 +8,20 @@ import pytest
 from pytest_lazyfixture import lazy_fixture  # type: ignore
 from tenacity import retry, stop_after_attempt, stop_after_delay
 
+from ..conftest import (
+    TEST_DATA_COPY_CLOUD_TO_LOCAL,
+    TEST_DATA_COPY_CLOUD_TO_PLATFORM,
+    TEST_DATA_COPY_LOCAL_TO_CLOUD,
+    TEST_DATA_COPY_LOCAL_TO_LOCAL,
+    TEST_DATA_COPY_PLATFORM_TO_CLOUD,
+)
 from .cloud_to_local import generate_cloud_to_local_copy_configs
 from .cloud_to_platform import generate_cloud_to_platform_copy_configs
 from .local_to_cloud import generate_local_to_cloud_copy_configs
 from .local_to_local import generate_local_to_local_copy_configs
 from .platform_to_cloud import generate_platform_to_cloud_copy_configs
-from .resources import CopyTestConfig, _wrap_test_config_into_yield_fixture
-from .utils import _resume_fixture_iterator, _run_command
+from .resources import CopyTestConfig
+from .utils import _run_command
 
 
 UUID4_PATTERN = r"[0-9a-f]{8}-[0-9a-f]{4}-[4][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}"
@@ -26,24 +33,17 @@ root_logger.setLevel(logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-TEST_LOCAL_TO_LOCAL = True
-TEST_CLOUD_TO_LOCAL = True
-TEST_LOCAL_TO_CLOUD = True
-TEST_CLOUD_TO_PLATFORM = True
-TEST_PLATFORM_TO_CLOUD = True
-
-
 def get_all_data_copy_configs() -> List[CopyTestConfig]:
     configs = []
-    if TEST_LOCAL_TO_LOCAL:
+    if TEST_DATA_COPY_LOCAL_TO_LOCAL:
         configs += generate_local_to_local_copy_configs()
-    if TEST_CLOUD_TO_LOCAL:
+    if TEST_DATA_COPY_CLOUD_TO_LOCAL:
         configs += generate_cloud_to_local_copy_configs()
-    if TEST_LOCAL_TO_CLOUD:
+    if TEST_DATA_COPY_LOCAL_TO_CLOUD:
         configs += generate_local_to_cloud_copy_configs()
-    if TEST_CLOUD_TO_PLATFORM:
+    if TEST_DATA_COPY_CLOUD_TO_PLATFORM:
         configs += generate_cloud_to_platform_copy_configs()
-    if TEST_PLATFORM_TO_CLOUD:
+    if TEST_DATA_COPY_PLATFORM_TO_CLOUD:
         configs += generate_platform_to_cloud_copy_configs()
     return configs
 
@@ -66,49 +66,17 @@ def archive_types_are_compatible(
     ids=str,
 )
 def data_copy_config(request: pytest.FixtureRequest) -> Iterable[CopyTestConfig]:
-    fixture_iterator = _wrap_test_config_into_yield_fixture(request=request)
-    yield next(fixture_iterator)
-    _resume_fixture_iterator(fixture_iterator)
-
-
-@pytest.fixture(scope="session")
-def disk_fixture() -> Iterator[str]:
-    """Provide temporary disk, which will be removed upon test end
-
-    WARNING: when used with pytest-parallel,
-    disk will be created one per each worker!
-    """
-    # Create disk
-    returncode, stdout, _ = _run_command("neuro", ["disk", "create", "100M"])
-    assert returncode == 0
-    disk_id = None
-    try:
-        output_lines = "\n".join(stdout.splitlines())
-
-        search = DISK_ID_REGEX.search(output_lines)
-        if search:
-            disk_id = search.group()
-        else:
-            raise Exception("Can't find disk ID in neuro output: \n" + stdout)
-        logger.info(f"Created disk {disk_id}")
-        yield f"disk:{disk_id}"
-
-    finally:
-        logger.info(f"Removing disk {disk_id}")
-        try:
-            # Delete disk
-            if disk_id is not None:
-                returncode, _, _ = _run_command("neuro", ["disk", "rm", disk_id])
-                assert returncode == 0
-        except BaseException as e:
-            logger.warning(f"Finalization error: {e}")
+    config: CopyTestConfig = request.param  # type: ignore
+    yield config
+    logger.info(f"Cleaning up destination after '{config.as_command(minimized=True)}'")
+    config.destination.remove()
 
 
 @pytest.fixture(scope="session")
 def tempdir_fixture() -> Iterator[str]:
     """Provide temporary folder, which will be removed upon test end
 
-    WARNING: when used with pytest-parallel,
+    WARNING: when used with pytest-xdist,
     folder will be created one per each worker!
     """
     with TemporaryDirectory() as tmpdir:
@@ -121,13 +89,11 @@ def tempdir_fixture() -> Iterator[str]:
     argnames="config", argvalues=[lazy_fixture("data_copy_config")]
 )
 @pytest.mark.skipif(sys.platform == "win32", reason="tools don't work on Windows")
-def test_data_copy(
-    config: CopyTestConfig, tempdir_fixture: str, disk_fixture: str
-) -> None:
+def test_data_copy(config: CopyTestConfig, tempdir_fixture: str, disk: str) -> None:
     config.source.patch_tempdir(tempdir_fixture)
-    config.source.patch_disk(disk_fixture)
+    config.source.patch_disk(disk)
     config.destination.patch_tempdir(tempdir_fixture)
-    config.destination.patch_disk(disk_fixture)
+    config.destination.patch_disk(disk)
     _run_data_copy_test_from_config(config=config)
 
 
@@ -187,8 +153,9 @@ def _run_data_copy_test_from_config(config: CopyTestConfig) -> None:
     if not should_succeed:
         return
     if should_succeed:
-        should_exist_message = f"Destination {destination} "
-        "should exist if copy succeeded"
+        should_exist_message = (
+            f"Destination {destination} " "should exist if copy succeeded"
+        )
         assert destination.exists(), should_exist_message
     both_archives = source.is_archive and destination.is_archive
     compatible_archives = archive_types_are_compatible(

@@ -2,9 +2,8 @@ import dataclasses
 import logging
 import re
 from pathlib import Path
-from typing import Iterator, List, Optional
+from typing import List, Optional
 
-import pytest
 from yarl import URL
 
 from neuro_extras.data.azure import _build_sas_url, _patch_azure_url_for_rclone
@@ -14,13 +13,11 @@ from neuro_extras.data.common import (
     strip_filename_from_url,
 )
 
+from ..conftest import DISK_PREFIX, TEMPDIR_PREFIX
 from .utils import _run_command
 
 
 logger = logging.getLogger(__name__)
-
-DISK_PREFIX = "<DISK_PREFIX>"
-TEMPDIR_PREFIX = "<TEMPDIR_PREFIX>"
 
 
 @dataclasses.dataclass
@@ -53,7 +50,7 @@ class Resource:
             "gs": _gcs_resource_exists,
             "azure+https": _azure_resource_exist,
             "storage": _storage_resource_exists,
-            "disk": _disk_exists,
+            "disk": _resource_on_disk_exists,
         }
         if self.schema in handlers:
             logger.info(f"Checking if {self.url} exists")
@@ -145,7 +142,7 @@ def _storage_resource_exists(resource: Resource) -> bool:
     return returncode == 0 and check_is_successful
 
 
-def _disk_exists(resource: Resource) -> bool:
+def _resource_on_disk_exists(resource: Resource) -> bool:
     command = "neuro"
     schema, disk_id, path_on_disk, _ = parse_resource_spec(resource.url)
     mountpoint = "/var/mnt"
@@ -252,14 +249,3 @@ class CopyTestConfig:
                 "AWS_CONFIG_FILE=/aws-creds.txt",
             ]
         return extra_args
-
-
-def _wrap_test_config_into_yield_fixture(
-    request: pytest.FixtureRequest,
-) -> Iterator[CopyTestConfig]:
-    """Wrap test config into a yield fixture with automatic
-    destination cleaning afterwards"""
-    config: CopyTestConfig = request.param  # type: ignore
-    yield config
-    logger.info(f"Cleaning up destination after '{config.as_command(minimized=True)}'")
-    config.destination.remove()

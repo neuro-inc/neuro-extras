@@ -1,8 +1,8 @@
 import logging
 from typing import List
 
+from ..conftest import CLOUD_SOURCE_PREFIXES, get_tested_archive_types
 from .resources import TEMPDIR_PREFIX, CopyTestConfig, Resource
-from .utils import get_tested_archive_types
 
 
 logger = logging.getLogger(__name__)
@@ -11,14 +11,8 @@ logger = logging.getLogger(__name__)
 def generate_cloud_to_local_copy_configs() -> List[CopyTestConfig]:
     test_configs: List[CopyTestConfig] = []
     archive_types = get_tested_archive_types()
-    cloud_source_prefixes = {
-        "gs": "gs://mlops-ci-e2e/assets/data",
-        "s3": "s3://cookiecutter-e2e/assets/data",
-        "azure+https": "azure+https://neuromlops.blob.core.windows.net/cookiecutter-e2e/assets/data",  # noqa: E501
-        "http": "http://s3.amazonaws.com/cookiecutter-e2e/assets/data",
-        "https": "https://s3.amazonaws.com/cookiecutter-e2e/assets/data",
-    }
-    for schema, cloud_url in cloud_source_prefixes.items():
+
+    for schema, cloud_url in CLOUD_SOURCE_PREFIXES.items():
         cloud_folder = Resource(
             schema=schema,
             url=f"{cloud_url}/",
@@ -45,12 +39,7 @@ def generate_cloud_to_local_copy_configs() -> List[CopyTestConfig]:
                 is_archive=True,
                 file_extension=ext,
             )
-            test_configs.append(
-                CopyTestConfig(
-                    source=cloud_archive,
-                    destination=local_archive,
-                )
-            )
+
             test_configs.append(
                 CopyTestConfig(
                     source=cloud_archive,
@@ -91,6 +80,15 @@ def generate_cloud_to_local_copy_configs() -> List[CopyTestConfig]:
                     compress_flag=True,
                     should_fail=dir_copy_should_fail,
                     fail_reason=dir_copy_fail_reason,
+                )
+            )
+        if archive_types:
+            # use the values for cloud_archive and local_archive
+            # from last loop iteration
+            test_configs.append(
+                CopyTestConfig(
+                    source=cloud_archive,
+                    destination=local_archive,
                 )
             )
         test_configs.append(

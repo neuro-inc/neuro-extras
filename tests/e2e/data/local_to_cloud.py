@@ -3,8 +3,8 @@ import uuid
 from pathlib import Path
 from typing import List
 
+from ..conftest import CLOUD_DESTINATION_PREFIXES, get_tested_archive_types
 from .resources import CopyTestConfig, Resource
-from .utils import get_tested_archive_types
 
 
 def generate_local_to_cloud_copy_configs() -> List[CopyTestConfig]:
@@ -31,16 +31,10 @@ def generate_local_to_cloud_copy_configs() -> List[CopyTestConfig]:
     local_folder = Resource(
         "local", str(assets_root) + os.sep, is_archive=False, file_extension=None
     )
-    destination_prefixes = {
-        "s3": "s3://cookiecutter-e2e/data_cp",
-        "gs": "gs://mlops-ci-e2e/data_cp",
-        "azure+https": "azure+https://neuromlops.blob.core.windows.net/cookiecutter-e2e/data_cp",  # noqa: E501
-        "http": "http://s3.amazonaws.com/data.neu.ro/cookiecutter-e2e",
-        "https": "https://s3.amazonaws.com/data.neu.ro/cookiecutter-e2e",
-    }
+
     run_uuid = uuid.uuid4().hex
 
-    for schema, prefix in destination_prefixes.items():
+    for schema, prefix in CLOUD_DESTINATION_PREFIXES.items():
         # tests for copy of local folder
         cloud_folder = Resource(
             schema=schema,
@@ -98,7 +92,6 @@ def generate_local_to_cloud_copy_configs() -> List[CopyTestConfig]:
                 is_archive=True,
                 file_extension=archive.file_extension,
             )
-            test_configs.append(CopyTestConfig(source=archive, destination=cloud_file))
 
             # test for skipping compression
             test_configs.append(
@@ -106,5 +99,9 @@ def generate_local_to_cloud_copy_configs() -> List[CopyTestConfig]:
                     source=archive, destination=cloud_file, compress_flag=True
                 )
             )
+        if local_archives:
+            # use the values for source and destination files
+            # from last loop iteration
+            test_configs.append(CopyTestConfig(source=archive, destination=cloud_file))
 
     return test_configs

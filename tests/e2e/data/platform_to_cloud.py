@@ -1,26 +1,19 @@
 import uuid
 from typing import List
 
+from ..conftest import (
+    CLOUD_DESTINATION_PREFIXES,
+    PLATFORM_SOURCE_PREFIXES,
+    get_tested_archive_types,
+)
 from .resources import CopyTestConfig, Resource
-from .utils import get_tested_archive_types
 
 
 def generate_platform_to_cloud_copy_configs() -> List[CopyTestConfig]:
     test_configs: List[CopyTestConfig] = []
     archive_types = get_tested_archive_types()
-    destination_prefixes = {
-        "gs": "gs://mlops-ci-e2e/data_cp",
-        "s3": "s3://cookiecutter-e2e/data_cp",
-        "azure+https": "azure+https://neuromlops.blob.core.windows.net/cookiecutter-e2e/data_cp",  # noqa: E501
-        "http": "http://s3.amazonaws.com/cookiecutter-e2e/data_cp",
-        "https": "https://s3.amazonaws.com/cookiecutter-e2e/data_cp",
-    }
-    source_prefixes = {
-        "storage": "storage:e2e/assests/data",
-        "disk": f"disk:disk-17e231e0-6065-4331-a2be-67933ae98f6a/assets/data",
-    }
     run_uuid = uuid.uuid4().hex
-    for source_schema, source_prefix in source_prefixes.items():
+    for source_schema, source_prefix in PLATFORM_SOURCE_PREFIXES.items():
         source_archives = [
             Resource(
                 schema=source_schema,
@@ -36,7 +29,7 @@ def generate_platform_to_cloud_copy_configs() -> List[CopyTestConfig]:
             is_archive=False,
             file_extension=None,
         )
-        for schema, prefix in destination_prefixes.items():
+        for schema, prefix in CLOUD_DESTINATION_PREFIXES.items():
             # tests for copy of local folder
             cloud_folder = Resource(
                 schema=schema,
@@ -94,14 +87,17 @@ def generate_platform_to_cloud_copy_configs() -> List[CopyTestConfig]:
                     is_archive=True,
                     file_extension=archive.file_extension,
                 )
-                test_configs.append(
-                    CopyTestConfig(source=archive, destination=cloud_file)
-                )
 
                 # test for skipping compression
                 test_configs.append(
                     CopyTestConfig(
                         source=archive, destination=cloud_file, compress_flag=True
                     )
+                )
+            if source_archives:
+                # use the values for source and destination files
+                # from last loop iteration
+                test_configs.append(
+                    CopyTestConfig(source=archive, destination=cloud_file)
                 )
     return test_configs

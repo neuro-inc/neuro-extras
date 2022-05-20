@@ -1,7 +1,6 @@
 """Module for archive management operations (compression and extraction)"""
 import abc
 import logging
-import re
 from enum import Flag, auto
 from pathlib import Path
 from typing import Any, Dict, List
@@ -158,7 +157,8 @@ class GzipManager(ArchiveManager, CLIRunner):
             )
         if source.is_dir():
             raise ValueError(
-                "gzip does not support folder compression, use tar instead"
+                "gzip does not support folder compression, "
+                "use .tar.gz extension instead."
             )
         args = ["-rkvf", str(source)]
         await self.run_command(command=command, args=args)
@@ -181,7 +181,7 @@ class GzipManager(ArchiveManager, CLIRunner):
             )
         args = ["--keep", str(source)]
         await self.run_command(command=command, args=args)
-        temp_destination = re.sub(r"\.gz$", "", str(source))  # gzip extracts inplace
+        temp_destination = str(source.with_suffix(""))  # gzip extracts inplace
         await self.run_command("mv", [temp_destination, str(destination)])
         return destination
 

@@ -24,7 +24,7 @@ class LocalFSCopier(Copier, CLIRunner):
             "copyto",  # TODO: investigate usage of 'sync' for potential speedup.
             "--checkers=16",  # https://rclone.org/docs/#checkers-n , default is 8
             "--transfers=8",  # https://rclone.org/docs/#transfers-n , default is 4.
-            "--verbose=2",  # default is 0, set 2 for debug
+            "--verbose=1",  # default is 0, set 2 for debug
             self.source,
             self.destination,
         ]

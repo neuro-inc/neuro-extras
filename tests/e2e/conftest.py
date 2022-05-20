@@ -21,7 +21,6 @@ from typing import (
 
 import neuro_sdk  # NOTE: don't use async test functions (issue #129)
 import pytest
-import toml
 from typing_extensions import Protocol
 
 from neuro_extras.common import NEURO_EXTRAS_IMAGE
@@ -30,11 +29,46 @@ from neuro_extras.image_builder import KANIKO_AUTH_PREFIX
 from neuro_extras.utils import setup_child_watcher
 
 
+DISK_PREFIX = "<DISK_PREFIX>"
+TEMPDIR_PREFIX = "<TEMPDIR_PREFIX>"
+
 UUID4_PATTERN = r"[0-9a-f]{8}-[0-9a-f]{4}-[4][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}"
 DISK_ID_PATTERN = rf"disk-{UUID4_PATTERN}"
 DISK_ID_REGEX = re.compile(DISK_ID_PATTERN)
 
 logger = logging.getLogger(__name__)
+
+TEST_DATA_COPY_LOCAL_TO_LOCAL = True
+TEST_DATA_COPY_CLOUD_TO_LOCAL = True
+TEST_DATA_COPY_LOCAL_TO_CLOUD = True
+TEST_DATA_COPY_CLOUD_TO_PLATFORM = True
+TEST_DATA_COPY_PLATFORM_TO_CLOUD = True
+
+CLOUD_SOURCE_PREFIXES = {
+    "gs": "gs://mlops-ci-e2e/assets/data",
+    "s3": "s3://cookiecutter-e2e/assets/data",
+    "azure+https": "azure+https://neuromlops.blob.core.windows.net/cookiecutter-e2e/assets/data",  # noqa: E501
+    "http": "http://s3.amazonaws.com/cookiecutter-e2e/assets/data",
+    "https": "https://s3.amazonaws.com/cookiecutter-e2e/assets/data",
+}
+
+CLOUD_DESTINATION_PREFIXES = {
+    "s3": "s3://cookiecutter-e2e/data_cp",
+    "gs": "gs://mlops-ci-e2e/data_cp",
+    "azure+https": "azure+https://neuromlops.blob.core.windows.net/cookiecutter-e2e/data_cp",  # noqa: E501
+    "http": "http://s3.amazonaws.com/data.neu.ro/cookiecutter-e2e",
+    "https": "https://s3.amazonaws.com/data.neu.ro/cookiecutter-e2e",
+}
+
+PLATFORM_SOURCE_PREFIXES = {
+    "storage": "storage:e2e/assests/data",
+    "disk": f"disk:disk-17e231e0-6065-4331-a2be-67933ae98f6a/assets/data",
+}
+
+PLATFORM_DESTINATION_PREFIXES = {
+    "storage": "storage:e2e/data_cp",
+    "disk": f"{DISK_PREFIX}/data_cp",
+}
 
 
 class CLIRunner(Protocol):
@@ -44,7 +78,22 @@ class CLIRunner(Protocol):
         ...
 
 
-TESTED_ARCHIVE_TYPES = ["tar.gz", "tgz", "zip", "tar"]
+def get_tested_archive_types() -> List[str]:
+    """Get tested archive types
+
+    If PYTEST_DATA_COPY_ARCHIVE_TYPES is set,
+    returns its value, split on `,`.
+    Otherwise, returns default archive types.
+
+    See `neuro_extras.data.archive.ArchiveType.get_extension_mapping()`
+    for supported extensions.
+    """
+    env = os.environ.get("PYTEST_DATA_COPY_ARCHIVE_TYPES")
+    if env:
+        return env.split(",")
+    else:
+        return [".tar.gz"]
+
 
 setup_child_watcher()
 
@@ -185,16 +234,6 @@ def cli_runner(project_dir: Path) -> CLIRunner:
 
 
 @pytest.fixture
-def remote_project_dir(project_dir: Path) -> Path:
-    local_conf = project_dir / ".neuro.toml"
-    remote_project_dir = "e2e-test-remote-dir"
-    local_conf.write_text(
-        toml.dumps({"extra": {"remote-project-dir": remote_project_dir}})
-    )
-    return Path(remote_project_dir)
-
-
-@pytest.fixture
 def args_data_cp_from_cloud(cli_runner: CLIRunner) -> Callable[..., List[str]]:
     def _f(
         bucket: str,
@@ -255,6 +294,11 @@ def args_data_cp_from_cloud(cli_runner: CLIRunner) -> Callable[..., List[str]]:
 
 @pytest.fixture
 def disk(cli_runner: CLIRunner) -> Iterator[str]:
+    """Provide temporary disk, which will be removed upon test end
+
+    WARNING: when used with pytest-xdist,
+    disk will be created one per each worker!
+    """
     # Create disk
     res = cli_runner(["neuro", "disk", "create", "100M"])
     assert res.returncode == 0, res
@@ -267,10 +311,11 @@ def disk(cli_runner: CLIRunner) -> Iterator[str]:
             disk_id = search.group()
         else:
             raise Exception("Can't find disk ID in neuro output: \n" + res.stdout)
-
+        logger.info(f"Created disk {disk_id}")
         yield f"disk:{disk_id}"
 
     finally:
+        logger.info(f"Removing disk {disk_id}")
         try:
             # Delete disk
             if disk_id is not None:

@@ -2,8 +2,12 @@ import logging
 import uuid
 from typing import List
 
-from .resources import DISK_PREFIX, CopyTestConfig, Resource
-from .utils import get_tested_archive_types
+from ..conftest import (
+    CLOUD_SOURCE_PREFIXES,
+    PLATFORM_DESTINATION_PREFIXES,
+    get_tested_archive_types,
+)
+from .resources import CopyTestConfig, Resource
 
 
 logger = logging.getLogger(__name__)
@@ -12,22 +16,11 @@ logger = logging.getLogger(__name__)
 def generate_cloud_to_platform_copy_configs() -> List[CopyTestConfig]:
     test_configs: List[CopyTestConfig] = []
     archive_types = get_tested_archive_types()
-    cloud_source_prefixes = {
-        "gs": "gs://mlops-ci-e2e/assets/data",
-        "s3": "s3://cookiecutter-e2e/assets/data",
-        "azure+https": "azure+https://neuromlops.blob.core.windows.net/cookiecutter-e2e/assets/data",  # noqa: E501
-        "http": "http://s3.amazonaws.com/cookiecutter-e2e/assets/data",
-        "https": "https://s3.amazonaws.com/cookiecutter-e2e/assets/data",
-    }
-    destination_prefixes = {
-        "storage": "storage:e2e/data_cp",
-        "disk": f"{DISK_PREFIX}/data_cp",
-    }
     run_uuid = uuid.uuid4().hex
-    for schema, cloud_url in cloud_source_prefixes.items():
+    for schema, cloud_url in CLOUD_SOURCE_PREFIXES.items():
         dir_copy_should_fail = schema in ("http", "https")
         dir_copy_fail_reason = "Copy from HTTP(S) dir is unsupported"
-        for platform_schema, platform_prefix in destination_prefixes.items():
+        for platform_schema, platform_prefix in PLATFORM_DESTINATION_PREFIXES.items():
             cloud_folder = Resource(
                 schema=schema,
                 url=f"{cloud_url}/",
@@ -55,12 +48,7 @@ def generate_cloud_to_platform_copy_configs() -> List[CopyTestConfig]:
                     is_archive=True,
                     file_extension=ext,
                 )
-                test_configs.append(
-                    CopyTestConfig(
-                        source=cloud_archive,
-                        destination=platform_archive,
-                    )
-                )
+
                 test_configs.append(
                     CopyTestConfig(
                         source=cloud_archive,
@@ -99,7 +87,15 @@ def generate_cloud_to_platform_copy_configs() -> List[CopyTestConfig]:
                         fail_reason=dir_copy_fail_reason,
                     )
                 )
-
+            if archive_types:
+                # use the values for source and destination files
+                # from last loop iteration
+                test_configs.append(
+                    CopyTestConfig(
+                        source=cloud_archive,
+                        destination=platform_archive,
+                    )
+                )
             test_configs.append(
                 CopyTestConfig(
                     source=cloud_folder,
