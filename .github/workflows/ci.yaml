@@ -126,7 +126,7 @@ jobs:
           os: windows
       fail-fast: false
     runs-on: ${{ matrix.os }}-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
     env:
       PYTHONIOENCODING: utf-8
 
