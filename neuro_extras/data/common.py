@@ -4,8 +4,11 @@ import logging
 import os
 import re
 from enum import Flag, auto
-from typing import Any, Dict, Optional
+from pathlib import Path
+from tempfile import TemporaryDirectory
+from typing import Any, Dict, Optional, Tuple
 
+from neuro_sdk import Client
 from yarl import URL
 
 
@@ -112,3 +115,60 @@ def strip_filename_from_url(url: str) -> str:
         return url
     pattern = f"{filename}$"
     return re.sub(pattern=pattern, repl="", string=url)
+
+
+def ensure_parent_folder_exists(local_url: str) -> None:
+    folder_name = strip_filename_from_url(local_url)
+    logger.info(f"Creating folder for {folder_name}")
+    Path(folder_name).mkdir(exist_ok=True, parents=True)
+
+
+def parse_resource_spec(url: str) -> Tuple[str, str, Optional[str], Optional[str]]:
+    """Parse schema, resource_id, subpath, mode from platform resource"""
+    parts = url.split(":")
+    if parts[-1] in ("ro", "rw"):
+        mode = parts[-1]
+        schema, resource_id, subpath, _ = parse_resource_spec(":".join(parts[:-1]))
+    elif len(parts) == 2:
+        schema, resouce_path = parts
+        if not resouce_path.startswith("/"):
+            resource_path_parts = resouce_path.split("/")
+            resource_id = resource_path_parts[0]
+            subpath = (
+                ("/" + "/".join(resource_path_parts[1:]))
+                if len(resource_path_parts) > 1
+                else None
+            )
+        elif resouce_path.startswith("//"):
+            resource_path_parts = resouce_path.split("/")
+            resource_id = "/".join(resource_path_parts[:5])
+            subpath = (
+                ("/" + "/".join(resource_path_parts[5:]))
+                if len(resource_path_parts) > 5
+                else None
+            )
+        elif resouce_path.startswith("/"):
+            resource_path_parts = resouce_path.split("/")
+            resource_id = "/".join(resource_path_parts[:3])
+            subpath = (
+                ("/" + "/".join(resource_path_parts[3:]))
+                if len(resource_path_parts) > 4
+                else None
+            )
+        mode = None
+    else:
+        raise ValueError(f"Coudn't parse resource spec from {url}")
+    return schema, resource_id, subpath, mode
+
+
+def get_default_preset(neuro_client: Client) -> str:
+    """Get default preset name via Neu.ro client"""
+    return next(iter(neuro_client.presets.keys()))
+
+
+def provide_temp_dir(
+    dir: Path = Path.home() / ".neuro-tmp",
+) -> TemporaryDirectory:  # type: ignore
+    """Provide temp directory"""
+    dir.mkdir(exist_ok=True, parents=True)
+    return TemporaryDirectory(dir=dir)

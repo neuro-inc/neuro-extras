@@ -7,8 +7,14 @@ from neuro_sdk import Client, DiskVolume, RemoteImage, SecretFile, Volume
 from yarl import URL
 
 from ..common import EX_OK, NEURO_EXTRAS_IMAGE, _attach_job_stdout
-from ..utils import get_default_preset, parse_resource_spec, select_job_preset
-from .common import Copier, UrlType, get_filename_from_url, strip_filename_from_url
+from ..utils import get_default_preset, select_job_preset
+from .common import (
+    Copier,
+    UrlType,
+    get_filename_from_url,
+    parse_resource_spec,
+    strip_filename_from_url,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -46,10 +52,13 @@ class RemoteJobConfig:
         Copy job will copy data from `source` to `destination`"""
         image = neuro_client.parse.remote_image(NEURO_EXTRAS_IMAGE)
 
-        (patched_source, patched_destination, data_mounts,) = _map_into_volumes(
+        (patched_source, patched_destination, data_mounts) = _map_into_volumes(
             source=source,
             destination=destination,
         )
+        logger.debug(f"Patched {source} into {patched_source}")
+        logger.debug(f"Patched {destination} into {patched_destination}")
+        logger.debug(f"Created job mountpoints: {data_mounts}")
         command = _build_data_copy_command(
             source=patched_source,
             destination=patched_destination,
@@ -212,7 +221,11 @@ def _map_singe_url_into_volume(
             new_url = mountpoint
         volumes.append(f"{resource_url}:{mountpoint}:{mount_mode}")
     elif url_type == UrlType.DISK:
-        schema, disk_id, path_on_disk, _ = parse_resource_spec(url)
+        schema, disk_id, path_on_disk, mode = parse_resource_spec(url)
+        logger.debug(
+            f"Parsed disk url {url} into schema: {schema}, disk_id: {disk_id} "
+            f"path_on_disk: {path_on_disk}, mode: {mode}"
+        )
         resource_url = f"{schema}:{disk_id}"
         mountpoint = f"{disk_mount_prefix}/"
         new_url = f"{disk_mount_prefix}{path_on_disk}" if path_on_disk else mountpoint

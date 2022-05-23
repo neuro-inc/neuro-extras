@@ -7,7 +7,7 @@ from neuro_sdk import ConfigError, Factory, find_project_root
 from .cli import main
 
 
-@main.command("upload")
+@main.command("upload", deprecated=True)
 @click.argument("path")
 def upload(path: str) -> None:
     """
@@ -26,7 +26,7 @@ def upload(path: str) -> None:
     exit(return_code)
 
 
-@main.command("download")
+@main.command("download", deprecated=True)
 @click.argument("path")
 def download(path: str) -> None:
     """

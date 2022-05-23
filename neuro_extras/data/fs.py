@@ -1,6 +1,8 @@
 """Module for copying files on local filesystem"""
+from pathlib import Path
+
 from ..utils import CLIRunner
-from .common import Copier, UrlType
+from .common import Copier, UrlType, strip_filename_from_url
 
 
 class LocalFSCopier(Copier, CLIRunner):
@@ -15,6 +17,8 @@ class LocalFSCopier(Copier, CLIRunner):
 
     async def perform_copy(self) -> str:
         """Perform copy through running rclone and return the url to destinaton"""
+        destination_parent_folder = Path(strip_filename_from_url(self.destination))
+        destination_parent_folder.mkdir(exist_ok=True, parents=True)
         command = "rclone"
         args = [
             "copyto",  # TODO: investigate usage of 'sync' for potential speedup.

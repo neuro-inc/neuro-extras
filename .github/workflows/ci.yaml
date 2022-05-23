@@ -206,6 +206,8 @@ jobs:
         AZURE_SAS_TOKEN: ${{ secrets.AZURE_SAS_TOKEN }}
         # Note: ${{ github.sha }} not working, see https://github.com/actions/checkout/issues/299
         SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        # Note: see tests/e2e/conftest.py:get_tested_archive_types()
+        PYTEST_DATA_COPY_ARCHIVE_TYPES: '.tar.gz'
       shell: bash
       run: |
         # Work-around, since gsutil does not support Python 3.10 yet.
