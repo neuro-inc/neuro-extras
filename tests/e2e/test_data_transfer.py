@@ -34,15 +34,18 @@ def test_data_transfer(
 
         result = cli_runner(
             ["neuro", "data-transfer", src_path, dst_path],
-            enable_retry=True,
         )
         assert result.returncode == 0, result
 
-        del_result = cli_runner(["neuro", "rm", "-r", src_path], enable_retry=True)
+        del_result = cli_runner(
+            ["neuro", "rm", "-r", src_path],
+        )
         assert del_result.returncode == 0, result
 
     with switch_cluster(dst_cluster):
-        result = cli_runner(["neuro", "ls", dst_path], enable_retry=True)
+        result = cli_runner(
+            ["neuro", "ls", dst_path],
+        )
         assert result.returncode == 0, result
 
         del_result = cli_runner(["neuro", "rm", "-r", dst_path])

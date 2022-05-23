@@ -71,7 +71,9 @@ def test_image_build_custom_preset(
     assert result.returncode == 0, result
 
     try:
-        cli_runner(["neuro", "image", "size", img_uri_str], enable_retry=True)
+        cli_runner(
+            ["neuro", "image", "size", img_uri_str],
+        )
     finally:
         cli_runner(["neuro", "image", "rm", img_uri_str])
 
@@ -119,7 +121,9 @@ def test_image_build_custom_dockerfile(
     result = cli_runner(cmd)
     assert result.returncode == 0, result
     try:
-        cli_runner(["neuro", "image", "size", img_uri_str], enable_retry=True)
+        cli_runner(
+            ["neuro", "image", "size", img_uri_str],
+        )
     finally:
         cli_runner(["neuro", "image", "rm", img_uri_str])
 
@@ -171,7 +175,9 @@ def test_image_build_overwrite(
     else:
         assert result.returncode == EX_PLATFORMERROR, result
     try:
-        cli_runner(["neuro", "image", "size", img_uri_str], enable_retry=True)
+        cli_runner(
+            ["neuro", "image", "size", img_uri_str],
+        )
     finally:
         # Only delete image after second run of the test
         if overwrite is False:
@@ -218,7 +224,9 @@ def test_ignored_files_are_not_copied(
         ".",
         img_uri_str,
     ]
-    result = cli_runner(cmd, enable_retry=True)
+    result = cli_runner(
+        cmd,
+    )
     assert result.returncode == 0, result
     try:
         assert random_file_to_disable_layer_caching.name in result.stdout
@@ -278,14 +286,20 @@ def test_image_transfer(
             ".",
             from_img,
         ]
-        result = cli_runner(cmd, enable_retry=True)
+        result = cli_runner(
+            cmd,
+        )
         assert result.returncode == 0, result
 
         try:
-            cli_runner(["neuro", "image", "size", from_img], enable_retry=True)
+            cli_runner(
+                ["neuro", "image", "size", from_img],
+            )
             result = cli_runner(["neuro", "image-transfer", from_img, to_img])
             assert result.returncode == 0, result
-            cli_runner(["neuro", "image", "size", to_img], enable_retry=True)
+            cli_runner(
+                ["neuro", "image", "size", to_img],
+            )
         finally:
             cli_runner(["neuro", "image", "rm", from_img])
             cli_runner(["neuro", "image", "rm", to_img])
@@ -438,7 +452,9 @@ def test_external_image_build(
         ".",
         img_uri_str,
     ]
-    result = cli_runner(build_command, enable_retry=True)
+    result = cli_runner(
+        build_command,
+    )
     if f"Successfully built {img_uri_str}" not in result.stdout:
         LOGGER.warning(result.stdout)
         raise AssertionError("Successfully built message was not found.")
