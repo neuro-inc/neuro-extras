@@ -97,7 +97,7 @@ def test_data_copy(config: CopyTestConfig, tempdir_fixture: str, disk: str) -> N
     _run_data_copy_test_from_config(config=config)
 
 
-@retry(stop=stop_after_attempt(5) | stop_after_delay(6 * 10))
+@retry(stop=stop_after_attempt(10) | stop_after_delay(6 * 10))
 def _run_data_copy_test_from_config(config: CopyTestConfig) -> None:
     logger.info(f"Running test from {repr(config)}")
     destination = config.destination
