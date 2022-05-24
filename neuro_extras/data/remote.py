@@ -69,7 +69,7 @@ class RemoteJobConfig:
         env_parse_result = neuro_client.parse.envs(env if env else [])
         volume_parse_result = neuro_client.parse.volumes(all_volumes)
         preset_name = select_job_preset(
-            preset=preset, client=neuro_client
+            preset=preset, client=neuro_client, min_cpu=1, min_mem=2048
         ) or get_default_preset(neuro_client)
         return RemoteJobConfig(
             image=image,
