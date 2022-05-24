@@ -6,7 +6,7 @@ from typing import Iterable, Iterator, List, Optional
 
 import pytest
 from pytest_lazyfixture import lazy_fixture  # type: ignore
-from tenacity import retry, stop_after_attempt, stop_after_delay
+from tenacity import retry, stop_after_attempt
 
 from ..conftest import (
     TEST_DATA_COPY_CLOUD_TO_LOCAL,
@@ -97,7 +97,7 @@ def test_data_copy(config: CopyTestConfig, tempdir_fixture: str, disk: str) -> N
     _run_data_copy_test_from_config(config=config)
 
 
-@retry(stop=stop_after_attempt(10) | stop_after_delay(6 * 10))
+@retry(stop=stop_after_attempt(5))
 def _run_data_copy_test_from_config(config: CopyTestConfig) -> None:
     logger.info(f"Running test from {repr(config)}")
     destination = config.destination
