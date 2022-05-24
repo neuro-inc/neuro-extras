@@ -140,7 +140,7 @@ class RemoteCopier(Copier):
             life_span=self.job_config.life_span,
             pass_config=True,
         )
-        logger.info(f"Started {job}")
+        logger.info(f"Started job {job.id}")
         exit_code = await _attach_job_stdout(job, self.neuro_client, name="copy")
         if exit_code == EX_OK:
             logger.info("Copy job finished")
