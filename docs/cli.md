@@ -31,9 +31,9 @@ neuro-extras [OPTIONS] COMMAND [ARGS]...
 
 | Usage | Description |
 | :--- | :--- |
-| [_neuro-extras download_](cli.md#neuro-extras-download) | Download neuro project files from storage. |
+| [_neuro-extras download_](cli.md#neuro-extras-download) | \(Deprecated\) Download neuro project files from storage. |
 | [_neuro-extras init-aliases_](cli.md#neuro-extras-init-aliases) | Create neuro CLI aliases for neuro-extras functionality. |
-| [_neuro-extras upload_](cli.md#neuro-extras-upload) | Upload neuro project files to storage. |
+| [_neuro-extras upload_](cli.md#neuro-extras-upload) | \(Deprecated\) Upload neuro project files to storage. |
 
 ### neuro-extras config
 
@@ -129,11 +129,11 @@ neuro-extras data cp [OPTIONS] SOURCE DESTINATION
 
 | Name | Description |
 | :--- | :--- |
-| _-x, --extract_ | Perform extraction of SOURCE into the DESTINATION directory. The archive type is derived from the file name. Supported types: .tar.gz, .tgz, .tar.bz2, .tbz2, .tbz, .tar, .gz, .zip. |
-| _-c, --compress_ | Perform compression of SOURCE into the DESTINATION file. The archive type is derived from the file name. Supported types: .tar.gz, .tgz, .tar.bz2, .tbz2, .tbz, .tar, .gz, .zip. |
+| _-x, --extract_ | Perform extraction of SOURCE into the DESTINATION directory. The archive type is derived from the file name. Supported types: .tar.gz, .tgz, .tar.bz2, .bz2, .tbz, .tar, .gz, .zip. |
+| _-c, --compress_ | Perform compression of SOURCE into the DESTINATION file. The archive type is derived from the file name. Supported types: .tar.gz, .tgz, .tar.bz2, .bz2, .tbz, .tar, .gz, .zip. |
 | _-v, --volume MOUNT_ | Mounts directory from vault into container. Use multiple options to mount more than one volume. |
 | _-e, --env VAR=VAL_ | Set environment variable in container. Use multiple options to define more than one variable. |
-| _-t, --use-temp-dir_ | Download and extract / compress data \(if needed\)  inside the temporal directory. Afterwards move resulted file\(s\) into the DESTINATION. NOTE: use it if 'storage:' is involved and extraction or compression is performed to speedup the process. |
+| _-t, --use-temp-dir_ | DEPRECATED - need for temp dir is automatically detected, this flag will be removed in a future release. Download and extract / compress data \(if needed\) inside the temporary directory. Afterwards move resulted file\(s\) into the DESTINATION. NOTE: use it if 'storage:' is involved and extraction or compression is performed to speedup the process. |
 | _-s, --preset PRESET\_NAME_ | Preset name used for copy. |
 | _-l, --life\_span SECONDS_ | Copy job life span in seconds. |
 | _--help_ | Show this message and exit. |
@@ -352,7 +352,7 @@ neuro-extras seldon init-package [OPTIONS] [PATH]
 
 ### neuro-extras download
 
-Download neuro project files from storage.
+(Deprecated)  Download neuro project files from storage.
 
 Downloads file (or files under) from storage://remote-project-dir/PATH to project-root/PATH. You can use "." for PATH to download whole project. The "remote-project-dir" is set using .neuro.toml config, as in example:
 
@@ -388,7 +388,7 @@ neuro-extras init-aliases [OPTIONS]
 
 ### neuro-extras upload
 
-Upload neuro project files to storage.
+(Deprecated)  Upload neuro project files to storage.
 
 Uploads file (or files under) project-root/PATH to storage://remote-project- dir/PATH. You can use "." for PATH to upload whole project. The "remote- project-dir" is set using .neuro.toml config, as in example:
 

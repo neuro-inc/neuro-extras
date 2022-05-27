@@ -1,0 +1,17 @@
+import json
+from pathlib import Path
+from unittest import mock
+
+from .conftest import CLIRunner
+
+
+def test_config_save_registry_auth_locally(cli_runner: CLIRunner) -> None:
+    result = cli_runner(
+        ["neuro-extras", "config", "save-registry-auth", ".docker.json"]
+    )
+    assert result.returncode == 0, result
+
+    with Path(".docker.json").open() as f:
+        payload = json.load(f)
+
+    assert payload == {"auths": mock.ANY}

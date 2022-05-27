@@ -110,6 +110,8 @@ jobs:
     name: Run tests
     needs: [pretest]
     strategy:
+      fail-fast: true
+      max-parallel: 1
       matrix:
         python-version: ['3.7', '3.8', '3.9', '3.10']
         os: [ubuntu, macos, windows]
@@ -124,9 +126,8 @@ jobs:
           os: macos
         - python-version: 3.9
           os: windows
-      fail-fast: false
     runs-on: ${{ matrix.os }}-latest
-    timeout-minutes: 30
+    timeout-minutes: 90
     env:
       PYTHONIOENCODING: utf-8
 
@@ -206,6 +207,8 @@ jobs:
         AZURE_SAS_TOKEN: ${{ secrets.AZURE_SAS_TOKEN }}
         # Note: ${{ github.sha }} not working, see https://github.com/actions/checkout/issues/299
         SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        # Note: see tests/e2e/conftest.py:get_tested_archive_types()
+        PYTEST_DATA_COPY_ARCHIVE_TYPES: '.tar.gz'
       shell: bash
       run: |
         # Work-around, since gsutil does not support Python 3.10 yet.
