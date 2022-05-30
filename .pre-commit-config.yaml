@@ -57,7 +57,7 @@ repos:
   - id: flake8
     exclude: "^docs/"
 - repo: https://github.com/rhysd/actionlint
-  rev: v1.6.12
+  rev: v1.6.13
   hooks:
   - id: actionlint-docker
     args:
@@ -70,7 +70,7 @@ repos:
     - -ignore
     - 'SC2193:'
 - repo: https://github.com/sirosen/check-jsonschema
-  rev: 0.14.3
+  rev: 0.15.0
   hooks:
   - id: check-github-actions
 ci:
