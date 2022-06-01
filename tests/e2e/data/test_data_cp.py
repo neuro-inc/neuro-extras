@@ -41,7 +41,7 @@ def get_all_data_copy_configs(
     random.seed(2)
     configs = []
 
-    def _add_configs(condition: bool, items: List[CopyTestConfig]):
+    def _add_configs(condition: bool, items: List[CopyTestConfig]) -> None:
         nonlocal configs
         if condition:
             if random_subset:
