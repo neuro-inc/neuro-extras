@@ -238,7 +238,7 @@ jobs:
         SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         # Note: see tests/e2e/conftest.py:get_tested_archive_types()
         PYTEST_DATA_COPY_ARCHIVE_TYPES: '.tar.gz'
-        PYTEST_PARALLEL: 6
+        PYTEST_PARALLEL: 'auto'
       shell: bash
       run: |
         # Work-around, since gsutil does not support Python 3.10 yet.
@@ -291,7 +291,7 @@ jobs:
         SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         # Note: see tests/e2e/conftest.py:get_tested_archive_types()
         PYTEST_DATA_COPY_ARCHIVE_TYPES: '.tar.gz'
-        PYTEST_PARALLEL: 6
+        PYTEST_PARALLEL: auto
       shell: bash
       run: |
         # Work-around, since gsutil does not support Python 3.10 yet.
