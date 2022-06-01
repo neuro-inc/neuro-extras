@@ -1,6 +1,8 @@
 import logging
+import random
 import re
 import sys
+from math import ceil
 from tempfile import TemporaryDirectory
 from typing import Iterable, Iterator, List, Optional
 
@@ -33,18 +35,41 @@ root_logger.setLevel(logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-def get_all_data_copy_configs() -> List[CopyTestConfig]:
+def get_all_data_copy_configs(
+    random_subset: bool = False, fraction: float = 0.1
+) -> List[CopyTestConfig]:
+    random.seed(2)
     configs = []
-    if TEST_DATA_COPY_LOCAL_TO_LOCAL:
-        configs += generate_local_to_local_copy_configs()
-    if TEST_DATA_COPY_CLOUD_TO_LOCAL:
-        configs += generate_cloud_to_local_copy_configs()
-    if TEST_DATA_COPY_LOCAL_TO_CLOUD:
-        configs += generate_local_to_cloud_copy_configs()
-    if TEST_DATA_COPY_CLOUD_TO_PLATFORM:
-        configs += generate_cloud_to_platform_copy_configs()
-    if TEST_DATA_COPY_PLATFORM_TO_CLOUD:
-        configs += generate_platform_to_cloud_copy_configs()
+
+    def _add_configs(condition: bool, items: List[CopyTestConfig]):
+        nonlocal configs
+        if condition:
+            if random_subset:
+                k = ceil(len(items) * fraction)
+                configs += random.sample(items, k=k)
+            else:
+                configs += items
+
+    _add_configs(
+        condition=TEST_DATA_COPY_LOCAL_TO_LOCAL,
+        items=generate_local_to_local_copy_configs(),
+    )
+    _add_configs(
+        condition=TEST_DATA_COPY_LOCAL_TO_CLOUD,
+        items=generate_local_to_cloud_copy_configs(),
+    )
+    _add_configs(
+        condition=TEST_DATA_COPY_CLOUD_TO_LOCAL,
+        items=generate_cloud_to_local_copy_configs(),
+    )
+    _add_configs(
+        condition=TEST_DATA_COPY_PLATFORM_TO_CLOUD,
+        items=generate_platform_to_cloud_copy_configs(),
+    )
+    _add_configs(
+        condition=TEST_DATA_COPY_CLOUD_TO_PLATFORM,
+        items=generate_cloud_to_platform_copy_configs(),
+    )
     return configs
 
 
@@ -66,6 +91,17 @@ def archive_types_are_compatible(
     ids=str,
 )
 def data_copy_config(request: pytest.FixtureRequest) -> Iterable[CopyTestConfig]:
+    config: CopyTestConfig = request.param  # type: ignore
+    yield config
+    logger.info(f"Cleaning up destination after '{config.as_command(minimized=True)}'")
+    config.destination.remove()
+
+
+@pytest.fixture(
+    params=get_all_data_copy_configs(random_subset=True),
+    ids=str,
+)
+def data_copy_config_smoke(request: pytest.FixtureRequest) -> Iterable[CopyTestConfig]:
     config: CopyTestConfig = request.param  # type: ignore
     yield config
     logger.info(f"Cleaning up destination after '{config.as_command(minimized=True)}'")
@@ -98,7 +134,24 @@ def test_data_copy(config: CopyTestConfig, tempdir_fixture: str, disk: str) -> N
     _run_data_copy_test_from_config(config=config)
 
 
-@retry(stop=stop_after_attempt(5), wait=wait_random_exponential(min=10, max=60))
+@pytest.mark.smoke
+@pytest.mark.smoke_only
+@pytest.mark.xfail(strict=False)  # TODO: remove when platform stabilizes
+@pytest.mark.parametrize(
+    argnames="config", argvalues=[lazy_fixture("data_copy_config_smoke")]
+)
+@pytest.mark.skipif(sys.platform == "win32", reason="tools don't work on Windows")
+def test_data_copy_smoke(
+    config: CopyTestConfig, tempdir_fixture: str, disk: str
+) -> None:
+    config.source.patch_tempdir(tempdir_fixture)
+    config.source.patch_disk(disk)
+    config.destination.patch_tempdir(tempdir_fixture)
+    config.destination.patch_disk(disk)
+    _run_data_copy_test_from_config(config=config)
+
+
+@retry(stop=stop_after_attempt(2), wait=wait_random_exponential(min=10, max=60))
 def _run_data_copy_test_from_config(config: CopyTestConfig) -> None:
     logger.info(f"Running test from {repr(config)}")
     destination = config.destination

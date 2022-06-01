@@ -7,6 +7,7 @@ import toml
 from .conftest import CLIRunner
 
 
+@pytest.mark.smoke
 @pytest.mark.skipif(
     sys.platform == "win32",
     reason=(
@@ -32,6 +33,7 @@ def test_upload_download_single_file(
     assert file.read_text() == test_file_content
 
 
+@pytest.mark.smoke
 @pytest.mark.skipif(
     sys.platform == "win32",
     reason=(

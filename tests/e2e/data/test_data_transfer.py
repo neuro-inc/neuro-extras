@@ -4,9 +4,10 @@ from typing import Callable, ContextManager
 
 import pytest
 
-from .conftest import CLIRunner
+from ..conftest import CLIRunner
 
 
+@pytest.mark.smoke
 @pytest.mark.serial
 def test_data_transfer(
     cli_runner: CLIRunner,

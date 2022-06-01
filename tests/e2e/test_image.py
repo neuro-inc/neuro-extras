@@ -16,6 +16,7 @@ from .conftest import CLIRunner, Secret, gen_random_file
 LOGGER = logging.getLogger(__name__)
 
 
+@pytest.mark.smoke
 @pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
 def test_image_build_custom_preset(
     cli_runner: CLIRunner,
@@ -78,6 +79,7 @@ def test_image_build_custom_preset(
         cli_runner(["neuro", "image", "rm", img_uri_str])
 
 
+@pytest.mark.smoke
 @pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
 def test_image_build_custom_dockerfile(
     cli_runner: CLIRunner,
@@ -128,6 +130,7 @@ def test_image_build_custom_dockerfile(
         cli_runner(["neuro", "image", "rm", img_uri_str])
 
 
+@pytest.mark.smoke
 @pytest.mark.serial  # first we build the image, then we are trying to overwrite it
 @pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
 @pytest.mark.parametrize("overwrite", [True, False])
@@ -184,6 +187,7 @@ def test_image_build_overwrite(
             cli_runner(["neuro", "image", "rm", img_uri_str])
 
 
+@pytest.mark.smoke
 @pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
 def test_ignored_files_are_not_copied(
     cli_runner: CLIRunner,
@@ -235,6 +239,7 @@ def test_ignored_files_are_not_copied(
         cli_runner(["neuro", "image", "rm", img_uri_str])
 
 
+@pytest.mark.smoke
 @pytest.mark.serial
 @pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
 def test_image_transfer(
@@ -305,6 +310,7 @@ def test_image_transfer(
             cli_runner(["neuro", "image", "rm", to_img])
 
 
+@pytest.mark.smoke
 @pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
 def test_image_build_custom_build_args(
     cli_runner: CLIRunner,
@@ -356,6 +362,7 @@ def test_image_build_custom_build_args(
         cli_runner(["neuro", "image", "rm", img_uri_str])
 
 
+@pytest.mark.smoke
 @pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
 def test_image_build_volume(
     cli_runner: CLIRunner,
@@ -413,6 +420,7 @@ def test_image_build_volume(
         cli_runner(["neuro", "image", "rm", img_uri_str])
 
 
+@pytest.mark.smoke
 @pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
 @pytest.mark.parametrize("img_repo_name", ["ne-test-public", "ne-test-private"])
 @pytest.mark.parametrize("img_tag", ["", ":latest", ":v1.0.0"])

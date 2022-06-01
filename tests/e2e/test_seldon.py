@@ -11,6 +11,7 @@ from neuro_extras.common import NEURO_EXTRAS_IMAGE
 from .conftest import CLIRunner
 
 
+@pytest.mark.smoke
 @pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
 def test_seldon_deploy_from_local(cli_runner: CLIRunner) -> None:
     result = cli_runner(["neuro-extras", "init-aliases"])
@@ -39,6 +40,7 @@ def test_seldon_deploy_from_local(cli_runner: CLIRunner) -> None:
     cli_runner(["neuro", "image", "rm", img_uri])
 
 
+@pytest.mark.smoke
 def test_seldon_generate_deployment(cli_runner: CLIRunner) -> None:
     result = cli_runner(
         [
@@ -107,6 +109,7 @@ def test_seldon_generate_deployment(cli_runner: CLIRunner) -> None:
     }
 
 
+@pytest.mark.smoke
 def test_seldon_generate_deployment_custom(cli_runner: CLIRunner) -> None:
     result = cli_runner(
         [
