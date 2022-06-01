@@ -1,6 +1,6 @@
 COLOR ?= auto
-PYTEST_FLAGS = -v
-PYTEST_PARALLEL = auto # overwritten in CI
+PYTEST_FLAGS ?= -v
+PYTEST_PARALLEL ?= auto # overwritten in CI
 
 .PHONY: setup
 setup:
