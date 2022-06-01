@@ -36,7 +36,8 @@ logger = logging.getLogger(__name__)
 
 
 def get_all_data_copy_configs(
-    random_subset: bool = False, fraction: float = 0.1
+    random_subset: bool = False,
+    fraction: float = 0.05,
 ) -> List[CopyTestConfig]:
     random.seed(2)
     configs = []
