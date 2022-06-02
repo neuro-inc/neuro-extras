@@ -33,7 +33,6 @@ def test_upload_download_single_file(
     assert file.read_text() == test_file_content
 
 
-@pytest.mark.smoke
 @pytest.mark.skipif(
     sys.platform == "win32",
     reason=(

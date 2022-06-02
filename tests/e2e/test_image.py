@@ -80,7 +80,6 @@ def test_image_build_custom_preset(
         cli_runner(["neuro", "image", "rm", img_uri_str])
 
 
-@pytest.mark.smoke
 @pytest.mark.xfail
 @pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
 def test_image_build_custom_dockerfile(
@@ -132,7 +131,6 @@ def test_image_build_custom_dockerfile(
         cli_runner(["neuro", "image", "rm", img_uri_str])
 
 
-@pytest.mark.smoke
 @pytest.mark.serial  # first we build the image, then we are trying to overwrite it
 @pytest.mark.xfail
 @pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
@@ -190,7 +188,6 @@ def test_image_build_overwrite(
             cli_runner(["neuro", "image", "rm", img_uri_str])
 
 
-@pytest.mark.smoke
 @pytest.mark.xfail
 @pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
 def test_ignored_files_are_not_copied(
@@ -243,7 +240,6 @@ def test_ignored_files_are_not_copied(
         cli_runner(["neuro", "image", "rm", img_uri_str])
 
 
-@pytest.mark.smoke
 @pytest.mark.serial
 @pytest.mark.xfail
 @pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
@@ -315,7 +311,6 @@ def test_image_transfer(
             cli_runner(["neuro", "image", "rm", to_img])
 
 
-@pytest.mark.smoke
 @pytest.mark.xfail
 @pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
 def test_image_build_custom_build_args(
@@ -368,7 +363,6 @@ def test_image_build_custom_build_args(
         cli_runner(["neuro", "image", "rm", img_uri_str])
 
 
-@pytest.mark.smoke
 @pytest.mark.xfail
 @pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
 def test_image_build_volume(
@@ -427,7 +421,6 @@ def test_image_build_volume(
         cli_runner(["neuro", "image", "rm", img_uri_str])
 
 
-@pytest.mark.smoke
 @pytest.mark.xfail
 @pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
 @pytest.mark.parametrize("img_repo_name", ["ne-test-public", "ne-test-private"])

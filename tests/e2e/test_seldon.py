@@ -40,7 +40,6 @@ def test_seldon_deploy_from_local(cli_runner: CLIRunner) -> None:
     cli_runner(["neuro", "image", "rm", img_uri])
 
 
-@pytest.mark.smoke
 def test_seldon_generate_deployment(cli_runner: CLIRunner) -> None:
     result = cli_runner(
         [
@@ -109,7 +108,6 @@ def test_seldon_generate_deployment(cli_runner: CLIRunner) -> None:
     }
 
 
-@pytest.mark.smoke
 def test_seldon_generate_deployment_custom(cli_runner: CLIRunner) -> None:
     result = cli_runner(
         [
