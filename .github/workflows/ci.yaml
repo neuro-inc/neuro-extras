@@ -109,8 +109,6 @@ jobs:
     name: Run tests
     needs: [pretest]
     strategy:
-      fail-fast: true
-      max-parallel: 1
       matrix:
         python-version: ['3.7', '3.8', '3.9', '3.10']
         os: [ubuntu, macos, windows]

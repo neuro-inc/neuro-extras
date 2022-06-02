@@ -17,6 +17,7 @@ LOGGER = logging.getLogger(__name__)
 
 
 @pytest.mark.smoke
+@pytest.mark.xfail
 @pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
 def test_image_build_custom_preset(
     cli_runner: CLIRunner,
@@ -80,6 +81,7 @@ def test_image_build_custom_preset(
 
 
 @pytest.mark.smoke
+@pytest.mark.xfail
 @pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
 def test_image_build_custom_dockerfile(
     cli_runner: CLIRunner,
@@ -132,6 +134,7 @@ def test_image_build_custom_dockerfile(
 
 @pytest.mark.smoke
 @pytest.mark.serial  # first we build the image, then we are trying to overwrite it
+@pytest.mark.xfail
 @pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
 @pytest.mark.parametrize("overwrite", [True, False])
 def test_image_build_overwrite(
@@ -188,6 +191,7 @@ def test_image_build_overwrite(
 
 
 @pytest.mark.smoke
+@pytest.mark.xfail
 @pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
 def test_ignored_files_are_not_copied(
     cli_runner: CLIRunner,
@@ -241,6 +245,7 @@ def test_ignored_files_are_not_copied(
 
 @pytest.mark.smoke
 @pytest.mark.serial
+@pytest.mark.xfail
 @pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
 def test_image_transfer(
     cli_runner: CLIRunner,
@@ -311,6 +316,7 @@ def test_image_transfer(
 
 
 @pytest.mark.smoke
+@pytest.mark.xfail
 @pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
 def test_image_build_custom_build_args(
     cli_runner: CLIRunner,
@@ -363,6 +369,7 @@ def test_image_build_custom_build_args(
 
 
 @pytest.mark.smoke
+@pytest.mark.xfail
 @pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
 def test_image_build_volume(
     cli_runner: CLIRunner,
@@ -421,6 +428,7 @@ def test_image_build_volume(
 
 
 @pytest.mark.smoke
+@pytest.mark.xfail
 @pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
 @pytest.mark.parametrize("img_repo_name", ["ne-test-public", "ne-test-private"])
 @pytest.mark.parametrize("img_tag", ["", ":latest", ":v1.0.0"])
@@ -474,6 +482,7 @@ def test_external_image_build(
 @pytest.mark.skipif(
     sys.platform == "darwin", reason="docker is not installed on Mac nodes"
 )
+@pytest.mark.xfail
 def test_image_local_build(cli_runner: CLIRunner) -> None:
     dockerfile_path = Path("nested/custom.Dockerfile")
     dockerfile_path.parent.mkdir(parents=True)
