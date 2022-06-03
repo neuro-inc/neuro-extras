@@ -7,6 +7,7 @@ import toml
 from .conftest import CLIRunner
 
 
+@pytest.mark.smoke
 @pytest.mark.skipif(
     sys.platform == "win32",
     reason=(

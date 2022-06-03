@@ -2,11 +2,13 @@ import base64
 import json
 from unittest import mock
 
+import pytest
 import yaml
 
 from .conftest import CLIRunner
 
 
+@pytest.mark.smoke
 def test_k8s_generate_secret(cli_runner: CLIRunner) -> None:
     result = cli_runner(["neuro-extras", "k8s", "generate-secret"])
     assert result.returncode == 0, result
