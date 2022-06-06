@@ -38,8 +38,7 @@ jobs:
       uses: actions/cache@v3
       with:
         path: ~/.cache/pre-commit
-        key: ${{ runner.os }}-pre-commit-python-3.9-${{ hashFiles('.pre-commit-config.yaml')
-          }}
+        key: ${{ runner.os }}-pre-commit-python-3.9-${{ hashFiles('.pre-commit-config.yaml') }}
 
     - name: Install dependencies
       run: |
@@ -110,8 +109,6 @@ jobs:
     name: Run tests
     needs: [pretest]
     strategy:
-      fail-fast: true
-      max-parallel: 1
       matrix:
         python-version: ['3.7', '3.8', '3.9', '3.10']
         os: [ubuntu, macos, windows]
@@ -196,8 +193,13 @@ jobs:
         neuro config switch-cluster ${{ env.NEURO_CLUSTER }}
         neuro secret add azure_sas_token $AZURE_SAS_TOKEN
         neuro --color=no config show
+    - name: Read PR labels
+      uses: joerick/pr-labels-action@v1.0.6
+      id: pr_labels
 
-    - name: Run tests
+    - name: Run all tests
+      if: |
+        github.ref_type == 'branch' && github.ref_name == 'master'
       env:
         COLOR: 'yes'
         DOCKER_CI_USERNAME: ${{ secrets.DOCKERHUB_CI_USERNAME }}
@@ -209,6 +211,7 @@ jobs:
         SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         # Note: see tests/e2e/conftest.py:get_tested_archive_types()
         PYTEST_DATA_COPY_ARCHIVE_TYPES: '.tar.gz'
+        PYTEST_PARALLEL: 6
       shell: bash
       run: |
         # Work-around, since gsutil does not support Python 3.10 yet.
@@ -219,3 +222,81 @@ jobs:
         fi
         export NEURO_EXTRAS_IMAGE=ghcr.io/neuro-inc/neuro-extras:$SHA
         make test
+    - name: Run smoke tests
+      if: |
+        !(github.ref_type == 'branch' && github.ref_name == 'master')
+      env:
+        COLOR: 'yes'
+        DOCKER_CI_USERNAME: ${{ secrets.DOCKERHUB_CI_USERNAME }}
+        DOCKER_CI_TOKEN: ${{ secrets.DOCKERHUB_CI_TOKEN }}
+        NEURO_CLUSTER: ${{ secrets.MLOPS_E2E_TESTS_CLUSTER }}
+        NEURO_CLUSTER_SECONDARY: ${{ secrets.MLOPS_E2E_TESTS_CLUSTER_SECONDARY }}
+        AZURE_SAS_TOKEN: ${{ secrets.AZURE_SAS_TOKEN }}
+        # Note: ${{ github.sha }} not working, see https://github.com/actions/checkout/issues/299
+        SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        # Note: see tests/e2e/conftest.py:get_tested_archive_types()
+        PYTEST_DATA_COPY_ARCHIVE_TYPES: '.tar.gz'
+        PYTEST_PARALLEL: 6
+      shell: bash
+      run: |
+        # Work-around, since gsutil does not support Python 3.10 yet.
+        if [[ '${{ matrix.python-version }}' == '3.10' && ${{ matrix.os }} == ubuntu ]]; then
+          export CLOUDSDK_PYTHON=python3.8
+        elif [[ '${{ matrix.python-version }}' == '3.10' ]]; then
+          export CLOUDSDK_PYTHON=python3.9
+        fi
+        export NEURO_EXTRAS_IMAGE=ghcr.io/neuro-inc/neuro-extras:$SHA
+        make test_smoke
+    - name: Run data tests
+      if: |
+        !(github.ref_type == 'branch' && github.ref_name == 'master') &&
+        contains(steps.pr_labels.outputs.labels, ' e2e-data ')
+      env:
+        COLOR: 'yes'
+        DOCKER_CI_USERNAME: ${{ secrets.DOCKERHUB_CI_USERNAME }}
+        DOCKER_CI_TOKEN: ${{ secrets.DOCKERHUB_CI_TOKEN }}
+        NEURO_CLUSTER: ${{ secrets.MLOPS_E2E_TESTS_CLUSTER }}
+        NEURO_CLUSTER_SECONDARY: ${{ secrets.MLOPS_E2E_TESTS_CLUSTER_SECONDARY }}
+        AZURE_SAS_TOKEN: ${{ secrets.AZURE_SAS_TOKEN }}
+        # Note: ${{ github.sha }} not working, see https://github.com/actions/checkout/issues/299
+        SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        # Note: see tests/e2e/conftest.py:get_tested_archive_types()
+        PYTEST_DATA_COPY_ARCHIVE_TYPES: '.tar.gz'
+        PYTEST_PARALLEL: 6
+      shell: bash
+      run: |
+        # Work-around, since gsutil does not support Python 3.10 yet.
+        if [[ '${{ matrix.python-version }}' == '3.10' && ${{ matrix.os }} == ubuntu ]]; then
+          export CLOUDSDK_PYTHON=python3.8
+        elif [[ '${{ matrix.python-version }}' == '3.10' ]]; then
+          export CLOUDSDK_PYTHON=python3.9
+        fi
+        export NEURO_EXTRAS_IMAGE=ghcr.io/neuro-inc/neuro-extras:$SHA
+        make test_data
+
+    - name: Run image tests
+      if: |
+        !(github.ref_type == 'branch' && github.ref_name == 'master') &&
+        contains(steps.pr_labels.outputs.labels, ' e2e-image ')
+      env:
+        COLOR: 'yes'
+        DOCKER_CI_USERNAME: ${{ secrets.DOCKERHUB_CI_USERNAME }}
+        DOCKER_CI_TOKEN: ${{ secrets.DOCKERHUB_CI_TOKEN }}
+        NEURO_CLUSTER: ${{ secrets.MLOPS_E2E_TESTS_CLUSTER }}
+        NEURO_CLUSTER_SECONDARY: ${{ secrets.MLOPS_E2E_TESTS_CLUSTER_SECONDARY }}
+        AZURE_SAS_TOKEN: ${{ secrets.AZURE_SAS_TOKEN }}
+        # Note: ${{ github.sha }} not working, see https://github.com/actions/checkout/issues/299
+        SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        # Note: see tests/e2e/conftest.py:get_tested_archive_types()
+        PYTEST_DATA_COPY_ARCHIVE_TYPES: '.tar.gz'
+        PYTEST_PARALLEL: auto
+      shell: bash
+      run: |
+        # Work-around, since gsutil does not support Python 3.10 yet.
+        if [[ '${{ matrix.python-version }}' == '3.10' && ${{ matrix.os }} == ubuntu ]]; then
+          export CLOUDSDK_PYTHON=python3.8
+        elif [[ '${{ matrix.python-version }}' == '3.10' ]]; then
+          export CLOUDSDK_PYTHON=python3.9
+        fi
+        export NEURO_EXTRAS_IMAGE=ghcr.io/neuro-inc/neuro-extras:$SHA
+        make test_image
