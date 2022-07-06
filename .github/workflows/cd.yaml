@@ -163,8 +163,8 @@ jobs:
       PYTHONIOENCODING: utf-8
       NEURO_STAGING_URL: ${{ secrets.NEURO_STAGING_URL }}
       NEURO_TOKEN: ${{ secrets.NEURO_TOKEN }}
-      NEURO_CLUSTER: ${{ secrets.MLOPS_E2E_TESTS_CLUSTER }}
-      NEURO_CLUSTER_SECONDARY: ${{ secrets.MLOPS_E2E_TESTS_CLUSTER_SECONDARY }}
+      NEURO_CLUSTER: green-a4000-1
+      NEURO_CLUSTER_SECONDARY: green-a4000-2
       AZURE_SAS_TOKEN: ${{ secrets.AZURE_SAS_TOKEN }}
     steps:
     - name: Checkout commit
