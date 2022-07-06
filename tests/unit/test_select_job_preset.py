@@ -8,11 +8,14 @@ from neuro_extras.utils import select_job_preset
 
 
 FAKE_PRESETS = {
-    "bad": Preset(cpu=1, memory=9999, credits_per_hour=Decimal("5")),
-    "expensive": Preset(cpu=2, memory=9999, credits_per_hour=Decimal("15")),
-    "cheap": Preset(cpu=20, memory=99999, credits_per_hour=Decimal("14")),
+    "bad": Preset(cpu=1, memory=9999 * 2**20, credits_per_hour=Decimal("5")),
+    "expensive": Preset(cpu=2, memory=9999 * 2**20, credits_per_hour=Decimal("15")),
+    "cheap": Preset(cpu=20, memory=99999 * 2**20, credits_per_hour=Decimal("14")),
     "cheap_scheduled": Preset(
-        cpu=20, memory=99999, credits_per_hour=Decimal("10"), scheduler_enabled=True
+        cpu=20,
+        memory=99999 * 2**20,
+        credits_per_hour=Decimal("10"),
+        scheduler_enabled=True,
     ),
 }
 

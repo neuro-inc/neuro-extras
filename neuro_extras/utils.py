@@ -207,7 +207,8 @@ def select_job_preset(
     preset: Optional[str], client: Client, min_cpu: float = 2, min_mem: int = 4096
 ) -> Optional[str]:
     """
-    Try to automatically select the best available preset for a task
+    Try to automatically select the best available preset for a task.
+    Memory is specified in mebibytes.
     """
     good_presets = []
     good_presets_names = []
