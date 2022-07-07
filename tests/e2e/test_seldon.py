@@ -25,10 +25,7 @@ def test_seldon_deploy_from_local(cli_runner: CLIRunner) -> None:
     assert (pkg_path / "seldon.Dockerfile").exists()
 
     tag = str(uuid.uuid4())
-    # WORKAROUND: Fixing 401 Not Authorized because of this problem:
-    # https://github.com/neuromation/platform-registry-api/issues/209
-    rnd = uuid.uuid4().hex[:6]
-    img_uri = f"image:extras-e2e-seldon-local-{rnd}:{tag}"
+    img_uri = f"image:extras-e2e:{tag}"
     result = cli_runner(
         ["neuro", "image-build", "-f", "seldon.Dockerfile", str(pkg_path), img_uri]
     )

@@ -51,11 +51,7 @@ def test_image_build_custom_preset(
         )
 
     tag = str(uuid.uuid4())
-
-    # WORKAROUND: Fixing 401 Not Authorized because of this problem:
-    # https://github.com/neuromation/platform-registry-api/issues/209
-    rnd = uuid.uuid4().hex[:6]
-    img_uri_str = f"image:extras-e2e-custom-preset-{rnd}:{tag}"
+    img_uri_str = f"image:extras-e2e:{tag}"
 
     cmd = [
         "neuro",
@@ -106,10 +102,7 @@ def test_image_build_custom_dockerfile(
 
     tag = str(uuid.uuid4())
 
-    # WORKAROUND: Fixing 401 Not Authorized because of this problem:
-    # https://github.com/neuromation/platform-registry-api/issues/209
-    rnd = uuid.uuid4().hex[:6]
-    img_uri_str = f"image:extras-e2e-custom-dockerfile-{rnd}:{tag}"
+    img_uri_str = f"image:extras-e2e:{tag}"
 
     cmd = [
         "neuro",
@@ -258,14 +251,9 @@ def test_image_transfer(
         result = cli_runner(["neuro-extras", "init-aliases"])
         assert result.returncode == 0, result
 
-        # WORKAROUND: Fixing 401 Not Authorized because of this problem:
-        # https://github.com/neuromation/platform-registry-api/issues/209
-        rnd = uuid.uuid4().hex[:6]
-        img_name = f"extras-e2e-image-copy-{rnd}"
-
-        tag = str(uuid.uuid4())
-        from_img = f"image:{img_name}:{tag}"  # also, full src uri is supported
-        to_img = f"image://{dst_cluster}/{current_user}/{img_name}:{tag}"
+        img_name = f"extras-e2e-image-copy:{str(uuid.uuid4())}"
+        from_img = f"image:{img_name}"  # also, full src uri is supported
+        to_img = f"image://{dst_cluster}/{current_user}/{img_name}"
 
         dockerfile_path = Path("nested/custom.Dockerfile")
         dockerfile_path.parent.mkdir(parents=True)
@@ -292,9 +280,7 @@ def test_image_transfer(
             ".",
             from_img,
         ]
-        result = cli_runner(
-            cmd,
-        )
+        result = cli_runner(cmd)
         assert result.returncode == 0, result
 
         try:
@@ -394,13 +380,8 @@ def test_image_build_volume(
             )
         )
 
-    # WORKAROUND: Fixing 401 Not Authorized because of this problem:
-    # https://github.com/neuromation/platform-registry-api/issues/209
-    rnd = uuid.uuid4().hex[:6]
-    image = f"image:extras-e2e-image-copy-{rnd}"
-
     tag = str(uuid.uuid4())
-    img_uri_str = f"{image}:{tag}"
+    img_uri_str = f"image:extras-e2e:{tag}"
     cmd = [
         "neuro",
         "image-build",
@@ -469,9 +450,9 @@ def test_external_image_build(
         raise AssertionError("Successfully built message was not found.")
 
 
-# @pytest.mark.skipif(
-#     sys.platform == "win32", reason="docker is not installed on Windows nodes"
-# )
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="docker is not installed on Windows nodes"
+)
 @pytest.mark.skipif(
     sys.platform == "darwin", reason="docker is not installed on Mac nodes"
 )
