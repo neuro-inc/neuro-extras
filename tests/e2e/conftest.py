@@ -62,7 +62,7 @@ CLOUD_DESTINATION_PREFIXES = {
 
 PLATFORM_SOURCE_PREFIXES = {
     "storage": "storage:e2e/assets/data",
-    "disk": f"disk:e2e-tests/assets/data",
+    "disk": f"disk:disk-902f8a35-8621-499d-8d97-452133f258c7/assets/data",
 }
 
 PLATFORM_DESTINATION_PREFIXES = {
