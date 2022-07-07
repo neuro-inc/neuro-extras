@@ -60,7 +60,7 @@ jobs:
       PYTHONIOENCODING: utf-8
       NEURO_STAGING_URL: ${{ secrets.NEURO_STAGING_URL }}
       NEURO_TOKEN: ${{ secrets.NEURO_TOKEN }}
-      NEURO_CLUSTER: ${{ secrets.MLOPS_E2E_TESTS_CLUSTER }}
+      NEURO_CLUSTER: green-a4000-1
       # Note: ${{ github.sha }} not working, see https://github.com/actions/checkout/issues/299
       SHA: ${{ github.event.pull_request.head.sha || github.sha }}
     steps:
@@ -186,7 +186,7 @@ jobs:
       env:
         NEURO_STAGING_URL: ${{ secrets.NEURO_STAGING_URL }}
         NEURO_TOKEN: ${{ secrets.NEURO_TOKEN }}
-        NEURO_CLUSTER: ${{ secrets.MLOPS_E2E_TESTS_CLUSTER }}
+        NEURO_CLUSTER: green-a4000-1
         AZURE_SAS_TOKEN: ${{ secrets.AZURE_SAS_TOKEN }}
       run: |
         neuro config login-with-token ${{ env.NEURO_TOKEN }} ${{ env.NEURO_STAGING_URL }}
@@ -204,8 +204,8 @@ jobs:
         COLOR: 'yes'
         DOCKER_CI_USERNAME: ${{ secrets.DOCKERHUB_CI_USERNAME }}
         DOCKER_CI_TOKEN: ${{ secrets.DOCKERHUB_CI_TOKEN }}
-        NEURO_CLUSTER: ${{ secrets.MLOPS_E2E_TESTS_CLUSTER }}
-        NEURO_CLUSTER_SECONDARY: ${{ secrets.MLOPS_E2E_TESTS_CLUSTER_SECONDARY }}
+        NEURO_CLUSTER: green-a4000-1
+        NEURO_CLUSTER_SECONDARY: green-a4000-2
         AZURE_SAS_TOKEN: ${{ secrets.AZURE_SAS_TOKEN }}
         # Note: ${{ github.sha }} not working, see https://github.com/actions/checkout/issues/299
         SHA: ${{ github.event.pull_request.head.sha || github.sha }}
@@ -229,8 +229,8 @@ jobs:
         COLOR: 'yes'
         DOCKER_CI_USERNAME: ${{ secrets.DOCKERHUB_CI_USERNAME }}
         DOCKER_CI_TOKEN: ${{ secrets.DOCKERHUB_CI_TOKEN }}
-        NEURO_CLUSTER: ${{ secrets.MLOPS_E2E_TESTS_CLUSTER }}
-        NEURO_CLUSTER_SECONDARY: ${{ secrets.MLOPS_E2E_TESTS_CLUSTER_SECONDARY }}
+        NEURO_CLUSTER: green-a4000-1
+        NEURO_CLUSTER_SECONDARY: green-a4000-2
         AZURE_SAS_TOKEN: ${{ secrets.AZURE_SAS_TOKEN }}
         # Note: ${{ github.sha }} not working, see https://github.com/actions/checkout/issues/299
         SHA: ${{ github.event.pull_request.head.sha || github.sha }}
@@ -255,8 +255,8 @@ jobs:
         COLOR: 'yes'
         DOCKER_CI_USERNAME: ${{ secrets.DOCKERHUB_CI_USERNAME }}
         DOCKER_CI_TOKEN: ${{ secrets.DOCKERHUB_CI_TOKEN }}
-        NEURO_CLUSTER: ${{ secrets.MLOPS_E2E_TESTS_CLUSTER }}
-        NEURO_CLUSTER_SECONDARY: ${{ secrets.MLOPS_E2E_TESTS_CLUSTER_SECONDARY }}
+        NEURO_CLUSTER: green-a4000-1
+        NEURO_CLUSTER_SECONDARY: green-a4000-2
         AZURE_SAS_TOKEN: ${{ secrets.AZURE_SAS_TOKEN }}
         # Note: ${{ github.sha }} not working, see https://github.com/actions/checkout/issues/299
         SHA: ${{ github.event.pull_request.head.sha || github.sha }}
@@ -282,8 +282,8 @@ jobs:
         COLOR: 'yes'
         DOCKER_CI_USERNAME: ${{ secrets.DOCKERHUB_CI_USERNAME }}
         DOCKER_CI_TOKEN: ${{ secrets.DOCKERHUB_CI_TOKEN }}
-        NEURO_CLUSTER: ${{ secrets.MLOPS_E2E_TESTS_CLUSTER }}
-        NEURO_CLUSTER_SECONDARY: ${{ secrets.MLOPS_E2E_TESTS_CLUSTER_SECONDARY }}
+        NEURO_CLUSTER: green-a4000-1
+        NEURO_CLUSTER_SECONDARY: green-a4000-2
         AZURE_SAS_TOKEN: ${{ secrets.AZURE_SAS_TOKEN }}
         # Note: ${{ github.sha }} not working, see https://github.com/actions/checkout/issues/299
         SHA: ${{ github.event.pull_request.head.sha || github.sha }}
