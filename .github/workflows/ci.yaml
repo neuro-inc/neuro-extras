@@ -191,7 +191,6 @@ jobs:
       run: |
         neuro config login-with-token ${{ env.NEURO_TOKEN }} ${{ env.NEURO_STAGING_URL }}
         neuro config switch-cluster ${{ env.NEURO_CLUSTER }}
-        neuro secret add azure_sas_token $AZURE_SAS_TOKEN
         neuro --color=no config show
     - name: Read PR labels
       uses: joerick/pr-labels-action@v1.0.6
