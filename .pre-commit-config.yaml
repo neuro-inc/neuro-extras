@@ -12,7 +12,7 @@ repos:
   - id: check-merge-conflict
     exclude: "rst$"
 - repo: https://github.com/asottile/yesqa
-  rev: v1.3.0
+  rev: v1.4.0
   hooks:
   - id: yesqa
 - repo: https://github.com/PyCQA/isort
@@ -47,12 +47,12 @@ repos:
       docs/spelling_wordlist.txt|
       .gitignore
 - repo: https://github.com/asottile/pyupgrade
-  rev: 'v2.37.1'
+  rev: 'v2.37.3'
   hooks:
   - id: pyupgrade
     args: ['--py37-plus']
 - repo: https://github.com/PyCQA/flake8
-  rev: '4.0.1'
+  rev: '5.0.4'
   hooks:
   - id: flake8
     exclude: "^docs/"
@@ -70,7 +70,7 @@ repos:
     - -ignore
     - 'SC2193:'
 - repo: https://github.com/sirosen/check-jsonschema
-  rev: 0.17.0
+  rev: 0.17.1
   hooks:
   - id: check-github-actions
 ci:
