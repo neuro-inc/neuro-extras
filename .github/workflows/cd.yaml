@@ -210,7 +210,7 @@ jobs:
         service_account_key: ${{ secrets.E2E_COOKIECUTTER_GCP_SA_KEY }}
         export_default_credentials: true
     - name: Configure AWS access
-      uses: aws-actions/configure-aws-credentials@v1
+      uses: aws-actions/configure-aws-credentials@v2
       with:
         aws-access-key-id: ${{ secrets.E2E_COOKIECUTTER_AWS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.E2E_COOKIECUTTER_AWS_ACCESS_KEY }}
