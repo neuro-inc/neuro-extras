@@ -14,7 +14,7 @@ with open("neuro_extras/version.py") as f:
 setup(
     name="neuro-extras",
     version=version,
-    python_requires=">=3.7.0",
+    python_requires=">=3.8.0",
     url="https://github.com/neuro-inc/neuro-extras",
     packages=find_packages(),
     install_requires=[

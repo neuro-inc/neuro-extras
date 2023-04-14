@@ -34,7 +34,7 @@ jobs:
     - name: Save the package version
       id: version
       run: |
-        echo "::set-output name=version::$(python setup.py --version)"
+        echo "version=$(python setup.py --version)" >> $GITHUB_OUTPUT
     - name: Show version
       run: |
         echo ${{ steps.version.outputs.version }}
@@ -118,8 +118,8 @@ jobs:
         export IMAGE=ghcr.io/neuro-inc/neuro-extras
         export TAG=${{ needs.info.outputs.version }}
 
-        echo "::set-output name=image::$IMAGE"
-        echo "::set-output name=tag::$TAG"
+        echo "image=${IMAGE}" >> $GITHUB_OUTPUT
+        echo "tag=${TAG}" >> $GITHUB_OUTPUT
 
         docker tag $IMAGE:latest $IMAGE:$TAG
         docker push $IMAGE:$TAG
@@ -163,8 +163,8 @@ jobs:
       PYTHONIOENCODING: utf-8
       NEURO_STAGING_URL: ${{ secrets.NEURO_STAGING_URL }}
       NEURO_TOKEN: ${{ secrets.NEURO_TOKEN }}
-      NEURO_CLUSTER: green-a4000-1
-      NEURO_CLUSTER_SECONDARY: green-a4000-2
+      NEURO_CLUSTER: onprem-poc
+        #NEURO_CLUSTER_SECONDARY: cato-poc  # TODO: uncomment when cato-poc cluster is fixed
       AZURE_SAS_TOKEN: ${{ secrets.AZURE_SAS_TOKEN }}
     steps:
     - name: Checkout commit
@@ -176,12 +176,11 @@ jobs:
     - name: Get pip cache dir
       id: pip-cache
       run: |
-        echo "::set-output name=dir::$(pip cache dir)"    # - name: dir
+        echo "dir=$(pip cache dir)" >> $GITHUB_OUTPUT
     - name: Cache PyPI
       uses: actions/cache@v3
       with:
-        key: pip-ci-${{ runner.os }}-${{ matrix.python-version }}-${{ hashFiles('setup.py',
-          'requirements/*.txt') }}
+        key: pip-ci-${{ runner.os }}-${{ matrix.python-version }}-${{ hashFiles('setup.py', 'requirements/*.txt') }}
         path: ${{ steps.pip-cache.outputs.dir }}
         restore-keys: |
           pip-ci-${{ runner.os }}-${{ matrix.python-version }}-

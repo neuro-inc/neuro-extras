@@ -241,10 +241,10 @@ def test_image_transfer(
     switch_cluster: Callable[[str], ContextManager[None]],
     current_user: str,
     dockerhub_auth_secret: Secret,
+    src_cluster: str,
+    dst_cluster: str,
 ) -> None:
     # Note: we build src image on src_cluster and run transfer job in dst_cluster
-    src_cluster = os.environ["NEURO_CLUSTER"]
-    dst_cluster = os.environ["NEURO_CLUSTER_SECONDARY"]
     assert src_cluster != dst_cluster
 
     with switch_cluster(src_cluster):
