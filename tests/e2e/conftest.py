@@ -337,10 +337,7 @@ def disk(cli_runner: CLIRunner) -> Iterator[str]:
 def src_cluster() -> Iterator[str]:
     res = os.environ.get(SRC_CLUSTER_ENV_VAR)
     if not res:
-        pytest.skip(
-            f"{SRC_CLUSTER_ENV_VAR} env var"
-            " indicating destination cluster is missing, skipping test"
-        )
+        raise ValueError(f"'{SRC_CLUSTER_ENV_VAR}' env var is missing")
     yield res
 
 
@@ -348,5 +345,8 @@ def src_cluster() -> Iterator[str]:
 def dst_cluster() -> Iterator[str]:
     res = os.environ.get(DST_CLUSTER_ENV_VAR)
     if not res:
-        raise ValueError(f"'{DST_CLUSTER_ENV_VAR}' env var is missing")
+        pytest.skip(
+            f"{DST_CLUSTER_ENV_VAR} env var"
+            " indicating destination cluster is missing, skipping test"
+        )
     yield res

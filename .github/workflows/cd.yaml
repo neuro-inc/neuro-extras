@@ -207,7 +207,6 @@ jobs:
       uses: google-github-actions/auth@v1
       with:
         credentials_json: ${{ secrets.E2E_COOKIECUTTER_GCP_SA_KEY }}
-
     - name: Setup gcloud
       uses: google-github-actions/setup-gcloud@v1
       with:
