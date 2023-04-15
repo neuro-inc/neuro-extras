@@ -47,7 +47,7 @@ TEST_DATA_COPY_PLATFORM_TO_CLOUD = True
 CLOUD_SOURCE_PREFIXES = {
     "gs": "gs://mlops-ci-e2e/assets/data",
     "s3": "s3://cookiecutter-e2e/assets/data",
-    "azure+https": "azure+https://neuromlops.blob.core.windows.net/cookiecutter-e2e/assets/data",  # noqa: E501
+    # "azure+https": "azure+https://neuromlops.blob.core.windows.net/cookiecutter-e2e/assets/data",  # noqa: E501
     "http": "http://s3.amazonaws.com/cookiecutter-e2e/assets/data",
     "https": "https://s3.amazonaws.com/cookiecutter-e2e/assets/data",
 }
@@ -55,7 +55,7 @@ CLOUD_SOURCE_PREFIXES = {
 CLOUD_DESTINATION_PREFIXES = {
     "s3": "s3://cookiecutter-e2e/data_cp",
     "gs": "gs://mlops-ci-e2e/data_cp",
-    "azure+https": "azure+https://neuromlops.blob.core.windows.net/cookiecutter-e2e/data_cp",  # noqa: E501
+    # "azure+https": "azure+https://neuromlops.blob.core.windows.net/cookiecutter-e2e/data_cp",  # noqa: E501
     "http": "http://s3.amazonaws.com/data.neu.ro/cookiecutter-e2e",
     "https": "https://s3.amazonaws.com/data.neu.ro/cookiecutter-e2e",
 }
