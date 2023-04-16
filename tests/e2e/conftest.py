@@ -65,7 +65,7 @@ PLATFORM_SOURCE_PREFIXES = {
     # neuro cp -rT tests/assets/data storage:e2e/assets/data
     "storage": "storage:e2e/assets/data",
     # neuro disk create --name extras-e2e --timeout-unused 1000d 100M
-    # neuro run -v storage:e2e/assets/data:/storage -v disk:extras-e2e:/disk alpine -- cp -rT /storage /disk # noqa: E501
+    # neuro run -v storage:e2e/assets/data:/storage -v disk:extras-e2e:/disk alpine -- cp -rT /storage /disk/assets/data # noqa: E501
     "disk": f"disk:extras-e2e/assets/data",
 }
 
@@ -227,6 +227,7 @@ def run_cli(args: List[str]) -> "CompletedProcess[str]":
         check=False,
         capture_output=True,
         text=True,
+        shell=True,
     )
     if proc.returncode:
         logger.warning(f"Got '{proc.returncode}' for '{' '.join(args)}'")

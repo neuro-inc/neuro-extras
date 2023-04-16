@@ -14,6 +14,8 @@ neuro-extras [OPTIONS] COMMAND [ARGS]...
 
 | Name | Description |
 | :--- | :--- |
+| _-v, --verbose_ | Give more output. Option is additive, and can be used up to 2 times. |
+| _-q, --quiet_ | Give less output. Option is additive, and can be used up to 2 times. |
 | _--version_ | Show the version and exit. |
 | _--help_ | Show this message and exit. |
 
