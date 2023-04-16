@@ -227,7 +227,6 @@ def run_cli(args: List[str]) -> "CompletedProcess[str]":
         check=False,
         capture_output=True,
         text=True,
-        shell=True,
     )
     if proc.returncode:
         logger.warning(f"Got '{proc.returncode}' for '{' '.join(args)}'")
