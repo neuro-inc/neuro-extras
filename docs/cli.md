@@ -14,6 +14,8 @@ neuro-extras [OPTIONS] COMMAND [ARGS]...
 
 | Name | Description |
 | :--- | :--- |
+| _-v, --verbose_ | Give more output. Option is additive, and can be used up to 2 times. |
+| _-q, --quiet_ | Give less output. Option is additive, and can be used up to 2 times. |
 | _--version_ | Show the version and exit. |
 | _--help_ | Show this message and exit. |
 
@@ -31,9 +33,7 @@ neuro-extras [OPTIONS] COMMAND [ARGS]...
 
 | Usage | Description |
 | :--- | :--- |
-| [_neuro-extras download_](cli.md#neuro-extras-download) | \(Deprecated\) Download neuro project files from storage. |
 | [_neuro-extras init-aliases_](cli.md#neuro-extras-init-aliases) | Create neuro CLI aliases for neuro-extras functionality. |
-| [_neuro-extras upload_](cli.md#neuro-extras-upload) | \(Deprecated\) Upload neuro project files to storage. |
 
 ### neuro-extras config
 
@@ -350,26 +350,6 @@ neuro-extras seldon init-package [OPTIONS] [PATH]
 | :--- | :--- |
 | _--help_ | Show this message and exit. |
 
-### neuro-extras download
-
-(Deprecated)  Download neuro project files from storage.
-
-Downloads file (or files under) from storage://remote-project-dir/PATH to project-root/PATH. You can use "." for PATH to download whole project. The "remote-project-dir" is set using .neuro.toml config, as in example:
-
-[extra] remote-project-dir = "project-dir-name"
-
-**Usage:**
-
-```bash
-neuro-extras download [OPTIONS] PATH
-```
-
-**Options:**
-
-| Name | Description |
-| :--- | :--- |
-| _--help_ | Show this message and exit. |
-
 ### neuro-extras init-aliases
 
 Create neuro CLI aliases for neuro-extras functionality.
@@ -378,26 +358,6 @@ Create neuro CLI aliases for neuro-extras functionality.
 
 ```bash
 neuro-extras init-aliases [OPTIONS]
-```
-
-**Options:**
-
-| Name | Description |
-| :--- | :--- |
-| _--help_ | Show this message and exit. |
-
-### neuro-extras upload
-
-(Deprecated)  Upload neuro project files to storage.
-
-Uploads file (or files under) project-root/PATH to storage://remote-project- dir/PATH. You can use "." for PATH to upload whole project. The "remote- project-dir" is set using .neuro.toml config, as in example:
-
-[extra] remote-project-dir = "project-dir-name"
-
-**Usage:**
-
-```bash
-neuro-extras upload [OPTIONS] PATH
 ```
 
 **Options:**

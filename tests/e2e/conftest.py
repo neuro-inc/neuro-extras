@@ -16,12 +16,12 @@ from typing import (
     Iterator,
     List,
     Optional,
+    Protocol,
     Union,
 )
 
 import neuro_sdk  # NOTE: don't use async test functions (issue #129)
 import pytest
-from typing_extensions import Protocol
 
 from neuro_extras.common import NEURO_EXTRAS_IMAGE
 from neuro_extras.config import _build_registy_auth
@@ -47,7 +47,7 @@ TEST_DATA_COPY_PLATFORM_TO_CLOUD = True
 CLOUD_SOURCE_PREFIXES = {
     "gs": "gs://mlops-ci-e2e/assets/data",
     "s3": "s3://cookiecutter-e2e/assets/data",
-    "azure+https": "azure+https://neuromlops.blob.core.windows.net/cookiecutter-e2e/assets/data",  # noqa: E501
+    # "azure+https": "azure+https://neuromlops.blob.core.windows.net/cookiecutter-e2e/assets/data",  # noqa: E501
     "http": "http://s3.amazonaws.com/cookiecutter-e2e/assets/data",
     "https": "https://s3.amazonaws.com/cookiecutter-e2e/assets/data",
 }
@@ -55,20 +55,28 @@ CLOUD_SOURCE_PREFIXES = {
 CLOUD_DESTINATION_PREFIXES = {
     "s3": "s3://cookiecutter-e2e/data_cp",
     "gs": "gs://mlops-ci-e2e/data_cp",
-    "azure+https": "azure+https://neuromlops.blob.core.windows.net/cookiecutter-e2e/data_cp",  # noqa: E501
+    # "azure+https": "azure+https://neuromlops.blob.core.windows.net/cookiecutter-e2e/data_cp",  # noqa: E501
     "http": "http://s3.amazonaws.com/data.neu.ro/cookiecutter-e2e",
     "https": "https://s3.amazonaws.com/data.neu.ro/cookiecutter-e2e",
 }
 
 PLATFORM_SOURCE_PREFIXES = {
+    # neuro mkdir -p storage:e2e/assets/data
+    # neuro cp -rT tests/assets/data storage:e2e/assets/data
     "storage": "storage:e2e/assets/data",
-    "disk": f"disk:disk-902f8a35-8621-499d-8d97-452133f258c7/assets/data",
+    # neuro disk create --name extras-e2e --timeout-unused 1000d 100M
+    # neuro run -v storage:e2e/assets/data:/storage -v disk:extras-e2e:/disk alpine -- cp -rT /storage /disk/assets/data # noqa: E501
+    "disk": f"disk:extras-e2e/assets/data",
 }
 
 PLATFORM_DESTINATION_PREFIXES = {
+    # neuro storage mkdir storage:e2e/data_cp
     "storage": "storage:e2e/data_cp",
     "disk": f"{DISK_PREFIX}/data_cp",
 }
+
+SRC_CLUSTER_ENV_VAR = "NEURO_CLUSTER"
+DST_CLUSTER_ENV_VAR = "NEURO_CLUSTER_SECONDARY"
 
 
 class CLIRunner(Protocol):
@@ -323,3 +331,22 @@ def disk(cli_runner: CLIRunner) -> Iterator[str]:
                 assert res.returncode == 0, res
         except BaseException as e:
             logger.warning(f"Finalization error: {e}")
+
+
+@pytest.fixture(scope="session")
+def src_cluster() -> Iterator[str]:
+    res = os.environ.get(SRC_CLUSTER_ENV_VAR)
+    if not res:
+        raise ValueError(f"'{SRC_CLUSTER_ENV_VAR}' env var is missing")
+    yield res
+
+
+@pytest.fixture(scope="session")
+def dst_cluster() -> Iterator[str]:
+    res = os.environ.get(DST_CLUSTER_ENV_VAR)
+    if not res:
+        pytest.skip(
+            f"{DST_CLUSTER_ENV_VAR} env var"
+            " indicating destination cluster is missing, skipping test"
+        )
+    yield res

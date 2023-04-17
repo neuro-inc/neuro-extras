@@ -19,10 +19,29 @@ class ClickLogHandler(logging.Handler):
 
 
 @click.group()
+@click.option(
+    "-v",
+    "--verbose",
+    count=True,
+    type=int,
+    default=0,
+    help="Give more output. Option is additive, and can be used up to 2 times.",
+)
+@click.option(
+    "-q",
+    "--quiet",
+    count=True,
+    type=int,
+    default=0,
+    help="Give less output. Option is additive, and can be used up to 2 times.",
+)
 @click.version_option(
     version=__version__, message="neuro-extras package version: %(version)s"
 )
-def main() -> None:
+def main(
+    verbose: int,
+    quiet: int,
+) -> None:
     """
     Auxiliary scripts and recipes for automating routine tasks.
     """
@@ -30,5 +49,16 @@ def main() -> None:
     handler.setFormatter(logging.Formatter("%(levelname)s: %(message)s"))
 
     root_logger = logging.getLogger()
-    root_logger.setLevel(logging.INFO)
+    verbosity = verbose - quiet
+    if verbosity < -1:
+        loglevel = logging.CRITICAL
+    elif verbosity == -1:
+        loglevel = logging.WARNING
+    elif verbosity == 0:
+        loglevel = logging.INFO
+    else:
+        loglevel = logging.DEBUG
+    handler.setLevel(loglevel)
+
+    root_logger.setLevel(logging.DEBUG)
     root_logger.addHandler(handler)

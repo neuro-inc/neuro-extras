@@ -1,8 +1,9 @@
 """Module for copying files by running neu.ro jobs"""
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import List, Mapping, Optional, Tuple
 
+from neuro_cli.utils import resolve_disk
 from neuro_sdk import Client, DiskVolume, RemoteImage, SecretFile, Volume
 from yarl import URL
 
@@ -127,6 +128,15 @@ class RemoteCopier(Copier):
             )
 
     async def perform_copy(self) -> str:
+        # neuro_client.jobs.start accepts disk URIs with IDs only
+        resolved_disks = []
+        for disk in self.job_config.disk_volumes:
+            disk_id = await resolve_disk(disk.disk_uri, client=self.neuro_client)
+            disk_with_id = replace(disk, disk_uri=disk.disk_uri / f"../{disk_id}")
+            resolved_disks.append(disk_with_id)
+
+        self.job_config = replace(self.job_config, disk_volumes=resolved_disks)
+
         logger.info(f"Starting job from config: {self.job_config}")
         job = await self.neuro_client.jobs.start(
             image=self.job_config.image,

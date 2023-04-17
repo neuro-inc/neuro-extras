@@ -16,6 +16,4 @@ def get_neuro_extras_txt(old: str, new: str) -> str:
 
 
 def setup_plugin(manager: PluginManager) -> None:
-    manager.config.define_str("extra", "remote-project-dir")
-
     manager.version_checker.register("neuro-extras", get_neuro_extras_txt)

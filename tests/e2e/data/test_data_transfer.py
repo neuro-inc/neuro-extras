@@ -1,4 +1,3 @@
-import os
 import uuid
 from typing import Callable, ContextManager
 
@@ -13,11 +12,12 @@ def test_data_transfer(
     cli_runner: CLIRunner,
     current_user: str,
     switch_cluster: Callable[[str], ContextManager[None]],
+    src_cluster: str,
+    dst_cluster: str,
 ) -> None:
     # Note: data-transfer runs copying job on dst_cluster and
     # we pushed test image to src_cluster, so it should be a target cluster
-    src_cluster = os.environ["NEURO_CLUSTER_SECONDARY"]
-    dst_cluster = os.environ["NEURO_CLUSTER"]
+    src_cluster, dst_cluster = dst_cluster, src_cluster
 
     with switch_cluster(src_cluster):
         result = cli_runner(["neuro-extras", "init-aliases"])
