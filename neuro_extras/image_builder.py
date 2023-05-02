@@ -218,7 +218,6 @@ class RemoteImageBuilder(ImageBuilder):
 
         cache_image = neuro_sdk.RemoteImage(
             name="layer-cache/cache",
-            owner=self._client.config.username,
             registry=str(self._client.config.registry_url),
             cluster_name=self._client.cluster_name,
         )
