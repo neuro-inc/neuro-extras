@@ -1,4 +1,5 @@
 click==8.1.2
-neuro-cli==22.7.0
+neuro-cli @ git+https://github.com/neuro-inc/neuro-cli.git@0ff55bb299b85c6c0052ed4fc8954a0cf8500119#subdirectory=neuro-cli/
+neuro-sdk @ git+https://github.com/neuro-inc/neuro-cli.git@0ff55bb299b85c6c0052ed4fc8954a0cf8500119#subdirectory=neuro-sdk/
 pyyaml==6.0
 toml==0.10.2

@@ -220,6 +220,7 @@ class RemoteImageBuilder(ImageBuilder):
             name="layer-cache/cache",
             registry=str(self._client.config.registry_url),
             cluster_name=self._client.cluster_name,
+            project_name=self._client.config.project_name_or_raise,
         )
         cache_repo = self.parse_image_ref(str(cache_image))
         cache_repo = re.sub(r":.*$", "", cache_repo)  # drop tag
