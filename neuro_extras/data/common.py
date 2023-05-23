@@ -336,7 +336,7 @@ class Resource:
 
 def ensure_folder_exists(local_resource: Resource) -> None:
     """Ensure the folder (in case of the file resource - parent folder) exists"""
-    folder_name, _ = os.path.split(local_resource.as_path())
+    folder_name, _ = os.path.split(local_resource.as_str())
     logger.info(f"Creating folder for {folder_name}")
     Path(folder_name).mkdir(exist_ok=True, parents=True)
 
