@@ -13,6 +13,7 @@ from typing import (
     AsyncIterator,
     Callable,
     ContextManager,
+    Dict,
     Iterator,
     List,
     Optional,
@@ -44,7 +45,7 @@ TEST_DATA_COPY_LOCAL_TO_CLOUD = True
 TEST_DATA_COPY_CLOUD_TO_PLATFORM = True
 TEST_DATA_COPY_PLATFORM_TO_CLOUD = True
 
-CLOUD_SOURCE_PREFIXES = {
+CLOUD_SOURCE_PREFIXES: Dict[str, str] = {
     "gs": "gs://mlops-ci-e2e/assets/data",
     "s3": "s3://because-clear-taken-cotton/assets/data",
     # "azure+https": "azure+https://neuromlops.blob.core.windows.net/cookiecutter-e2e/assets/data",  # noqa: E501
@@ -52,7 +53,7 @@ CLOUD_SOURCE_PREFIXES = {
     # "https": "https://s3.amazonaws.com/cookiecutter-e2e/assets/data",
 }
 
-CLOUD_DESTINATION_PREFIXES = {
+CLOUD_DESTINATION_PREFIXES: Dict[str, str] = {
     "s3": "s3://because-clear-taken-cotton/data_cp",
     "gs": "gs://mlops-ci-e2e/data_cp",
     # "azure+https": "azure+https://neuromlops.blob.core.windows.net/cookiecutter-e2e/data_cp",  # noqa: E501
@@ -60,7 +61,7 @@ CLOUD_DESTINATION_PREFIXES = {
     "https": "https://s3.amazonaws.com/data.neu.ro/cookiecutter-e2e",
 }
 
-PLATFORM_SOURCE_PREFIXES = {
+PLATFORM_SOURCE_PREFIXES: Dict[str, str] = {
     # neuro mkdir -p storage:e2e/assets/data
     # neuro cp -rT tests/assets/data storage:e2e/assets/data
     # "storage": "storage:e2e/assets/data",
@@ -69,7 +70,7 @@ PLATFORM_SOURCE_PREFIXES = {
     # "disk": f"disk:extras-e2e/assets/data",
 }
 
-PLATFORM_DESTINATION_PREFIXES = {
+PLATFORM_DESTINATION_PREFIXES: Dict[str, str] = {
     # neuro storage mkdir storage:e2e/data_cp
     # "storage": "storage:e2e/data_cp",
     # "disk": f"{DISK_PREFIX}/data_cp",

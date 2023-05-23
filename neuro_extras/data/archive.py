@@ -1,7 +1,6 @@
 """Module for archive management operations (compression and extraction)"""
 import abc
 import logging
-from pathlib import Path
 
 from ..utils import CLIRunner
 from .common import ArchiveType, Resource, ensure_folder_exists
@@ -68,7 +67,7 @@ class TarManager(ArchiveManager, CLIRunner):
             ArchiveType.TAR_PLAIN: "xvf",
         }
         subcommand = mapping[source.archive_type]
-        args = [subcommand, str(source), f"-C", str(destination)]
+        args = [subcommand, source.as_str(), f"-C", destination.as_str()]
         destination.as_path().mkdir(exist_ok=True, parents=True)
         await self.run_command(command=command, args=args)
         return destination
@@ -77,80 +76,78 @@ class TarManager(ArchiveManager, CLIRunner):
 class GzipManager(ArchiveManager, CLIRunner):
     """Utility class for handling gzip archives"""
 
-    async def compress(self, source: Path, destination: Path) -> Path:
+    async def compress(self, source: Resource, destination: Resource) -> Resource:
         """Compress source into destination using gzip command"""
         command = "gzip"
-        archive_type = ArchiveType.get_type(destination)
-        if archive_type == (~ArchiveType.GZ):
+        if destination.archive_type == (~ArchiveType.GZ):
             raise ValueError(
                 f"Can't compress into {destination} with GzipManager: "
-                f"unsupported archive type {archive_type.name}. "
+                f"unsupported archive type {destination.archive_type.name}. "
                 f"Supported types: "
                 f"{ArchiveType.get_extensions_for_type(ArchiveType.GZ)}"
             )
-        if source.is_dir():
+        if source.filename is None:
             raise ValueError(
                 "gzip does not support folder compression, "
                 "use .tar.gz extension instead."
             )
-        args = ["-rkvf", str(source)]
+        args = ["-rkvf", source.as_str()]
         await self.run_command(command=command, args=args)
         # gzip does not support setting destination
-        temp_destination = str(source) + ".gz"
+        temp_destination = source.as_str() + ".gz"
         # TODO: add support for non-unix OS
-        await self.run_command("mv", [temp_destination, str(destination)])
+        await self.run_command("mv", [temp_destination, destination.as_str()])
         return destination
 
-    async def extract(self, source: Path, destination: Path) -> Path:
+    async def extract(self, source: Resource, destination: Resource) -> Resource:
         """Extract source into destination using gunzip command"""
         command = "gunzip"
-        archive_type = ArchiveType.get_type(destination)
-        if archive_type == (~ArchiveType.GZ):
+        if destination.archive_type == (~ArchiveType.GZ):
             raise ValueError(
-                f"Can't extract {destination} with GzipManager: "
-                f"unsupported archive type {archive_type.name}. "
+                f"Can't extract {source} with GzipManager: "
+                f"unsupported archive type {source.archive_type.name}. "
                 f"Supported types: "
                 f"{ArchiveType.get_extensions_for_type(ArchiveType.GZ)}"
             )
-        args = ["--keep", str(source)]
+        args = ["--keep", source.as_str()]
         await self.run_command(command=command, args=args)
-        temp_destination = str(source.with_suffix(""))  # gzip extracts inplace
-        await self.run_command("mv", [temp_destination, str(destination)])
+        temp_destination = str(
+            source.as_path().with_suffix("")
+        )  # gzip extracts inplace
+        await self.run_command("mv", [temp_destination, destination.as_str()])
         return destination
 
 
 class ZipManager(ArchiveManager, CLIRunner):
     """Utility class for handling zip archives"""
 
-    async def compress(self, source: Path, destination: Path) -> Path:
+    async def compress(self, source: Resource, destination: Resource) -> Resource:
         """Compress source into destination using zip command"""
         command = "zip"
-        archive_type = ArchiveType.get_type(destination)
-        if archive_type == (~ArchiveType.ZIP):
+        if destination.archive_type == (~ArchiveType.ZIP):
             raise ValueError(
                 f"Can't compress into {destination} with ZipManager: "
-                f"unsupported archive type {archive_type.name}. "
+                f"unsupported archive type {destination.archive_type.name}. "
                 f"Supported types: "
                 f"{ArchiveType.get_extensions_for_type(ArchiveType.ZIP)}"
             )
         # check if works as expected
-        args = ["-rv", str(destination), str(source)]
+        args = ["-rv", destination.as_str(), source.as_str()]
         await self.run_command(command=command, args=args)
         return destination
 
-    async def extract(self, source: Path, destination: Path) -> Path:
+    async def extract(self, source: Resource, destination: Resource) -> Resource:
         """Extract source into destination using unzip command"""
         command = "unzip"
-        archive_type = ArchiveType.get_type(destination)
-        if archive_type == (~ArchiveType.ZIP):
+        if source.archive_type == (~ArchiveType.ZIP):
             raise ValueError(
-                f"Can't extract {destination} with ZipManager: "
-                f"unsupported archive type {archive_type.name}. "
+                f"Can't extract {source} with ZipManager: "
+                f"unsupported archive type {source.archive_type.name}. "
                 f"Supported types: "
                 f"{ArchiveType.get_extensions_for_type(ArchiveType.ZIP)}"
             )
-        args = [str(source), "-d", str(destination)]
-        destination.mkdir(exist_ok=True, parents=True)
+        args = [source.as_str(), "-d", destination.as_str()]
+        destination.as_path().mkdir(exist_ok=True, parents=True)
         await self.run_command(command=command, args=args)
         return destination
 
@@ -175,7 +172,7 @@ def _get_archive_manager(archive: Resource) -> ArchiveManager:
 async def copy(source: Resource, destination: Resource) -> Resource:
     """Copy source into destination"""
     command = "cp"
-    args = [str(source), str(destination)]
+    args = [source.as_str(), destination.as_str()]
     runner = CLIRunner()
     await runner.run_command(command=command, args=args)
     return destination

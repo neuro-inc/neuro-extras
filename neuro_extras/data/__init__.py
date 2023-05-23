@@ -151,7 +151,7 @@ def data_cp(
         )
     try:
 
-        async def run_copy():
+        async def run_copy() -> None:
             async with get_neuro_client() as client:
                 operation = CopyOperation(
                     source=source,

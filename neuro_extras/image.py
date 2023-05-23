@@ -406,7 +406,7 @@ async def _check_image_exists(image_uri_str: str, client: Client) -> bool:
         existing_images = await client.images.tags(
             neuro_sdk.RemoteImage(
                 name=image.name,
-                owner=image.owner,
+                project_name=image.project_name,
                 cluster_name=image.cluster_name,
                 registry=image.registry,
                 tag=None,
