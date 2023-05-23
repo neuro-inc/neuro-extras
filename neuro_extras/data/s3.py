@@ -1,7 +1,7 @@
 """Module for copying files from/to S3"""
 
 from ..utils import CLIRunner
-from .common import Copier, UrlType
+from .common import Copier, DataUrlType, Resource
 
 
 class S3Copier(Copier, CLIRunner):
@@ -9,24 +9,30 @@ class S3Copier(Copier, CLIRunner):
 
     def _ensure_can_execute(self) -> None:
         if not (
-            self.source_type == UrlType.LOCAL_FS
-            and self.destination_type == UrlType.S3
-            or self.source_type == UrlType.S3
-            and self.destination_type == UrlType.LOCAL_FS
+            self.source.data_url_type == DataUrlType.LOCAL_FS
+            and self.destination.data_url_type == DataUrlType.S3
+            or self.source.data_url_type == DataUrlType.S3
+            and self.destination.data_url_type == DataUrlType.LOCAL_FS
         ):
             raise ValueError(
                 "Unsupported source and destination - "
-                f"can only copy between {UrlType.S3.name} "
-                f"and {UrlType.LOCAL_FS.name}"
+                f"can only copy between {DataUrlType.S3.name} "
+                f"and {DataUrlType.LOCAL_FS.name}"
             )
 
-    async def perform_copy(self) -> str:
+    async def perform_copy(self) -> Resource:
         """Perform copy through running aws cli and return the url to destinaton"""
 
         command = "aws"
-        if self.source.endswith("/"):
-            args = ["s3", "cp", "--recursive", self.source, self.destination]
+        if self.source.as_str().endswith("/"):
+            args = [
+                "s3",
+                "cp",
+                "--recursive",
+                self.source.as_str(),
+                self.destination.as_str(),
+            ]
         else:
-            args = ["s3", "cp", self.source, self.destination]
+            args = ["s3", "cp", self.source.as_str(), self.destination.as_str()]
         await self.run_command(command=command, args=args)
         return self.destination

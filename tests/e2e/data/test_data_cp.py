@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import random
 import re
@@ -6,7 +7,9 @@ from math import ceil
 from tempfile import TemporaryDirectory
 from typing import Iterable, Iterator, List, Optional
 
+import neuro_sdk
 import pytest
+from neuro_sdk import Client
 from pytest_lazyfixture import lazy_fixture  # type: ignore
 from tenacity import retry, stop_after_attempt, wait_random_exponential
 
@@ -40,7 +43,7 @@ def get_all_data_copy_configs(
     fraction: float = 0.05,
 ) -> List[CopyTestConfig]:
     random.seed(2)
-    configs = []
+    configs: List[CopyTestConfig] = []
 
     def _add_configs(condition: bool, items: List[CopyTestConfig]) -> None:
         nonlocal configs
@@ -71,6 +74,15 @@ def get_all_data_copy_configs(
         condition=TEST_DATA_COPY_CLOUD_TO_PLATFORM,
         items=generate_cloud_to_platform_copy_configs(),
     )
+
+    # (A.K.) todo: make it into a fixture
+    async def get_client() -> Client:
+        return await neuro_sdk.get()
+
+    client = asyncio.run(get_client())
+    for c in configs:
+        c.source.client = client
+        c.destination.client = client
     return configs
 
 
@@ -198,7 +210,9 @@ def _run_data_copy_test_from_config(config: CopyTestConfig) -> None:
         )
     if config.should_fail and config.fail_reason:
         reasons_to_fail.append(config.fail_reason)
-    returncode, stdout, stderr = _run_command("neuro-extras", config.as_command())
+    returncode, stdout, stderr = _run_command(
+        "neuro-extras", ["-vvv"] + config.as_command()
+    )
     succeeded = returncode == 0
     verb = "should" if should_succeed else "should not"
     assert_fail_message = f"'{config.as_command(minimized=True)} {verb} succeed."

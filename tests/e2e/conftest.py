@@ -46,14 +46,14 @@ TEST_DATA_COPY_PLATFORM_TO_CLOUD = True
 
 CLOUD_SOURCE_PREFIXES = {
     "gs": "gs://mlops-ci-e2e/assets/data",
-    "s3": "s3://cookiecutter-e2e/assets/data",
+    "s3": "s3://because-clear-taken-cotton/assets/data",
     # "azure+https": "azure+https://neuromlops.blob.core.windows.net/cookiecutter-e2e/assets/data",  # noqa: E501
-    "http": "http://s3.amazonaws.com/cookiecutter-e2e/assets/data",
-    "https": "https://s3.amazonaws.com/cookiecutter-e2e/assets/data",
+    # "http": "http://s3.amazonaws.com/cookiecutter-e2e/assets/data",
+    # "https": "https://s3.amazonaws.com/cookiecutter-e2e/assets/data",
 }
 
 CLOUD_DESTINATION_PREFIXES = {
-    "s3": "s3://cookiecutter-e2e/data_cp",
+    "s3": "s3://because-clear-taken-cotton/data_cp",
     "gs": "gs://mlops-ci-e2e/data_cp",
     # "azure+https": "azure+https://neuromlops.blob.core.windows.net/cookiecutter-e2e/data_cp",  # noqa: E501
     "http": "http://s3.amazonaws.com/data.neu.ro/cookiecutter-e2e",
@@ -63,16 +63,16 @@ CLOUD_DESTINATION_PREFIXES = {
 PLATFORM_SOURCE_PREFIXES = {
     # neuro mkdir -p storage:e2e/assets/data
     # neuro cp -rT tests/assets/data storage:e2e/assets/data
-    "storage": "storage:e2e/assets/data",
+    # "storage": "storage:e2e/assets/data",
     # neuro disk create --name extras-e2e --timeout-unused 1000d 100M
     # neuro run -v storage:e2e/assets/data:/storage -v disk:extras-e2e:/disk alpine -- cp -rT /storage /disk/assets/data # noqa: E501
-    "disk": f"disk:extras-e2e/assets/data",
+    # "disk": f"disk:extras-e2e/assets/data",
 }
 
 PLATFORM_DESTINATION_PREFIXES = {
     # neuro storage mkdir storage:e2e/data_cp
-    "storage": "storage:e2e/data_cp",
-    "disk": f"{DISK_PREFIX}/data_cp",
+    # "storage": "storage:e2e/data_cp",
+    # "disk": f"{DISK_PREFIX}/data_cp",
 }
 
 SRC_CLUSTER_ENV_VAR = "NEURO_CLUSTER"

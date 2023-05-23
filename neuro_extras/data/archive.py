@@ -1,90 +1,25 @@
 """Module for archive management operations (compression and extraction)"""
 import abc
 import logging
-from enum import Flag, auto
 from pathlib import Path
-from typing import Any, Dict, List
 
 from ..utils import CLIRunner
-from .common import ensure_parent_folder_exists, get_filename_from_url
+from .common import ArchiveType, Resource, ensure_folder_exists
 
 
 logger = logging.getLogger(__name__)
 
 
-class ArchiveType(int, Flag):  # type: ignore
-    """Int Flag for archive types
-
-    Supports fuzzy checks:
-    >>> assert ArchiveType.TAR_GZ == ArchiveType.TAR
-    >>> assert (ArchiveType.GZ | ArchiveType.ZIP) == ArchiveType.SUPPORTED
-    """
-
-    TAR_PLAIN = auto()
-    TAR_GZ = auto()
-    TAR_BZ = auto()
-    TAR = TAR_PLAIN | TAR_GZ | TAR_BZ
-    GZ = auto()
-    ZIP = auto()
-    SUPPORTED = TAR | GZ | ZIP
-    UNSUPPORTED = ~(SUPPORTED)
-
-    @staticmethod
-    def get_extensions_for_type(type: "ArchiveType") -> List[str]:
-        """Get list of file extensions, that correspond
-        to the provided archive type"""
-        return [
-            ext
-            for ext, type_ in ArchiveType.get_extension_mapping().items()
-            if type_ == type
-        ]
-
-    @staticmethod
-    def get_extension_mapping() -> Dict[str, "ArchiveType"]:
-        """Get mapping from file extension to ArchiveType"""
-        return {
-            ".tar.gz": ArchiveType.TAR_GZ,
-            ".tgz": ArchiveType.TAR_GZ,
-            ".tar.bz2": ArchiveType.TAR_BZ,
-            ".bz2": ArchiveType.TAR_BZ,
-            ".tbz": ArchiveType.TAR_BZ,
-            ".tar": ArchiveType.TAR_PLAIN,
-            ".gz": ArchiveType.GZ,
-            ".zip": ArchiveType.ZIP,
-        }
-
-    def __eq__(self, other: Any) -> bool:
-        if isinstance(other, ArchiveType):
-            return bool(self & other)
-        return False
-
-    def __hash__(self) -> int:
-        return hash(int(self))
-
-    @staticmethod
-    def get_type(archive: Path) -> "ArchiveType":
-        """Determine archive type from file extension"""
-        suffixes = archive.suffixes[-2:]  # keep only at most 2 suffixes
-        if not suffixes:
-            return ArchiveType.UNSUPPORTED
-        if "".join(suffixes) in ArchiveType.get_extension_mapping():
-            # match longest possible suffix first
-            return ArchiveType.get_extension_mapping()["".join(suffixes)]
-        else:
-            # try to match last suffix
-            return ArchiveType.get_extension_mapping().get(
-                suffixes[-1], ArchiveType.UNSUPPORTED
-            )
-
-
 class ArchiveManager(metaclass=abc.ABCMeta):
     """Interface for archive management"""
 
-    async def compress(self, source: Path, destination: Path) -> Path:
+    @abc.abstractmethod
+    async def compress(self, source: Resource, destination: Resource) -> Resource:
         """Compress source into destination"""
         raise NotImplementedError
 
-    async def extract(self, source: Path, destination: Path) -> Path:
+    @abc.abstractmethod
+    async def extract(self, source: Resource, destination: Resource) -> Resource:
         """Extract source into destination"""
         raise NotImplementedError
 
@@ -92,14 +27,13 @@ class ArchiveManager(metaclass=abc.ABCMeta):
 class TarManager(ArchiveManager, CLIRunner):
     """Utility class for handling tar archives"""
 
-    async def compress(self, source: Path, destination: Path) -> Path:
+    async def compress(self, source: Resource, destination: Resource) -> Resource:
         """Compress source into destination using tar command"""
         command = "tar"
-        archive_type = ArchiveType.get_type(destination)
-        if archive_type == (~ArchiveType.TAR):
+        if destination.archive_type == (~ArchiveType.TAR):
             raise ValueError(
-                f"Can't compress into {destination} with TarManager: "
-                f"unsupported archive type {archive_type.name}. "
+                f"Can't compress into {destination.url} with TarManager: "
+                f"unsupported archive type {destination.archive_type.name}. "
                 f"Supported types: "
                 f"{ArchiveType.get_extensions_for_type(ArchiveType.TAR)}"
             )
@@ -108,24 +42,23 @@ class TarManager(ArchiveManager, CLIRunner):
             ArchiveType.TAR_BZ: "jcf",
             ArchiveType.TAR_PLAIN: "cf",
         }
-        subcommand = mapping[archive_type]
+        subcommand = mapping[destination.archive_type]
         args = [
             subcommand,
             str(destination),
-            f"--exclude={destination.name}",
+            f"--exclude={destination.filename}",
             str(source),
         ]
         await self.run_command(command=command, args=args)
         return destination
 
-    async def extract(self, source: Path, destination: Path) -> Path:
+    async def extract(self, source: Resource, destination: Resource) -> Resource:
         """Extract source into destination using tar command"""
         command = "tar"
-        archive_type = ArchiveType.get_type(source)
-        if archive_type == (~ArchiveType.TAR):
+        if source.archive_type == (~ArchiveType.TAR):
             raise ValueError(
                 f"Can't extract {source} with TarManager: "
-                f"unsupported archive type {archive_type.name}. "
+                f"unsupported archive type {source.archive_type.name}. "
                 f"Supported types: "
                 f"{ArchiveType.get_extensions_for_type(ArchiveType.TAR)}"
             )
@@ -134,9 +67,9 @@ class TarManager(ArchiveManager, CLIRunner):
             ArchiveType.TAR_BZ: "jxvf",
             ArchiveType.TAR_PLAIN: "xvf",
         }
-        subcommand = mapping[archive_type]
+        subcommand = mapping[source.archive_type]
         args = [subcommand, str(source), f"-C", str(destination)]
-        destination.mkdir(exist_ok=True, parents=True)
+        destination.as_path().mkdir(exist_ok=True, parents=True)
         await self.run_command(command=command, args=args)
         return destination
 
@@ -222,14 +155,14 @@ class ZipManager(ArchiveManager, CLIRunner):
         return destination
 
 
-def _get_archive_manager(archive: Path) -> ArchiveManager:
+def _get_archive_manager(archive: Resource) -> ArchiveManager:
     """Resolve appropriate archive manager"""
     mapping = {
         ArchiveType.TAR: TarManager(),
         ArchiveType.GZ: GzipManager(),
         ArchiveType.ZIP: ZipManager(),
     }
-    archive_type = ArchiveType.get_type(archive)
+    archive_type = ArchiveType.get_type(archive.as_path())
     if archive_type == ArchiveType.UNSUPPORTED:
         supported_extensions = list(ArchiveType.get_extension_mapping())
         raise ValueError(
@@ -239,7 +172,7 @@ def _get_archive_manager(archive: Path) -> ArchiveManager:
     return next(manager for type, manager in mapping.items() if type == archive_type)
 
 
-async def copy(source: Path, destination: Path) -> Path:
+async def copy(source: Resource, destination: Resource) -> Resource:
     """Copy source into destination"""
     command = "cp"
     args = [str(source), str(destination)]
@@ -248,20 +181,16 @@ async def copy(source: Path, destination: Path) -> Path:
     return destination
 
 
-async def compress(source: Path, destination: Path) -> Path:
+async def compress(source: Resource, destination: Resource) -> Resource:
     """Compress source into destination while
     inferring arhive type from destination"""
-    ensure_parent_folder_exists(str(destination))
-    source_filename = get_filename_from_url(str(source))
-    destination_filename = get_filename_from_url(str(destination))
-    if source_filename is not None and destination_filename is not None:
-        source_type = ArchiveType.get_type(source)
-        destination_type = ArchiveType.get_type(destination)
+    ensure_folder_exists(destination)
+    if source.filename is not None and destination.filename is not None:
         both_archives = ArchiveType.UNSUPPORTED not in (
-            source_type,
-            destination_type,
+            source.archive_type,
+            destination.archive_type,
         )
-        same_type = source_type == destination_type
+        same_type = source.archive_type == destination.archive_type
         if both_archives and same_type:
             logger.info(
                 "Skipping compression step - "
@@ -277,10 +206,11 @@ async def compress(source: Path, destination: Path) -> Path:
     return await manager_implementation.compress(source=source, destination=destination)
 
 
-async def extract(source: Path, destination: Path) -> Path:
+async def extract(source: Resource, destination: Resource) -> Resource:
     """Extract source into destination while
     inferring arhive type from source"""
-    ensure_parent_folder_exists(str(destination))
+    ensure_folder_exists(destination)
+
     manager_implementation = _get_archive_manager(source)
     logger.debug(
         f"Extracting {source} into {destination} "

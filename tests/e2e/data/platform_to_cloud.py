@@ -6,7 +6,7 @@ from ..conftest import (
     PLATFORM_SOURCE_PREFIXES,
     get_tested_archive_types,
 )
-from .resources import CopyTestConfig, Resource
+from .resources import CopyTestConfig, DataTestResource
 
 
 def generate_platform_to_cloud_copy_configs() -> List[CopyTestConfig]:
@@ -15,7 +15,7 @@ def generate_platform_to_cloud_copy_configs() -> List[CopyTestConfig]:
     run_uuid = uuid.uuid4().hex
     for source_schema, source_prefix in PLATFORM_SOURCE_PREFIXES.items():
         source_archives = [
-            Resource(
+            DataTestResource(
                 schema=source_schema,
                 url=f"{source_prefix}/file{ext}",
                 is_archive=True,
@@ -23,7 +23,7 @@ def generate_platform_to_cloud_copy_configs() -> List[CopyTestConfig]:
             )
             for ext in archive_types
         ]
-        source_folder = Resource(
+        source_folder = DataTestResource(
             schema=source_schema,
             url=f"{source_prefix}/",
             is_archive=False,
@@ -31,7 +31,7 @@ def generate_platform_to_cloud_copy_configs() -> List[CopyTestConfig]:
         )
         for schema, prefix in CLOUD_DESTINATION_PREFIXES.items():
             # tests for copy of local folder
-            cloud_folder = Resource(
+            cloud_folder = DataTestResource(
                 schema=schema,
                 url=f"{prefix}/{run_uuid}/copy/",
                 is_archive=False,
@@ -43,7 +43,7 @@ def generate_platform_to_cloud_copy_configs() -> List[CopyTestConfig]:
 
             # tests for compression of local folder
             for archive_type in archive_types:
-                cloud_archive = Resource(
+                cloud_archive = DataTestResource(
                     schema=schema,
                     url=f"{prefix}/{run_uuid}/compress/file{archive_type}",
                     is_archive=True,
@@ -66,7 +66,7 @@ def generate_platform_to_cloud_copy_configs() -> List[CopyTestConfig]:
             # tests for copy of local files
             for archive in source_archives:
                 # test for extraction of archive
-                cloud_extraction_folder = Resource(
+                cloud_extraction_folder = DataTestResource(
                     schema=schema,
                     url=f"{prefix}/{run_uuid}/extract/{archive.file_extension}/",
                     is_archive=False,
@@ -81,7 +81,7 @@ def generate_platform_to_cloud_copy_configs() -> List[CopyTestConfig]:
                 )
 
                 # test for file copy
-                cloud_file = Resource(
+                cloud_file = DataTestResource(
                     schema=schema,
                     url=f"{prefix}/{run_uuid}/copy/file{archive.file_extension}",
                     is_archive=True,
