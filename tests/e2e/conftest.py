@@ -42,8 +42,8 @@ logger = logging.getLogger(__name__)
 TEST_DATA_COPY_LOCAL_TO_LOCAL = True
 TEST_DATA_COPY_CLOUD_TO_LOCAL = True
 TEST_DATA_COPY_LOCAL_TO_CLOUD = True
-TEST_DATA_COPY_CLOUD_TO_PLATFORM = True
-TEST_DATA_COPY_PLATFORM_TO_CLOUD = True
+TEST_DATA_COPY_CLOUD_TO_PLATFORM = False
+TEST_DATA_COPY_PLATFORM_TO_CLOUD = False
 
 CLOUD_SOURCE_PREFIXES: Dict[str, str] = {
     "gs": "gs://mlops-ci-e2e/assets/data",
@@ -64,16 +64,16 @@ CLOUD_DESTINATION_PREFIXES: Dict[str, str] = {
 PLATFORM_SOURCE_PREFIXES: Dict[str, str] = {
     # neuro mkdir -p storage:e2e/assets/data
     # neuro cp -rT tests/assets/data storage:e2e/assets/data
-    # "storage": "storage:e2e/assets/data",
+    "storage": "storage:e2e/assets/data",
     # neuro disk create --name extras-e2e --timeout-unused 1000d 100M
     # neuro run -v storage:e2e/assets/data:/storage -v disk:extras-e2e:/disk alpine -- cp -rT /storage /disk/assets/data # noqa: E501
-    # "disk": f"disk:extras-e2e/assets/data",
+    "disk": f"disk:extras-e2e/assets/data",
 }
 
 PLATFORM_DESTINATION_PREFIXES: Dict[str, str] = {
     # neuro storage mkdir storage:e2e/data_cp
-    # "storage": "storage:e2e/data_cp",
-    # "disk": f"{DISK_PREFIX}/data_cp",
+    "storage": "storage:e2e/data_cp",
+    "disk": f"{DISK_PREFIX}/data_cp",
 }
 
 SRC_CLUSTER_ENV_VAR = "NEURO_CLUSTER"
@@ -204,6 +204,7 @@ async def dockerhub_auth_secret() -> AsyncIterator[Secret]:
         secret = Secret(secret_name, auth_data)
         try:
             await neuro_client.secrets.add(secret_name, auth_data.encode())
+            logger.debug(f"Created test secret: {secret}")
             yield secret
         finally:
             await neuro_client.secrets.rm(secret_name)
