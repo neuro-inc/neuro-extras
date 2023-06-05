@@ -11,6 +11,7 @@ import neuro_sdk
 import pytest
 from neuro_sdk import Client
 from pytest_lazyfixture import lazy_fixture  # type: ignore
+from tenacity import retry, stop_after_attempt, wait_random_exponential
 
 from ..conftest import (
     TEST_DATA_COPY_CLOUD_TO_LOCAL,
@@ -26,9 +27,6 @@ from .local_to_local import generate_local_to_local_copy_configs
 from .platform_to_cloud import generate_platform_to_cloud_copy_configs
 from .resources import CopyTestConfig
 from .utils import _run_command
-
-
-# from tenacity import retry, stop_after_attempt, wait_random_exponential
 
 
 UUID4_PATTERN = r"[0-9a-f]{8}-[0-9a-f]{4}-[4][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}"
@@ -166,7 +164,7 @@ def test_data_copy_smoke(
     _run_data_copy_test_from_config(config=config)
 
 
-# @retry(stop=stop_after_attempt(2), wait=wait_random_exponential(min=10, max=60))
+@retry(stop=stop_after_attempt(2), wait=wait_random_exponential(min=10, max=60))
 def _run_data_copy_test_from_config(config: CopyTestConfig) -> None:
     logger.info(f"Running test from {repr(config)}")
     destination = config.destination

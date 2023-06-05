@@ -229,7 +229,7 @@ class Resource:
                 result = parts[-1] if parts[-1] else None
             else:
                 result = None
-        logger.debug(f"Filename of {self.url} ({self.data_url_type}): {result}")
+        logger.debug(f"Filename of {self.url} ({self.data_url_type.name}): {result}")
         return result
 
     @cached_property

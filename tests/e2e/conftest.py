@@ -39,26 +39,26 @@ DISK_ID_REGEX = re.compile(DISK_ID_PATTERN)
 
 logger = logging.getLogger(__name__)
 
-TEST_DATA_COPY_LOCAL_TO_LOCAL = False
-TEST_DATA_COPY_CLOUD_TO_LOCAL = False
-TEST_DATA_COPY_LOCAL_TO_CLOUD = False
+TEST_DATA_COPY_LOCAL_TO_LOCAL = True
+TEST_DATA_COPY_CLOUD_TO_LOCAL = True
+TEST_DATA_COPY_LOCAL_TO_CLOUD = True
 TEST_DATA_COPY_CLOUD_TO_PLATFORM = True
 TEST_DATA_COPY_PLATFORM_TO_CLOUD = True
 
 CLOUD_SOURCE_PREFIXES: Dict[str, str] = {
-    # "gs": "gs://mlops-ci-e2e/assets/data",
+    "gs": "gs://mlops-ci-e2e/assets/data",
     "s3": "s3://because-clear-taken-cotton/assets/data",
     # "azure+https": "azure+https://neuromlops.blob.core.windows.net/cookiecutter-e2e/assets/data",  # noqa: E501
-    # "http": "http://s3.amazonaws.com/cookiecutter-e2e/assets/data",
-    # "https": "https://s3.amazonaws.com/cookiecutter-e2e/assets/data",
+    "http": "http://because-clear-taken-cotton.s3.amazonaws.com/assets/data",
+    "https": "https://because-clear-taken-cotton.s3.amazonaws.com/assets/data",
 }
 
 CLOUD_DESTINATION_PREFIXES: Dict[str, str] = {
     "s3": "s3://because-clear-taken-cotton/data_cp",
-    # "gs": "gs://mlops-ci-e2e/data_cp",
+    "gs": "gs://mlops-ci-e2e/data_cp",
     # "azure+https": "azure+https://neuromlops.blob.core.windows.net/cookiecutter-e2e/data_cp",  # noqa: E501
-    "http": "http://s3.amazonaws.com/data.neu.ro/cookiecutter-e2e",
-    "https": "https://s3.amazonaws.com/data.neu.ro/cookiecutter-e2e",
+    "http": "http://because-clear-taken-cotton.s3.amazonaws.com/data_cp",
+    "https": "https://because-clear-taken-cotton.s3.amazonaws.com/data_cp",
 }
 
 PLATFORM_SOURCE_PREFIXES: Dict[str, str] = {
@@ -67,7 +67,7 @@ PLATFORM_SOURCE_PREFIXES: Dict[str, str] = {
     "storage": "storage:e2e/assets/data",
     # neuro disk create --name extras-e2e --timeout-unused 1000d 100M
     # neuro run -v storage:e2e/assets/data:/storage -v disk:extras-e2e:/disk alpine -- cp -rT /storage /disk/assets/data # noqa: E501
-    # "disk": f"disk:extras-e2e/assets/data",
+    "disk": f"disk:extras-e2e/assets/data",
 }
 
 PLATFORM_DESTINATION_PREFIXES: Dict[str, str] = {

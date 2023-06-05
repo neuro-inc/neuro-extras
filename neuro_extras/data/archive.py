@@ -37,15 +37,15 @@ class TarManager(ArchiveManager, CLIRunner):
                 f"{ArchiveType.get_extensions_for_type(ArchiveType.TAR)}"
             )
         mapping = {
-            ArchiveType.TAR_GZ: "zcf",
-            ArchiveType.TAR_BZ: "jcf",
-            ArchiveType.TAR_PLAIN: "cf",
+            ArchiveType.TAR_GZ: "zcvf",
+            ArchiveType.TAR_BZ: "jcvf",
+            ArchiveType.TAR_PLAIN: "cvf",
         }
         subcommand = mapping[destination.archive_type]
         args = [
             subcommand,
             str(destination),
-            f"--exclude={destination.filename}",
+            # f"--exclude={destination.filename}",
             str(source),
         ]
         await self.run_command(command=command, args=args)
@@ -114,7 +114,7 @@ class GzipManager(ArchiveManager, CLIRunner):
         temp_destination = str(
             source.as_path().with_suffix("")
         )  # gzip extracts inplace
-        await self.run_command("mv", [temp_destination, destination.as_str()])
+        await self.run_command("mv", ["v", temp_destination, destination.as_str()])
         return destination
 
 

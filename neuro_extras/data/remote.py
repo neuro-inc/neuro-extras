@@ -189,7 +189,7 @@ def _map_resource_into_volume(
     resource: Resource,
     storage_mount_prefix: str,
     disk_mount_prefix: str,
-    mount_files: bool = True,
+    mount_files: bool = False,
     mount_mode: str = "rw",
 ) -> Tuple[str, List[str]]:
     """Map storage or disk resource into volume specification string
@@ -242,7 +242,7 @@ def _build_data_copy_command(
     source: str, destination: str, extract: bool, compress: bool
 ) -> str:
     """Build a neuro-extras data cp command"""
-    command_prefix = ["neuro-extras", "data", "cp"]
+    command_prefix = ["neuro-extras", "-v", "data", "cp"]
     args = [source, destination]
     flags = []
     if compress:

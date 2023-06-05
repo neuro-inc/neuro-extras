@@ -2,6 +2,7 @@ import dataclasses
 import logging
 import re
 from pathlib import Path
+from time import sleep
 from typing import List, Optional
 
 from neuro_sdk import Client
@@ -128,14 +129,25 @@ def _s3_resource_exists(resource: DataTestResource) -> bool:
 
 
 def _storage_resource_exists(resource: DataTestResource) -> bool:
+    sleep(5)  # (A.K.) I hate to admit it, but without this it often does not work
     command = "neuro"
     assert resource.client is not None
-    args = [
-        "storage",
-        "ls",
-        "-l",
-        Resource.parse(resource.url, client=resource.client).as_str(),
-    ]
+    if resource.file_extension is None:
+        args = [
+            "storage",
+            "ls",
+            "-l",
+            Resource.parse(resource.url, client=resource.client).as_str(),
+        ]
+    else:
+        args = [
+            "storage",
+            "ls",
+            "-l",
+            Resource.parse(resource.url, client=resource.client)
+            .strip_filename()
+            .as_str(),
+        ]
     returncode, stdout, stderr = _run_command(command, args)
     if resource.file_extension is None:
         check_is_successful = True
@@ -255,4 +267,5 @@ class CopyTestConfig:
                 "-e",
                 "AWS_CONFIG_FILE=/aws-creds.txt",
             ]
+        extra_args += ["--preset", "cpu-small"]
         return extra_args
