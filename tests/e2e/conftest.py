@@ -23,6 +23,7 @@ from typing import (
 
 import neuro_sdk  # NOTE: don't use async test functions (issue #129)
 import pytest
+from tenacity import retry, stop_after_attempt, stop_after_delay
 
 from neuro_extras.common import NEURO_EXTRAS_IMAGE
 from neuro_extras.config import _build_registy_auth
@@ -73,7 +74,7 @@ PLATFORM_SOURCE_PREFIXES: Dict[str, str] = {
 PLATFORM_DESTINATION_PREFIXES: Dict[str, str] = {
     # neuro storage mkdir storage:e2e/data_cp
     "storage": "storage:e2e/data_cp",
-    # "disk": f"{DISK_PREFIX}/data_cp",
+    "disk": f"{DISK_PREFIX}/data_cp",
 }
 
 SRC_CLUSTER_ENV_VAR = "NEURO_CLUSTER"
@@ -222,7 +223,7 @@ def project_dir() -> Iterator[Path]:
             os.chdir(old_cwd)
 
 
-# @retry(stop=stop_after_attempt(5) | stop_after_delay(5 * 10))
+@retry(stop=stop_after_attempt(3) | stop_after_delay(5 * 10))
 def run_cli(args: List[str]) -> "CompletedProcess[str]":
     proc = subprocess.run(
         args,

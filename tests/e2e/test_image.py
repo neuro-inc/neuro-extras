@@ -4,7 +4,7 @@ import sys
 import textwrap
 import uuid
 from pathlib import Path
-from typing import Callable, ContextManager
+from typing import Callable, ContextManager, Optional
 
 import pytest
 
@@ -14,6 +14,10 @@ from .conftest import CLIRunner, Secret, gen_random_file
 
 
 LOGGER = logging.getLogger(__name__)
+
+NEURO_EXTRAS_PRESET: Optional[str] = os.environ.get("NEURO_EXTRAS_PRESET")
+
+PRESET_ARG = ["--preset", NEURO_EXTRAS_PRESET] if NEURO_EXTRAS_PRESET else []
 
 
 @pytest.mark.smoke
@@ -107,6 +111,7 @@ def test_image_build_custom_dockerfile(
     cmd = [
         "neuro",
         "image-build",
+        *PRESET_ARG,
         "-e",
         f"{dockerhub_auth_secret.name}=secret:{dockerhub_auth_secret.name}",
         "-f",
@@ -156,6 +161,7 @@ def test_image_build_overwrite(
     build_command = [
         "neuro",
         "image-build",
+        *PRESET_ARG,
         "-e",
         f"{dockerhub_auth_secret.name}=secret:{dockerhub_auth_secret.name}",
         "-f",
@@ -215,6 +221,7 @@ def test_ignored_files_are_not_copied(
     cmd = [
         "neuro",
         "image-build",
+        *PRESET_ARG,
         "-e",
         f"{dockerhub_auth_secret.name}=secret:{dockerhub_auth_secret.name}",
         "-f",
@@ -273,6 +280,7 @@ def test_image_transfer(
         cmd = [
             "neuro",
             "image-build",
+            *PRESET_ARG,
             "-e",
             f"{dockerhub_auth_secret.name}=secret:{dockerhub_auth_secret.name}",
             "-f",
@@ -329,6 +337,7 @@ def test_image_build_custom_build_args(
     cmd = [
         "neuro",
         "image-build",
+        *PRESET_ARG,
         "-e",
         f"{dockerhub_auth_secret.name}=secret:{dockerhub_auth_secret.name}",
         "-f",
@@ -385,6 +394,7 @@ def test_image_build_volume(
     cmd = [
         "neuro",
         "image-build",
+        *PRESET_ARG,
         "-e",
         f"{dockerhub_auth_secret.name}=secret:{dockerhub_auth_secret.name}",
         "-f",
@@ -435,6 +445,7 @@ def test_external_image_build(
     build_command = [
         "neuro",
         "image-build",
+        *PRESET_ARG,
         "-e",
         f"{dockerhub_auth_secret.name}=secret:{dockerhub_auth_secret.name}",
         "-f",

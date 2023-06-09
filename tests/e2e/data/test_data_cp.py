@@ -164,7 +164,7 @@ def test_data_copy_smoke(
     _run_data_copy_test_from_config(config=config)
 
 
-@retry(stop=stop_after_attempt(2), wait=wait_random_exponential(min=10, max=60))
+@retry(stop=stop_after_attempt(5), wait=wait_random_exponential(min=10, max=60))
 def _run_data_copy_test_from_config(config: CopyTestConfig) -> None:
     logger.info(f"Running test from {repr(config)}")
     destination = config.destination
