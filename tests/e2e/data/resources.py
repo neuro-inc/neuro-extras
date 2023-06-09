@@ -153,7 +153,8 @@ def _storage_resource_exists(resource: DataTestResource) -> bool:
         check_is_successful = True
     else:
         stdout = stdout if stdout else ""
-        filename: str = Resource.parse(resource.url, client=resource.client).filename
+        filename = Resource.parse(resource.url, client=resource.client).filename
+        assert filename is not None
         check_is_successful = filename in stdout
     return returncode == 0 and check_is_successful
 
