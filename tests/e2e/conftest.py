@@ -48,14 +48,14 @@ TEST_DATA_COPY_PLATFORM_TO_CLOUD = True
 
 CLOUD_SOURCE_PREFIXES: Dict[str, str] = {
     "gs": "gs://mlops-ci-e2e/assets/data",
-    "s3": "s3://because-clear-taken-cotton/assets/data",
+    # "s3": "s3://because-clear-taken-cotton/assets/data",
     # "azure+https": "azure+https://neuromlops.blob.core.windows.net/cookiecutter-e2e/assets/data",  # noqa: E501
     "http": "http://because-clear-taken-cotton.s3.amazonaws.com/assets/data",
     "https": "https://because-clear-taken-cotton.s3.amazonaws.com/assets/data",
 }
 
 CLOUD_DESTINATION_PREFIXES: Dict[str, str] = {
-    "s3": "s3://because-clear-taken-cotton/data_cp",
+    # "s3": "s3://because-clear-taken-cotton/data_cp",
     "gs": "gs://mlops-ci-e2e/data_cp",
     # "azure+https": "azure+https://neuromlops.blob.core.windows.net/cookiecutter-e2e/data_cp",  # noqa: E501
     "http": "http://because-clear-taken-cotton.s3.amazonaws.com/data_cp",
