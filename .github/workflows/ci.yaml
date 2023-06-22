@@ -60,8 +60,8 @@ jobs:
       PYTHONIOENCODING: utf-8
       NEURO_STAGING_URL: ${{ secrets.NEURO_STAGING_URL }}
       NEURO_TOKEN: ${{ secrets.NEURO_TOKEN }}
-      NEURO_CLUSTER: onprem-poc
-      NEURO_PROJECT: e2e
+      NEURO_CLUSTER: default
+      NEURO_PROJECT: e2e-tests
       # Note: ${{ github.sha }} not working, see https://github.com/actions/checkout/issues/299
       SHA: ${{ github.event.pull_request.head.sha || github.sha }}
     steps:
@@ -191,10 +191,12 @@ jobs:
         NEURO_STAGING_URL: ${{ secrets.NEURO_STAGING_URL }}
         NEURO_TOKEN: ${{ secrets.NEURO_TOKEN }}
         NEURO_CLUSTER: default
+        NEURO_PROJECT: e2e-tests
         AZURE_SAS_TOKEN: ${{ secrets.AZURE_SAS_TOKEN }}
       run: |
         neuro config login-with-token ${{ env.NEURO_TOKEN }} ${{ env.NEURO_STAGING_URL }}
         neuro config switch-cluster ${{ env.NEURO_CLUSTER }}
+        neuro config switch-project ${{ env.NEURO_PROJECT }}
         neuro --color=no config show
     - name: Read PR labels
       uses: joerick/pr-labels-action@v1.0.6
