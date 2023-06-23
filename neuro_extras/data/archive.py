@@ -29,7 +29,7 @@ class TarManager(ArchiveManager, CLIRunner):
     async def compress(self, source: Resource, destination: Resource) -> Resource:
         """Compress source into destination using tar command"""
         command = "tar"
-        if destination.archive_type != ArchiveType.TAR:
+        if destination.archive_type == (~ArchiveType.TAR):
             raise ValueError(
                 f"Can't compress into {destination.url} with TarManager: "
                 f"unsupported archive type {destination.archive_type.name}. "
@@ -54,7 +54,7 @@ class TarManager(ArchiveManager, CLIRunner):
     async def extract(self, source: Resource, destination: Resource) -> Resource:
         """Extract source into destination using tar command"""
         command = "tar"
-        if source.archive_type != ArchiveType.TAR:
+        if source.archive_type == (~ArchiveType.TAR):
             raise ValueError(
                 f"Can't extract {source} with TarManager: "
                 f"unsupported archive type {source.archive_type.name}. "
@@ -79,7 +79,7 @@ class GzipManager(ArchiveManager, CLIRunner):
     async def compress(self, source: Resource, destination: Resource) -> Resource:
         """Compress source into destination using gzip command"""
         command = "gzip"
-        if destination.archive_type != ArchiveType.GZ:
+        if destination.archive_type == (~ArchiveType.GZ):
             raise ValueError(
                 f"Can't compress into {destination} with GzipManager: "
                 f"unsupported archive type {destination.archive_type.name}. "
@@ -102,7 +102,7 @@ class GzipManager(ArchiveManager, CLIRunner):
     async def extract(self, source: Resource, destination: Resource) -> Resource:
         """Extract source into destination using gunzip command"""
         command = "gunzip"
-        if destination.archive_type != ArchiveType.GZ:
+        if destination.archive_type == (~ArchiveType.GZ):
             raise ValueError(
                 f"Can't extract {source} with GzipManager: "
                 f"unsupported archive type {source.archive_type.name}. "
@@ -124,7 +124,7 @@ class ZipManager(ArchiveManager, CLIRunner):
     async def compress(self, source: Resource, destination: Resource) -> Resource:
         """Compress source into destination using zip command"""
         command = "zip"
-        if destination.archive_type != ArchiveType.ZIP:
+        if destination.archive_type == (~ArchiveType.ZIP):
             raise ValueError(
                 f"Can't compress into {destination} with ZipManager: "
                 f"unsupported archive type {destination.archive_type.name}. "
@@ -139,7 +139,7 @@ class ZipManager(ArchiveManager, CLIRunner):
     async def extract(self, source: Resource, destination: Resource) -> Resource:
         """Extract source into destination using unzip command"""
         command = "unzip"
-        if source.archive_type != ArchiveType.ZIP:
+        if source.archive_type == (~ArchiveType.ZIP):
             raise ValueError(
                 f"Can't extract {source} with ZipManager: "
                 f"unsupported archive type {source.archive_type.name}. "
