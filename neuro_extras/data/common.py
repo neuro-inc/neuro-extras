@@ -28,9 +28,9 @@ class ArchiveType(int, Flag):  # type: ignore
     TAR_PLAIN = auto()
     TAR_GZ = auto()
     TAR_BZ = auto()
-    TAR = TAR_PLAIN | TAR_GZ | TAR_BZ
     GZ = auto()
     ZIP = auto()
+    TAR = TAR_PLAIN | TAR_GZ | TAR_BZ
     SUPPORTED = TAR | GZ | ZIP
     UNSUPPORTED = ~(SUPPORTED)
 
@@ -60,7 +60,7 @@ class ArchiveType(int, Flag):  # type: ignore
 
     def __eq__(self, other: Any) -> bool:
         if isinstance(other, ArchiveType):
-            return bool(self & other)
+            return bool(int(self) & int(other))
         return False
 
     def __hash__(self) -> int:

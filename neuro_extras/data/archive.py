@@ -29,7 +29,7 @@ class TarManager(ArchiveManager, CLIRunner):
     async def compress(self, source: Resource, destination: Resource) -> Resource:
         """Compress source into destination using tar command"""
         command = "tar"
-        if destination.archive_type == (~ArchiveType.TAR):
+        if not destination.archive_type == ArchiveType.TAR:
             raise ValueError(
                 f"Can't compress into {destination.url} with TarManager: "
                 f"unsupported archive type {destination.archive_type.name}. "
@@ -54,7 +54,7 @@ class TarManager(ArchiveManager, CLIRunner):
     async def extract(self, source: Resource, destination: Resource) -> Resource:
         """Extract source into destination using tar command"""
         command = "tar"
-        if source.archive_type == (~ArchiveType.TAR):
+        if not source.archive_type == ArchiveType.TAR:
             raise ValueError(
                 f"Can't extract {source} with TarManager: "
                 f"unsupported archive type {source.archive_type.name}. "
@@ -79,7 +79,7 @@ class GzipManager(ArchiveManager, CLIRunner):
     async def compress(self, source: Resource, destination: Resource) -> Resource:
         """Compress source into destination using gzip command"""
         command = "gzip"
-        if destination.archive_type == (~ArchiveType.GZ):
+        if not destination.archive_type == ArchiveType.GZ:
             raise ValueError(
                 f"Can't compress into {destination} with GzipManager: "
                 f"unsupported archive type {destination.archive_type.name}. "
@@ -96,13 +96,13 @@ class GzipManager(ArchiveManager, CLIRunner):
         # gzip does not support setting destination
         temp_destination = source.as_str() + ".gz"
         # TODO: add support for non-unix OS
-        await self.run_command("mv", [temp_destination, destination.as_str()])
+        await self.run_command("mv", ["-v", temp_destination, destination.as_str()])
         return destination
 
     async def extract(self, source: Resource, destination: Resource) -> Resource:
         """Extract source into destination using gunzip command"""
         command = "gunzip"
-        if destination.archive_type == (~ArchiveType.GZ):
+        if not source.archive_type == ArchiveType.GZ:
             raise ValueError(
                 f"Can't extract {source} with GzipManager: "
                 f"unsupported archive type {source.archive_type.name}. "
@@ -114,7 +114,7 @@ class GzipManager(ArchiveManager, CLIRunner):
         temp_destination = str(
             source.as_path().with_suffix("")
         )  # gzip extracts inplace
-        await self.run_command("mv", ["v", temp_destination, destination.as_str()])
+        await self.run_command("mv", ["-v", temp_destination, destination.as_str()])
         return destination
 
 
@@ -124,7 +124,7 @@ class ZipManager(ArchiveManager, CLIRunner):
     async def compress(self, source: Resource, destination: Resource) -> Resource:
         """Compress source into destination using zip command"""
         command = "zip"
-        if destination.archive_type == (~ArchiveType.ZIP):
+        if not destination.archive_type == ArchiveType.ZIP:
             raise ValueError(
                 f"Can't compress into {destination} with ZipManager: "
                 f"unsupported archive type {destination.archive_type.name}. "
@@ -139,14 +139,14 @@ class ZipManager(ArchiveManager, CLIRunner):
     async def extract(self, source: Resource, destination: Resource) -> Resource:
         """Extract source into destination using unzip command"""
         command = "unzip"
-        if source.archive_type == (~ArchiveType.ZIP):
+        if not source.archive_type == ArchiveType.ZIP:
             raise ValueError(
                 f"Can't extract {source} with ZipManager: "
                 f"unsupported archive type {source.archive_type.name}. "
                 f"Supported types: "
                 f"{ArchiveType.get_extensions_for_type(ArchiveType.ZIP)}"
             )
-        args = [source.as_str(), "-d", destination.as_str()]
+        args = ["-o", source.as_str(), "-d", destination.as_str()]
         destination.as_path().mkdir(exist_ok=True, parents=True)
         await self.run_command(command=command, args=args)
         return destination
