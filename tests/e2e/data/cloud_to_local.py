@@ -2,7 +2,7 @@ import logging
 from typing import List
 
 from ..conftest import CLOUD_SOURCE_PREFIXES, get_tested_archive_types
-from .resources import TEMPDIR_PREFIX, CopyTestConfig, Resource
+from .resources import TEMPDIR_PREFIX, CopyTestConfig, DataTestResource
 
 
 logger = logging.getLogger(__name__)
@@ -13,13 +13,13 @@ def generate_cloud_to_local_copy_configs() -> List[CopyTestConfig]:
     archive_types = get_tested_archive_types()
 
     for schema, cloud_url in CLOUD_SOURCE_PREFIXES.items():
-        cloud_folder = Resource(
+        cloud_folder = DataTestResource(
             schema=schema,
             url=f"{cloud_url}/",
             is_archive=False,
             file_extension=None,
         )
-        local_copy_folder = Resource(
+        local_copy_folder = DataTestResource(
             schema="local",
             url=f"{TEMPDIR_PREFIX}/copy/{schema}/folder/",
             is_archive=False,
@@ -27,13 +27,13 @@ def generate_cloud_to_local_copy_configs() -> List[CopyTestConfig]:
         )
         for ext in archive_types:
             # test for copy of remote archive into local one
-            cloud_archive = Resource(
+            cloud_archive = DataTestResource(
                 schema=schema,
                 url=f"{cloud_url}/file{ext}",
                 is_archive=True,
                 file_extension=ext,
             )
-            local_archive = Resource(
+            local_archive = DataTestResource(
                 schema="local",
                 url=f"{TEMPDIR_PREFIX}/copy/{schema}/file{ext}",
                 is_archive=True,
@@ -48,7 +48,7 @@ def generate_cloud_to_local_copy_configs() -> List[CopyTestConfig]:
                 )
             )
             # test for extraction of cloud archive into local dir
-            local_extract_folder = Resource(
+            local_extract_folder = DataTestResource(
                 schema="local",
                 url=f"{TEMPDIR_PREFIX}/extract/{schema}/{ext}/",
                 is_archive=False,
@@ -63,7 +63,7 @@ def generate_cloud_to_local_copy_configs() -> List[CopyTestConfig]:
 
             # test for compression of cloud folder into local archive
 
-            local_compressed_archive = Resource(
+            local_compressed_archive = DataTestResource(
                 schema="local",
                 url=f"{TEMPDIR_PREFIX}/compress/{schema}/file{ext}",
                 is_archive=True,

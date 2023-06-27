@@ -2,7 +2,7 @@ from pathlib import Path
 from typing import List
 
 from ..conftest import get_tested_archive_types
-from .resources import TEMPDIR_PREFIX, CopyTestConfig, Resource
+from .resources import TEMPDIR_PREFIX, CopyTestConfig, DataTestResource
 
 
 def generate_local_to_local_copy_configs() -> List[CopyTestConfig]:
@@ -11,13 +11,13 @@ def generate_local_to_local_copy_configs() -> List[CopyTestConfig]:
     test_configs: List[CopyTestConfig] = []
     plain_copy = [
         CopyTestConfig(
-            source=Resource(
+            source=DataTestResource(
                 schema="local",
                 url=str(assets_root / f"file{ext}"),
                 file_extension=ext,
                 is_archive=True,
             ),
-            destination=Resource(
+            destination=DataTestResource(
                 schema="local",
                 url=f"{TEMPDIR_PREFIX}/copy/local/file{ext}",
                 file_extension=ext,

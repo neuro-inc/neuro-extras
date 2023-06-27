@@ -150,17 +150,24 @@ def data_cp(
             "the source/destination type and compression/extraction flags"
         )
     try:
-        operation = CopyOperation(
-            source=source,
-            destination=destination,
-            compress=compress,
-            extract=extract,
-            volumes=list(volume),
-            env=list(env),
-            life_span=life_span,
-            preset=preset,
-        )
-        asyncio.run(operation.run())
+
+        async def run_copy() -> None:
+            async with get_neuro_client() as client:
+                operation = CopyOperation(
+                    source=source,
+                    destination=destination,
+                    compress=compress,
+                    extract=extract,
+                    volumes=list(volume),
+                    env=list(env),
+                    life_span=life_span,
+                    preset=preset,
+                    client=client,
+                )
+
+                await operation.run()
+
+        asyncio.run(run_copy())
     except Exception as e:
         logger.exception(e)
         raise click.ClickException(f"{e.__class__.__name__}: {e}")

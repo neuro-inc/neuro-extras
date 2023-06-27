@@ -60,7 +60,8 @@ jobs:
       PYTHONIOENCODING: utf-8
       NEURO_STAGING_URL: ${{ secrets.NEURO_STAGING_URL }}
       NEURO_TOKEN: ${{ secrets.NEURO_TOKEN }}
-      NEURO_CLUSTER: onprem-poc
+      NEURO_CLUSTER: default
+      NEURO_PROJECT: e2e-tests
       # Note: ${{ github.sha }} not working, see https://github.com/actions/checkout/issues/299
       SHA: ${{ github.event.pull_request.head.sha || github.sha }}
     steps:
@@ -85,6 +86,7 @@ jobs:
         python -m pip install -r requirements/base.txt
         neuro config login-with-token ${{ env.NEURO_TOKEN }} ${{ env.NEURO_STAGING_URL }}
         neuro config switch-cluster ${{ env.NEURO_CLUSTER }}
+        neuro config switch-project ${{ env.NEURO_PROJECT }}
         neuro --color=no config show
     - name: Login to ghcr.io
       uses: docker/login-action@v2.0.0
@@ -188,11 +190,13 @@ jobs:
       env:
         NEURO_STAGING_URL: ${{ secrets.NEURO_STAGING_URL }}
         NEURO_TOKEN: ${{ secrets.NEURO_TOKEN }}
-        NEURO_CLUSTER: onprem-poc
+        NEURO_CLUSTER: default
+        NEURO_PROJECT: e2e-tests
         AZURE_SAS_TOKEN: ${{ secrets.AZURE_SAS_TOKEN }}
       run: |
         neuro config login-with-token ${{ env.NEURO_TOKEN }} ${{ env.NEURO_STAGING_URL }}
         neuro config switch-cluster ${{ env.NEURO_CLUSTER }}
+        neuro config switch-project ${{ env.NEURO_PROJECT }}
         neuro --color=no config show
     - name: Read PR labels
       uses: joerick/pr-labels-action@v1.0.6
@@ -205,7 +209,7 @@ jobs:
         COLOR: 'yes'
         DOCKER_CI_USERNAME: ${{ secrets.DOCKERHUB_CI_USERNAME }}
         DOCKER_CI_TOKEN: ${{ secrets.DOCKERHUB_CI_TOKEN }}
-        NEURO_CLUSTER: onprem-poc
+        NEURO_CLUSTER: default
         #NEURO_CLUSTER_SECONDARY: cato-poc  # TODO: uncomment when cato-poc cluster is fixed
         AZURE_SAS_TOKEN: ${{ secrets.AZURE_SAS_TOKEN }}
         # Note: ${{ github.sha }} not working, see https://github.com/actions/checkout/issues/299
@@ -224,7 +228,7 @@ jobs:
         COLOR: 'yes'
         DOCKER_CI_USERNAME: ${{ secrets.DOCKERHUB_CI_USERNAME }}
         DOCKER_CI_TOKEN: ${{ secrets.DOCKERHUB_CI_TOKEN }}
-        NEURO_CLUSTER: onprem-poc
+        NEURO_CLUSTER: default
         #NEURO_CLUSTER_SECONDARY: cato-poc  # TODO: uncomment when cato-poc cluster is fixed
         AZURE_SAS_TOKEN: ${{ secrets.AZURE_SAS_TOKEN }}
         # Note: ${{ github.sha }} not working, see https://github.com/actions/checkout/issues/299
@@ -244,7 +248,7 @@ jobs:
         COLOR: 'yes'
         DOCKER_CI_USERNAME: ${{ secrets.DOCKERHUB_CI_USERNAME }}
         DOCKER_CI_TOKEN: ${{ secrets.DOCKERHUB_CI_TOKEN }}
-        NEURO_CLUSTER: onprem-poc
+        NEURO_CLUSTER: default
         #NEURO_CLUSTER_SECONDARY: cato-poc  # TODO: uncomment when cato-poc cluster is fixed
         AZURE_SAS_TOKEN: ${{ secrets.AZURE_SAS_TOKEN }}
         # Note: ${{ github.sha }} not working, see https://github.com/actions/checkout/issues/299
@@ -265,7 +269,7 @@ jobs:
         COLOR: 'yes'
         DOCKER_CI_USERNAME: ${{ secrets.DOCKERHUB_CI_USERNAME }}
         DOCKER_CI_TOKEN: ${{ secrets.DOCKERHUB_CI_TOKEN }}
-        NEURO_CLUSTER: onprem-poc
+        NEURO_CLUSTER: default
         #NEURO_CLUSTER_SECONDARY: cato-poc  # TODO: uncomment when cato-poc cluster is fixed
         AZURE_SAS_TOKEN: ${{ secrets.AZURE_SAS_TOKEN }}
         # Note: ${{ github.sha }} not working, see https://github.com/actions/checkout/issues/299

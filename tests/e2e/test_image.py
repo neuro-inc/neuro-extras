@@ -4,7 +4,7 @@ import sys
 import textwrap
 import uuid
 from pathlib import Path
-from typing import Callable, ContextManager
+from typing import Callable, ContextManager, Optional
 
 import pytest
 
@@ -14,6 +14,10 @@ from .conftest import CLIRunner, Secret, gen_random_file
 
 
 LOGGER = logging.getLogger(__name__)
+
+NEURO_EXTRAS_PRESET: Optional[str] = os.environ.get("NEURO_EXTRAS_PRESET")
+
+PRESET_ARG = ["--preset", NEURO_EXTRAS_PRESET] if NEURO_EXTRAS_PRESET else []
 
 
 @pytest.mark.smoke
@@ -73,7 +77,11 @@ def test_image_build_custom_preset(
             ["neuro", "image", "size", img_uri_str],
         )
     finally:
-        cli_runner(["neuro", "image", "rm", img_uri_str])
+        # (A.K.) on GCP we get Illegal argument(s) ({"errors":
+        # [{"code":"GOOGLE_MANIFEST_DANGLING_TAG",
+        # "message":"Manifest is still referenced by tag: v1"}]})
+        # cli_runner(["neuro", "image", "rm", img_uri_str])
+        pass
 
 
 @pytest.mark.xfail
@@ -107,6 +115,7 @@ def test_image_build_custom_dockerfile(
     cmd = [
         "neuro",
         "image-build",
+        *PRESET_ARG,
         "-e",
         f"{dockerhub_auth_secret.name}=secret:{dockerhub_auth_secret.name}",
         "-f",
@@ -121,7 +130,11 @@ def test_image_build_custom_dockerfile(
             ["neuro", "image", "size", img_uri_str],
         )
     finally:
-        cli_runner(["neuro", "image", "rm", img_uri_str])
+        # (A.K.) on GCP we get Illegal argument(s) ({"errors":
+        # [{"code":"GOOGLE_MANIFEST_DANGLING_TAG",
+        # "message":"Manifest is still referenced by tag: v1"}]})
+        # cli_runner(["neuro", "image", "rm", img_uri_str])
+        pass
 
 
 @pytest.mark.serial  # first we build the image, then we are trying to overwrite it
@@ -156,6 +169,7 @@ def test_image_build_overwrite(
     build_command = [
         "neuro",
         "image-build",
+        *PRESET_ARG,
         "-e",
         f"{dockerhub_auth_secret.name}=secret:{dockerhub_auth_secret.name}",
         "-f",
@@ -178,7 +192,11 @@ def test_image_build_overwrite(
     finally:
         # Only delete image after second run of the test
         if overwrite is False:
-            cli_runner(["neuro", "image", "rm", img_uri_str])
+            # (A.K.) on GCP we get Illegal argument(s) ({"errors":
+            # [{"code":"GOOGLE_MANIFEST_DANGLING_TAG",
+            # "message":"Manifest is still referenced by tag: v1"}]})
+            # cli_runner(["neuro", "image", "rm", img_uri_str])
+            pass
 
 
 @pytest.mark.xfail
@@ -215,6 +233,7 @@ def test_ignored_files_are_not_copied(
     cmd = [
         "neuro",
         "image-build",
+        *PRESET_ARG,
         "-e",
         f"{dockerhub_auth_secret.name}=secret:{dockerhub_auth_secret.name}",
         "-f",
@@ -230,7 +249,11 @@ def test_ignored_files_are_not_copied(
         assert random_file_to_disable_layer_caching.name in result.stdout
         assert ignored_file.name not in result.stdout
     finally:
-        cli_runner(["neuro", "image", "rm", img_uri_str])
+        # (A.K.) on GCP we get Illegal argument(s) ({"errors":
+        # [{"code":"GOOGLE_MANIFEST_DANGLING_TAG",
+        # "message":"Manifest is still referenced by tag: v1"}]})
+        # cli_runner(["neuro", "image", "rm", img_uri_str])
+        pass
 
 
 @pytest.mark.serial
@@ -273,6 +296,7 @@ def test_image_transfer(
         cmd = [
             "neuro",
             "image-build",
+            *PRESET_ARG,
             "-e",
             f"{dockerhub_auth_secret.name}=secret:{dockerhub_auth_secret.name}",
             "-f",
@@ -293,8 +317,12 @@ def test_image_transfer(
                 ["neuro", "image", "size", to_img],
             )
         finally:
-            cli_runner(["neuro", "image", "rm", from_img])
-            cli_runner(["neuro", "image", "rm", to_img])
+            # (A.K.) on GCP we get Illegal argument(s) ({"errors":
+            # [{"code":"GOOGLE_MANIFEST_DANGLING_TAG",
+            # "message":"Manifest is still referenced by tag: v1"}]})
+            # cli_runner(["neuro", "image", "rm", from_img])
+            # cli_runner(["neuro", "image", "rm", to_img])
+            pass
 
 
 @pytest.mark.xfail
@@ -329,6 +357,7 @@ def test_image_build_custom_build_args(
     cmd = [
         "neuro",
         "image-build",
+        *PRESET_ARG,
         "-e",
         f"{dockerhub_auth_secret.name}=secret:{dockerhub_auth_secret.name}",
         "-f",
@@ -346,7 +375,11 @@ def test_image_build_custom_build_args(
         assert f"arg-{tag}" in result.stdout
         assert f"arg-another-{tag}" in result.stdout
     finally:
-        cli_runner(["neuro", "image", "rm", img_uri_str])
+        # (A.K.) on GCP we get Illegal argument(s) ({"errors":
+        # [{"code":"GOOGLE_MANIFEST_DANGLING_TAG",
+        # "message":"Manifest is still referenced by tag: v1"}]})
+        # cli_runner(["neuro", "image", "rm", img_uri_str])
+        pass
 
 
 @pytest.mark.xfail
@@ -385,6 +418,7 @@ def test_image_build_volume(
     cmd = [
         "neuro",
         "image-build",
+        *PRESET_ARG,
         "-e",
         f"{dockerhub_auth_secret.name}=secret:{dockerhub_auth_secret.name}",
         "-f",
@@ -399,7 +433,11 @@ def test_image_build_volume(
     try:
         assert f"git_token={sec.value}" in result.stdout
     finally:
-        cli_runner(["neuro", "image", "rm", img_uri_str])
+        # (A.K.) on GCP we get Illegal argument(s) ({"errors":
+        # [{"code":"GOOGLE_MANIFEST_DANGLING_TAG",
+        # "message":"Manifest is still referenced by tag: v1"}]})
+        # cli_runner(["neuro", "image", "rm", img_uri_str])
+        pass
 
 
 @pytest.mark.xfail
@@ -435,6 +473,7 @@ def test_external_image_build(
     build_command = [
         "neuro",
         "image-build",
+        *PRESET_ARG,
         "-e",
         f"{dockerhub_auth_secret.name}=secret:{dockerhub_auth_secret.name}",
         "-f",
@@ -504,4 +543,8 @@ def test_image_local_build(cli_runner: CLIRunner) -> None:
             arg_string = f"sdk=arg-{tag}"
         assert arg_string in result.stderr or arg_string in result.stdout
     finally:
-        cli_runner(["neuro", "image", "rm", img_uri_str])
+        # (A.K.) on GCP we get Illegal argument(s) ({"errors":
+        # [{"code":"GOOGLE_MANIFEST_DANGLING_TAG",
+        # "message":"Manifest is still referenced by tag: v1"}]})
+        # cli_runner(["neuro", "image", "rm", img_uri_str])
+        pass

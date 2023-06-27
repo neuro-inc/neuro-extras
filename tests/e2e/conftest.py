@@ -13,6 +13,7 @@ from typing import (
     AsyncIterator,
     Callable,
     ContextManager,
+    Dict,
     Iterator,
     List,
     Optional,
@@ -22,6 +23,7 @@ from typing import (
 
 import neuro_sdk  # NOTE: don't use async test functions (issue #129)
 import pytest
+from tenacity import retry, stop_after_attempt, stop_after_delay
 
 from neuro_extras.common import NEURO_EXTRAS_IMAGE
 from neuro_extras.config import _build_registy_auth
@@ -44,23 +46,23 @@ TEST_DATA_COPY_LOCAL_TO_CLOUD = True
 TEST_DATA_COPY_CLOUD_TO_PLATFORM = True
 TEST_DATA_COPY_PLATFORM_TO_CLOUD = True
 
-CLOUD_SOURCE_PREFIXES = {
+CLOUD_SOURCE_PREFIXES: Dict[str, str] = {
     "gs": "gs://mlops-ci-e2e/assets/data",
-    "s3": "s3://cookiecutter-e2e/assets/data",
+    # "s3": "s3://because-clear-taken-cotton/assets/data",
     # "azure+https": "azure+https://neuromlops.blob.core.windows.net/cookiecutter-e2e/assets/data",  # noqa: E501
-    "http": "http://s3.amazonaws.com/cookiecutter-e2e/assets/data",
-    "https": "https://s3.amazonaws.com/cookiecutter-e2e/assets/data",
+    "http": "http://because-clear-taken-cotton.s3.amazonaws.com/assets/data",
+    "https": "https://because-clear-taken-cotton.s3.amazonaws.com/assets/data",
 }
 
-CLOUD_DESTINATION_PREFIXES = {
-    "s3": "s3://cookiecutter-e2e/data_cp",
+CLOUD_DESTINATION_PREFIXES: Dict[str, str] = {
+    # "s3": "s3://because-clear-taken-cotton/data_cp",
     "gs": "gs://mlops-ci-e2e/data_cp",
     # "azure+https": "azure+https://neuromlops.blob.core.windows.net/cookiecutter-e2e/data_cp",  # noqa: E501
-    "http": "http://s3.amazonaws.com/data.neu.ro/cookiecutter-e2e",
-    "https": "https://s3.amazonaws.com/data.neu.ro/cookiecutter-e2e",
+    "http": "http://because-clear-taken-cotton.s3.amazonaws.com/data_cp",
+    "https": "https://because-clear-taken-cotton.s3.amazonaws.com/data_cp",
 }
 
-PLATFORM_SOURCE_PREFIXES = {
+PLATFORM_SOURCE_PREFIXES: Dict[str, str] = {
     # neuro mkdir -p storage:e2e/assets/data
     # neuro cp -rT tests/assets/data storage:e2e/assets/data
     "storage": "storage:e2e/assets/data",
@@ -69,7 +71,7 @@ PLATFORM_SOURCE_PREFIXES = {
     "disk": f"disk:extras-e2e/assets/data",
 }
 
-PLATFORM_DESTINATION_PREFIXES = {
+PLATFORM_DESTINATION_PREFIXES: Dict[str, str] = {
     # neuro storage mkdir storage:e2e/data_cp
     "storage": "storage:e2e/data_cp",
     "disk": f"{DISK_PREFIX}/data_cp",
@@ -203,6 +205,7 @@ async def dockerhub_auth_secret() -> AsyncIterator[Secret]:
         secret = Secret(secret_name, auth_data)
         try:
             await neuro_client.secrets.add(secret_name, auth_data.encode())
+            logger.debug(f"Created test secret: {secret}")
             yield secret
         finally:
             await neuro_client.secrets.rm(secret_name)
@@ -220,7 +223,7 @@ def project_dir() -> Iterator[Path]:
             os.chdir(old_cwd)
 
 
-# @retry(stop=stop_after_attempt(5) | stop_after_delay(5 * 10))
+@retry(stop=stop_after_attempt(3) | stop_after_delay(5 * 10))
 def run_cli(args: List[str]) -> "CompletedProcess[str]":
     proc = subprocess.run(
         args,

@@ -9,8 +9,8 @@ from typing import List, Optional, Tuple
 
 from neuro_sdk import Client
 
-from ..utils import get_neuro_client, provide_temp_dir
-from .common import Copier, UrlType, get_filename_from_url
+from ..utils import provide_temp_dir
+from .common import Copier, DataUrlType, Resource
 from .local import CloudToLocalCopier, LocalToCloudCopier, LocalToLocalCopier
 from .remote import RemoteCopier
 
@@ -30,23 +30,21 @@ class CopyOperation:
         destination: str,
         compress: bool,
         extract: bool,
+        client: Client,
         volumes: Optional[List[str]] = None,
         env: Optional[List[str]] = None,
         life_span: Optional[float] = None,
         preset: Optional[str] = None,
     ) -> None:
-        self.source = source
-        self.destination = destination
+        self.client = client
+        self.source = Resource.parse(source, client=client)
+        self.destination = Resource.parse(destination, client=client)
         self.compress = compress
         self.extract = extract
         self.volumes = volumes
         self.env = env
         self.life_span = life_span
         self.preset = preset
-        self.source_type = UrlType.get_type(source)
-        self.destination_type = UrlType.get_type(destination)
-        self.source_filename = get_filename_from_url(source)
-        self.destination_filename = get_filename_from_url(destination)
         self._ensure_can_execute()
 
     def _ensure_can_execute(self) -> None:
@@ -56,25 +54,30 @@ class CopyOperation:
         - at least one of the source or destination is of unsupported type
         - pair (source, destination) is explicitly forbidden
         """
-        if self.source_type == UrlType.UNSUPPORTED:
+        if not self.source.data_copy_supported:
             raise ValueError(f"Unsupported source: {self.source}")
-        if self.destination_type == UrlType.UNSUPPORTED:
+        if not self.destination.data_copy_supported:
             raise ValueError(f"Unsupported destination: {self.destination}")
+        source_type = DataUrlType.get_type(self.source.url)
+        destination_type = DataUrlType.get_type(self.destination.url)
         is_forbidden_combination = any(
-            self.source_type == source and self.destination_type == destination
+            (
+                self.source.data_url_type == source
+                and self.destination.data_url_type == destination
+            )
             for (source, destination) in CopyOperation.get_forbidden_combinations()
         )
         if is_forbidden_combination:
             raise ValueError(
-                f"Copy from {self.source_type.name} to "
-                f"{self.destination_type.name} is unsupported. "
+                f"Copy from {source_type.name} to "
+                f"{destination_type.name} is unsupported. "
                 "Please, reach us at https://github.com/neuro-inc/neuro-extras/issues "
                 "describing your use case."
             )
         else:
             logger.debug(
-                f"Copy from {self.source_type.name} to "
-                f"{self.destination_type.name} is supported"
+                f"Copy from {source_type.name} to "
+                f"{destination_type.name} is supported"
             )
 
     async def run(self) -> None:
@@ -82,46 +85,46 @@ class CopyOperation:
 
         Uses appropriate copier instance, that supports source and destionation
         """
-        async with get_neuro_client() as neuro_client:
-            with provide_temp_dir() as temp_dir:
-                logger.debug("Resolving copier...")
-                copier = _get_copier(
-                    source=self.source,
-                    destination=self.destination,
-                    compress=self.compress,
-                    extract=self.extract,
-                    temp_dir=Path(temp_dir),
-                    neuro_client=neuro_client,
-                    volumes=self.volumes,
-                    env=self.env,
-                    life_span=self.life_span,
-                    preset=self.preset,
-                )
-                logger.debug(f"Using {copier.__class__.__name__}")
-                await copier.perform_copy()
+
+        with provide_temp_dir() as temp_dir:
+            logger.debug("Resolving copier...")
+            copier = _get_copier(
+                source=self.source,
+                destination=self.destination,
+                compress=self.compress,
+                extract=self.extract,
+                temp_dir=Path(temp_dir),
+                client=self.client,
+                volumes=self.volumes,
+                env=self.env,
+                life_span=self.life_span,
+                preset=self.preset,
+            )
+            logger.debug(f"Using {copier.__class__.__name__}")
+            await copier.perform_copy()
 
     @staticmethod
-    def get_forbidden_combinations() -> List[Tuple[UrlType, UrlType]]:
+    def get_forbidden_combinations() -> List[Tuple[DataUrlType, DataUrlType]]:
         """Get forbidden combinations of source and destination types"""
         return [
-            (UrlType.CLOUD, UrlType.CLOUD),
+            (DataUrlType.CLOUD, DataUrlType.CLOUD),
             # TODO: (A.K.) implement platform-to-local and vice-versa
             # through neuro storage cp
-            (UrlType.PLATFORM, UrlType.LOCAL_FS),
-            (UrlType.LOCAL_FS, UrlType.PLATFORM),
-            (UrlType.STORAGE, UrlType.STORAGE),
-            (UrlType.DISK, UrlType.DISK),
-            (UrlType.SUPPORTED, UrlType.WEB),
+            (DataUrlType.PLATFORM, DataUrlType.LOCAL_FS),
+            (DataUrlType.LOCAL_FS, DataUrlType.PLATFORM),
+            (DataUrlType.STORAGE, DataUrlType.STORAGE),
+            (DataUrlType.DISK, DataUrlType.DISK),
+            (DataUrlType.COPY_SUPPORTED, DataUrlType.WEB),
         ]
 
 
 def _get_copier(
-    source: str,
-    destination: str,
+    source: Resource,
+    destination: Resource,
     compress: bool,
     extract: bool,
     temp_dir: Path,
-    neuro_client: Client,
+    client: Client,
     volumes: Optional[List[str]] = None,
     env: Optional[List[str]] = None,
     preset: Optional[str] = None,
@@ -129,9 +132,9 @@ def _get_copier(
 ) -> Copier:
     """Resolve an instance of Copier, which is able to copy
     from source to destination with provided params"""
-    source_type = UrlType.get_type(source)
-    destination_type = UrlType.get_type(destination)
-    if source_type == UrlType.LOCAL_FS and destination_type == UrlType.CLOUD:
+    source_type = DataUrlType.get_type(source.url)
+    destination_type = DataUrlType.get_type(destination.url)
+    if source_type == DataUrlType.LOCAL_FS and destination_type == DataUrlType.CLOUD:
         return LocalToCloudCopier(
             source=source,
             destination=destination,
@@ -139,7 +142,7 @@ def _get_copier(
             extract=extract,
             temp_dir=temp_dir,
         )
-    elif source_type == UrlType.CLOUD and destination_type == UrlType.LOCAL_FS:
+    elif source_type == DataUrlType.CLOUD and destination_type == DataUrlType.LOCAL_FS:
         return CloudToLocalCopier(
             source=source,
             destination=destination,
@@ -148,17 +151,17 @@ def _get_copier(
             temp_dir=temp_dir,
         )
     elif (
-        source_type == UrlType.CLOUD
-        and destination_type == UrlType.PLATFORM
-        or source_type == UrlType.PLATFORM
-        and destination_type == UrlType.CLOUD
-        or source_type == UrlType.PLATFORM
-        and destination_type == UrlType.PLATFORM
+        source_type == DataUrlType.CLOUD
+        and destination_type == DataUrlType.PLATFORM
+        or source_type == DataUrlType.PLATFORM
+        and destination_type == DataUrlType.CLOUD
+        or source_type == DataUrlType.PLATFORM
+        and destination_type == DataUrlType.PLATFORM
     ):
         return RemoteCopier(
             source=source,
             destination=destination,
-            neuro_client=neuro_client,
+            client=client,
             compress=compress,
             extract=extract,
             volumes=volumes,
@@ -166,7 +169,7 @@ def _get_copier(
             env=env,
             life_span=life_span,
         )
-    elif source_type == UrlType.LOCAL_FS and destination_type.LOCAL_FS:
+    elif source_type == DataUrlType.LOCAL_FS and destination_type.LOCAL_FS:
         return LocalToLocalCopier(
             source=source,
             destination=destination,
