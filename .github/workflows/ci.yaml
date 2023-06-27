@@ -62,6 +62,7 @@ jobs:
       NEURO_TOKEN: ${{ secrets.NEURO_TOKEN }}
       NEURO_CLUSTER: default
       NEURO_PROJECT: e2e-tests
+      NEURO_EXTRAS_PRESET: cpu-small
       # Note: ${{ github.sha }} not working, see https://github.com/actions/checkout/issues/299
       SHA: ${{ github.event.pull_request.head.sha || github.sha }}
     steps:
@@ -192,6 +193,7 @@ jobs:
         NEURO_TOKEN: ${{ secrets.NEURO_TOKEN }}
         NEURO_CLUSTER: default
         NEURO_PROJECT: e2e-tests
+        NEURO_EXTRAS_PRESET: cpu-small
         AZURE_SAS_TOKEN: ${{ secrets.AZURE_SAS_TOKEN }}
       run: |
         neuro config login-with-token ${{ env.NEURO_TOKEN }} ${{ env.NEURO_STAGING_URL }}
@@ -229,6 +231,7 @@ jobs:
         DOCKER_CI_USERNAME: ${{ secrets.DOCKERHUB_CI_USERNAME }}
         DOCKER_CI_TOKEN: ${{ secrets.DOCKERHUB_CI_TOKEN }}
         NEURO_CLUSTER: default
+        NEURO_EXTRAS_PRESET: cpu-small
         #NEURO_CLUSTER_SECONDARY: cato-poc  # TODO: uncomment when cato-poc cluster is fixed
         AZURE_SAS_TOKEN: ${{ secrets.AZURE_SAS_TOKEN }}
         # Note: ${{ github.sha }} not working, see https://github.com/actions/checkout/issues/299
@@ -270,6 +273,7 @@ jobs:
         DOCKER_CI_USERNAME: ${{ secrets.DOCKERHUB_CI_USERNAME }}
         DOCKER_CI_TOKEN: ${{ secrets.DOCKERHUB_CI_TOKEN }}
         NEURO_CLUSTER: default
+        NEURO_EXTRAS_PRESET: cpu-small
         #NEURO_CLUSTER_SECONDARY: cato-poc  # TODO: uncomment when cato-poc cluster is fixed
         AZURE_SAS_TOKEN: ${{ secrets.AZURE_SAS_TOKEN }}
         # Note: ${{ github.sha }} not working, see https://github.com/actions/checkout/issues/299

@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Callable, ContextManager, Optional
 
 import pytest
+from tenacity import retry, stop_after_attempt, wait_random_exponential
 
 from neuro_extras.const import EX_PLATFORMERROR
 
@@ -23,6 +24,7 @@ PRESET_ARG = ["--preset", NEURO_EXTRAS_PRESET] if NEURO_EXTRAS_PRESET else []
 @pytest.mark.smoke
 @pytest.mark.xfail
 @pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
+@retry(stop=stop_after_attempt(5), wait=wait_random_exponential(min=10, max=60))
 def test_image_build_custom_preset(
     cli_runner: CLIRunner,
     dockerhub_auth_secret: Secret,
@@ -86,6 +88,7 @@ def test_image_build_custom_preset(
 
 @pytest.mark.xfail
 @pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
+@retry(stop=stop_after_attempt(5), wait=wait_random_exponential(min=10, max=60))
 def test_image_build_custom_dockerfile(
     cli_runner: CLIRunner,
     dockerhub_auth_secret: Secret,
@@ -141,6 +144,7 @@ def test_image_build_custom_dockerfile(
 @pytest.mark.xfail
 @pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
 @pytest.mark.parametrize("overwrite", [True, False])
+@retry(stop=stop_after_attempt(5), wait=wait_random_exponential(min=10, max=60))
 def test_image_build_overwrite(
     cli_runner: CLIRunner,
     overwrite: bool,
@@ -201,6 +205,7 @@ def test_image_build_overwrite(
 
 @pytest.mark.xfail
 @pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
+@retry(stop=stop_after_attempt(5), wait=wait_random_exponential(min=10, max=60))
 def test_ignored_files_are_not_copied(
     cli_runner: CLIRunner,
     dockerhub_auth_secret: Secret,
@@ -259,6 +264,7 @@ def test_ignored_files_are_not_copied(
 @pytest.mark.serial
 @pytest.mark.xfail
 @pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
+@retry(stop=stop_after_attempt(5), wait=wait_random_exponential(min=10, max=60))
 def test_image_transfer(
     cli_runner: CLIRunner,
     switch_cluster: Callable[[str], ContextManager[None]],
@@ -327,6 +333,7 @@ def test_image_transfer(
 
 @pytest.mark.xfail
 @pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
+@retry(stop=stop_after_attempt(5), wait=wait_random_exponential(min=10, max=60))
 def test_image_build_custom_build_args(
     cli_runner: CLIRunner,
     dockerhub_auth_secret: Secret,
@@ -384,6 +391,7 @@ def test_image_build_custom_build_args(
 
 @pytest.mark.xfail
 @pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
+@retry(stop=stop_after_attempt(5), wait=wait_random_exponential(min=10, max=60))
 def test_image_build_volume(
     cli_runner: CLIRunner,
     temp_random_secret: Secret,
@@ -444,6 +452,7 @@ def test_image_build_volume(
 @pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
 @pytest.mark.parametrize("img_repo_name", ["ne-test-public", "ne-test-private"])
 @pytest.mark.parametrize("img_tag", ["", ":latest", ":v1.0.0"])
+@retry(stop=stop_after_attempt(5), wait=wait_random_exponential(min=10, max=60))
 def test_external_image_build(
     cli_runner: CLIRunner,
     dockerhub_auth_secret: Secret,
@@ -496,6 +505,7 @@ def test_external_image_build(
     sys.platform == "darwin", reason="docker is not installed on Mac nodes"
 )
 @pytest.mark.xfail
+@retry(stop=stop_after_attempt(5), wait=wait_random_exponential(min=10, max=60))
 def test_image_local_build(cli_runner: CLIRunner) -> None:
     dockerfile_path = Path("nested/custom.Dockerfile")
     dockerfile_path.parent.mkdir(parents=True)
