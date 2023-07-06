@@ -163,7 +163,7 @@ jobs:
       PYTHONIOENCODING: utf-8
       NEURO_STAGING_URL: ${{ secrets.NEURO_STAGING_URL }}
       NEURO_TOKEN: ${{ secrets.NEURO_TOKEN }}
-      NEURO_CLUSTER: onprem-poc
+      NEURO_CLUSTER: default
         #NEURO_CLUSTER_SECONDARY: cato-poc  # TODO: uncomment when cato-poc cluster is fixed
       AZURE_SAS_TOKEN: ${{ secrets.AZURE_SAS_TOKEN }}
     steps:
