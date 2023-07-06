@@ -4,6 +4,29 @@
 
 [comment]: # (towncrier release notes start)
 
+neuro-extras v23.7.0 (2023-07-06)
+=================================
+
+Features
+--------
+
+- Added project support. ([#595])(https://github.com/neuro-inc/neuro-extras/issues/595))
+
+
+Bugfixes
+--------
+
+- Fixed data cp to s3 destination not working. ([#301](https://github.com/neuromation/neuro-extras/issues/301))
+
+- Fixed a bug with data cp to s3 with compression causing `$HOME/` directory wipe. ([#500](https://github.com/neuromation/neuro-extras/issues/500))
+
+
+Misc
+----
+
+- [#506](https://github.com/neuromation/neuro-extras/issues/506)
+
+
 neuro-extras v22.2.2 (2022-02-17)
 =================================
 

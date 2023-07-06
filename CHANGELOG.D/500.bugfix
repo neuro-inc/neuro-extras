@@ -1,1 +1,0 @@
-Fixed a bug with data cp to s3 with compression causing `$HOME/` directory wipe.
