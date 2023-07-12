@@ -293,8 +293,9 @@ class RemoteImageBuilder(ImageBuilder):
             build_command.append(f"--volume={volume}")
         for env in envs:
             build_command.append(f"--env={env}")
+        envs_keys = [e.split("=")[0] for e in envs]
         for extra_env in KANIKO_EXTRA_ENVS:
-            if extra_env in envs:
+            if extra_env.split("=")[0] in envs_keys:
                 logger.warning(
                     f"Cannot overwite env {extra_env}: already present. "
                     "Consider removing this environment variable from your config, "
