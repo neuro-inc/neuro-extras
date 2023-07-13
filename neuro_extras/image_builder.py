@@ -22,6 +22,7 @@ KANIKO_AUTH_PREFIX = "NE_REGISTRY_AUTH"
 KANIKO_DOCKER_CONFIG_PATH = "/kaniko/.docker/config.json"
 KANIKO_AUTH_SCRIPT_PATH = "/kaniko/.docker/merge_docker_auths.sh"
 KANIKO_CONTEXT_PATH = "/kaniko_context"
+KANIKO_EXTRA_ENVS = ("container=docker",)
 BUILDER_JOB_LIFESPAN = "4h"
 BUILDER_JOB_SHEDULE_TIMEOUT = "20m"
 
@@ -292,6 +293,17 @@ class RemoteImageBuilder(ImageBuilder):
             build_command.append(f"--volume={volume}")
         for env in envs:
             build_command.append(f"--env={env}")
+        envs_keys = [e.split("=")[0] for e in envs]
+        for extra_env in KANIKO_EXTRA_ENVS:
+            if extra_env.split("=")[0] in envs_keys:
+                logger.warning(
+                    f"Cannot overwite env {extra_env}: already present. "
+                    "Consider removing this environment variable from your config, "
+                    "otherwise, the build might fail."
+                )
+            else:
+                build_command.append(f"--env={extra_env}")
+
         for build_tag in build_tags:
             build_command.append(f"--tag={build_tag}")
         if entrypoint:
