@@ -4,6 +4,17 @@
 
 [comment]: # (towncrier release notes start)
 
+neuro-extras v23.7.1 (2023-07-13)
+=================================
+
+
+Bugfixes
+--------
+
+
+- Fix runnning Kaniko on some envs ([#599](https://github.com/neuro-inc/neuro-extras/pull/599))
+
+
 neuro-extras v23.7.0 (2023-07-06)
 =================================
 
