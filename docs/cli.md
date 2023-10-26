@@ -203,6 +203,7 @@ neuro-extras image build [OPTIONS] CONTEXT_PATH IMAGE_URI
 | _--cache / --no-cache_ | Use Kaniko cache while building image.  \[default: cache\] |
 | _--verbose BOOLEAN_ | If specified, run Kaniko with 'debug' verbosity, otherwise 'info' \(default\). |
 | _--build-tag VAR=VAL_ | Set tag\(s\) for image builder job. We will add tag 'kaniko-builds:{image-name}' authomatically. |
+| _-p, --project PROJECT\_NAME_ | Start image builder job in other than the current project. |
 | _--help_ | Show this message and exit. |
 
 #### neuro-extras image local-build
@@ -223,6 +224,7 @@ neuro-extras image local-build [OPTIONS] CONTEXT_PATH IMAGE_URI
 | _--build-arg VAR=VAL_ | Build-time variables passed in ARG values. Could be used multiple times for multiple arguments. |
 | _-F, --force-overwrite_ | Overwrite if the destination image already exists. |
 | _--verbose BOOLEAN_ | If specified, provide verbose output \(default False\). |
+| _-p, --project PROJECT\_NAME_ | Start image builder job in other than the current project. |
 | _--help_ | Show this message and exit. |
 
 #### neuro-extras image transfer
