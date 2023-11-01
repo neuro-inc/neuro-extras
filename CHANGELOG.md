@@ -4,6 +4,17 @@
 
 [comment]: # (towncrier release notes start)
 
+neuro-extras v23.11.0 (2023-11-01)
+==================================
+
+
+Features
+--------
+
+
+- Use `-p/--project` while building image to set the project for entire build process. ([#600](https://github.com/neuromation/neuro-extras/issues/600))
+
+
 neuro-extras v23.7.1 (2023-07-13)
 =================================
 
