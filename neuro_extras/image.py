@@ -136,6 +136,12 @@ def image_transfer(source: str, destination: str, force_overwrite: bool) -> None
         "We will add tag 'kaniko-builds:{image-name}' authomatically."
     ),
 )
+@click.option(
+    "-p",
+    "--project",
+    metavar="PROJECT_NAME",
+    help="Start image builder job in other than the current project.",
+)
 def image_build(
     path: str,
     image_uri: str,
@@ -148,6 +154,7 @@ def image_build(
     cache: bool,
     verbose: bool,
     build_tag: Tuple[str],
+    project: Optional[str],
 ) -> None:
     try:
         sys.exit(
@@ -165,6 +172,7 @@ def image_build(
                     verbose=verbose,
                     local=False,
                     build_tags=build_tag,
+                    project_name=project,
                 )
             )
         )
@@ -211,6 +219,12 @@ def image_build(
     default=False,
     help="If specified, provide verbose output (default False).",
 )
+@click.option(
+    "-p",
+    "--project",
+    metavar="PROJECT_NAME",
+    help="Start image builder job in other than the current project.",
+)
 def image_build_local(
     path: str,
     image_uri: str,
@@ -218,6 +232,7 @@ def image_build_local(
     build_arg: Tuple[str],
     force_overwrite: bool,
     verbose: bool,
+    project: Optional[str],
 ) -> None:
     try:
         sys.exit(
@@ -234,6 +249,7 @@ def image_build_local(
                     verbose=verbose,
                     local=True,
                     build_tags=(),
+                    project_name=project,
                 )
             )
         )
@@ -248,10 +264,16 @@ async def _parse_neuro_image(image: str) -> neuro_sdk.RemoteImage:
 
 
 def _get_cluster_from_uri(
-    client: neuro_sdk.Client, image_uri: str, *, scheme: str
+    client: neuro_sdk.Client,
+    image_uri: str,
+    project_name: Optional[str] = None,
+    *,
+    scheme: str,
 ) -> Optional[str]:
     try:
-        uri = client.parse.str_to_uri(image_uri, allowed_schemes=[scheme])
+        uri = client.parse.str_to_uri(
+            image_uri, project_name=project_name, allowed_schemes=[scheme]
+        )
         return uri.host
     except ValueError:
         # seems like the image scheme was not provided, since it's hosted in dockerhub
@@ -320,23 +342,29 @@ async def _build_image(
     registry_auths: Sequence[DockerConfigAuth] = (),
     local: bool = False,
     verbose: bool = False,
+    project_name: Optional[str] = None,
 ) -> int:
     async with get_neuro_client() as client:
-        cluster = _get_cluster_from_uri(client, image_uri_str, scheme="image")
+        cluster = _get_cluster_from_uri(
+            client, image_uri_str, project_name, scheme="image"
+        )
     async with get_neuro_client(cluster=cluster) as client:
+        image_uri = client.parse.str_to_uri(image_uri_str, project_name=project_name)
+        image = await _parse_neuro_image(str(image_uri))
         context_uri = client.parse.str_to_uri(
             context,
+            project_name=project_name,
             allowed_schemes=("file",) if local else ("file", "storage"),
         )
-        image_exists = await _check_image_exists(image_uri_str, client)
+        image_exists = await _check_image_exists(image, client)
         if image_exists:
             if force_overwrite:
                 logger.warning(
-                    f"Target image '{image_uri_str}' exists and will be overwritten."
+                    f"Target image '{image}' exists and will be overwritten."
                 )
             else:
                 raise click.ClickException(
-                    f"Target image '{image_uri_str}' exists. "
+                    f"Target image '{image}' exists. "
                     f"Use -F/--force-overwrite flag to enforce overwriting."
                 )
 
@@ -351,6 +379,7 @@ async def _build_image(
         builder = builder_cls(
             client, extra_registry_auths=registry_auths, verbose=verbose
         )
+        project_name = project_name or client.config.project_name_or_raise
         exit_code = await builder.build(
             dockerfile_path=dockerfile_path,
             context_uri=context_uri,
@@ -361,24 +390,22 @@ async def _build_image(
             envs=env,
             job_preset=preset,
             build_tags=build_tags,
+            project_name=project_name,
         )
         if exit_code == EX_OK:
             logger.info(f"Successfully built {image_uri_str}")
             if local:
                 logger.info(f"Pushing image to registry")
-                remote_image = await _parse_neuro_image(image_uri_str)
                 console = Console()
                 progress = DockerImageProgress.create(
                     console=console, quiet=not verbose
                 )
-                local_image = client.parse.local_image(remote_image.as_docker_url())
+                local_image = client.parse.local_image(image.as_docker_url())
                 try:
-                    await client.images.push(
-                        local_image, remote_image, progress=progress
-                    )
+                    await client.images.push(local_image, image, progress=progress)
                     logger.info(
                         f"Image {image_uri_str} pushed to the platform registry "
-                        f"as {remote_image}"
+                        f"as {image}"
                     )
                 except Exception as e:
                     if local:
@@ -393,8 +420,7 @@ async def _build_image(
             raise click.ClickException(f"Failed to build image: {exit_code}")
 
 
-async def _check_image_exists(image_uri_str: str, client: Client) -> bool:
-    image = await _parse_neuro_image(image_uri_str)
+async def _check_image_exists(image: neuro_sdk.RemoteImage, client: Client) -> bool:
     if image.registry is None:
         # TODO (y.s.): we might need to implement this check later.
         logger.warning(

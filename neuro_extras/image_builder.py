@@ -95,9 +95,9 @@ class ImageBuilder(ABC):
         self._extra_registry_auths = list(extra_registry_auths)
         self._verbose = verbose
 
-    def _generate_build_uri(self) -> URL:
+    def _generate_build_uri(self, project_name: str) -> URL:
         return self._client.parse.normalize_uri(
-            URL(f"storage:.builds/{uuid.uuid4()}"),
+            URL(f"storage:/{project_name}/.builds/{uuid.uuid4()}"),
         )
 
     async def create_docker_config(self) -> DockerConfig:
@@ -126,6 +126,7 @@ class ImageBuilder(ABC):
         envs: Tuple[str, ...],
         job_preset: Optional[str],
         build_tags: Tuple[str, ...],
+        project_name: str,
     ) -> int:
         pass
 
@@ -149,6 +150,7 @@ class LocalImageBuilder(ImageBuilder):
         envs: Tuple[str, ...],
         job_preset: Optional[str],
         build_tags: Tuple[str, ...],
+        project_name: str,
     ) -> int:
         logger.info(f"Building the image {image_uri_str}")
         logger.info(f"Using {context_uri} as the build context")
@@ -189,13 +191,14 @@ class RemoteImageBuilder(ImageBuilder):
         envs: Tuple[str, ...],
         job_preset: Optional[str],
         build_tags: Tuple[str, ...],
+        project_name: str,
     ) -> int:
         # TODO: check if Dockerfile exists
         logger.info(f"Building the image {image_uri_str}")
         logger.info(f"Using {context_uri} as the build context")
 
         # upload (if needed) build context and platform registry auth info
-        build_uri = self._generate_build_uri()
+        build_uri = self._generate_build_uri(project_name)
         await self._client.storage.mkdir(build_uri, parents=True)
         if context_uri.scheme == "file":
             local_context_uri, context_uri = context_uri, build_uri / "context"
@@ -219,7 +222,7 @@ class RemoteImageBuilder(ImageBuilder):
 
         cache_image = neuro_sdk.RemoteImage(
             name="layer-cache/cache",
-            project_name=self._client.config.project_name_or_raise,
+            project_name=project_name,
             registry=str(self._client.config.registry_url),
             cluster_name=self._client.cluster_name,
         )
@@ -286,6 +289,7 @@ class RemoteImageBuilder(ImageBuilder):
             "run",
             f"--life-span={BUILDER_JOB_LIFESPAN}",
             f"--schedule-timeout={BUILDER_JOB_SHEDULE_TIMEOUT}",
+            f"--project={project_name}",
         ]
         if job_preset:
             build_command.append(f"--preset={job_preset}")
