@@ -201,7 +201,7 @@ jobs:
         neuro config switch-project ${{ env.NEURO_PROJECT }}
         neuro --color=no config show
     - name: Read PR labels
-      uses: joerick/pr-labels-action@v1.0.6
+      uses: joerick/pr-labels-action@v1.0.7
       id: pr_labels
 
     - name: Run all tests
