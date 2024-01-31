@@ -17,7 +17,7 @@ from yarl import URL
 
 
 KANIKO_IMAGE_REF = "gcr.io/kaniko-project/executor"
-KANIKO_IMAGE_TAG = "v1.3.0-debug"  # since it has busybox, which is needed for auth
+KANIKO_IMAGE_TAG = "v1.20.0-debug"  # debug has busybox, which is needed for auth
 KANIKO_AUTH_PREFIX = "NE_REGISTRY_AUTH"
 KANIKO_DOCKER_CONFIG_PATH = "/kaniko/.docker/config.json"
 KANIKO_AUTH_SCRIPT_PATH = "/kaniko/.docker/merge_docker_auths.sh"
@@ -268,8 +268,11 @@ class RemoteImageBuilder(ImageBuilder):
             f"--destination={self.parse_image_ref(image_uri_str)}",
             f"--cache={'true' if use_cache else 'false'}",
             # f"--cache-copy-layers", # TODO: since kaniko 1.3 does not support it
+            "--image-fs-extract-retry=1",
+            "--push-retry=3",
+            "--use-new-run=true",
             f"--cache-repo={cache_repo}",
-            f"--snapshotMode=redo",
+            f"--snapshot-mode=redo",
             f"--verbosity={'debug' if self._verbose else 'info'}",
             f"--context={KANIKO_CONTEXT_PATH}",
         ]
