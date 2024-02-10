@@ -1,10 +1,11 @@
 from decimal import Decimal
 
 import pytest
-from conftest import MockNeuroClient
 from neuro_sdk import Preset
 
 from neuro_extras.utils import select_job_preset
+
+from .conftest import MockNeuroClient
 
 
 FAKE_PRESETS = {
