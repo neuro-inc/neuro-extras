@@ -8,7 +8,7 @@ import uuid
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, AsyncIterator, Dict, Optional, Sequence, Tuple, Type
+from typing import Any, AsyncIterator, Dict, List, Optional, Sequence, Tuple, Type
 
 import click
 import neuro_sdk
@@ -367,8 +367,8 @@ class RemoteImageBuilder(ImageBuilder):
             raise click.ClickException("Uploading build context failed!")
 
     def _add_extra_kaniko_args(
-        self, kaniko_args: list[str], extra_kaniko_args: Optional[str]
-    ) -> list[str]:
+        self, kaniko_args: List[str], extra_kaniko_args: Optional[str]
+    ) -> List[str]:
         if not extra_kaniko_args:
             return kaniko_args
 

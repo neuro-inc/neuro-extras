@@ -196,7 +196,7 @@ jobs:
         NEURO_EXTRAS_PRESET: cpu-small
         AZURE_SAS_TOKEN: ${{ secrets.AZURE_SAS_TOKEN }}
       run: |
-        neuro -vv --show-traceback config login-with-token ${{ env.NEURO_TOKEN }} ${{ env.NEURO_STAGING_URL }}
+        neuro config login-with-token ${{ env.NEURO_TOKEN }} ${{ env.NEURO_STAGING_URL }}
         neuro config switch-cluster ${{ env.NEURO_CLUSTER }}
         neuro config switch-project ${{ env.NEURO_PROJECT }}
         neuro --color=no config show
