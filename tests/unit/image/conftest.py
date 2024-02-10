@@ -13,7 +13,7 @@ from yarl import URL
 from neuro_extras.image_builder import ImageBuilder
 
 
-def _get_mock_presets() -> dict[str, neuro_sdk.Preset]:
+def _get_mock_presets() -> t.Dict[str, neuro_sdk.Preset]:
     return {
         "cpu-small": neuro_sdk.Preset(
             credits_per_hour=Decimal(1), cpu=1, memory=1 * 1024 * 1024
@@ -28,7 +28,7 @@ def _get_mock_presets() -> dict[str, neuro_sdk.Preset]:
     }
 
 
-def _get_mock_clusters() -> dict[str, neuro_sdk.Cluster]:
+def _get_mock_clusters() -> t.Dict[str, neuro_sdk.Cluster]:
     return {
         "mycluster": neuro_sdk.Cluster(
             name="mycluster",
@@ -45,7 +45,7 @@ def _get_mock_clusters() -> dict[str, neuro_sdk.Cluster]:
     }
 
 
-def _get_mock_projects() -> dict[neuro_sdk.Project.Key, neuro_sdk.Project]:
+def _get_mock_projects() -> t.Dict[neuro_sdk.Project.Key, neuro_sdk.Project]:
     return {
         neuro_sdk.Project.Key(
             cluster_name="mycluster", org_name=None, project_name="myproject"
