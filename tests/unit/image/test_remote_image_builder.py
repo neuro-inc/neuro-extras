@@ -239,7 +239,7 @@ async def test_image_builder__custom_project(
         "--disable-pypi-version-check",
         "cp",
         "--recursive",
-        f"file:///{Path(context).resolve().as_posix()}",
+        f"file://{Path(context).resolve().as_posix()}",
         str(expected_storage_build_root / "context"),
     ]
     start_build_cmd = subproc_mock.await_args_list[1][0][0]
