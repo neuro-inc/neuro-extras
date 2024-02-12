@@ -28,15 +28,11 @@ async def test_image_builder__min_parameters(
     expected_storage_build_root = URL(
         "storage://mycluster/myproject/.builds/mocked-uuid-4"
     )
-    storage_mkdir_mock = mock.create_autospec(
-        remote_image_builder._client.storage.mkdir
-    )
+    storage_mkdir_mock: mock.AsyncMock = remote_image_builder._client.storage.mkdir  # type: ignore # noqa: E501
     storage_mkdir_mock.assert_awaited_once_with(
         expected_storage_build_root, parents=True
     )
-    storage_create_mock = mock.create_autospec(
-        remote_image_builder._client.storage.create
-    )
+    storage_create_mock: mock.AsyncMock = remote_image_builder._client.storage.create  # type: ignore # noqa: E501
     storage_create_mock.assert_awaited_once_with(
         expected_storage_build_root / ".docker.config.json",
         mock.ANY,
@@ -110,15 +106,11 @@ async def test_image_builder__full_parameters(
     expected_storage_build_root = URL(
         "storage://mycluster/myproject/.builds/mocked-uuid-4"
     )
-    storage_mkdir_mock = mock.create_autospec(
-        remote_image_builder._client.storage.mkdir
-    )
+    storage_mkdir_mock: mock.AsyncMock = remote_image_builder._client.storage.mkdir  # type: ignore # noqa: E501
     storage_mkdir_mock.assert_awaited_once_with(
         expected_storage_build_root, parents=True
     )
-    storage_create_mock = mock.create_autospec(
-        remote_image_builder._client.storage.create
-    )
+    storage_create_mock: mock.AsyncMock = remote_image_builder._client.storage.create  # type: ignore # noqa: E501
     storage_create_mock.assert_awaited_once_with(
         expected_storage_build_root / ".docker.config.json",
         mock.ANY,
@@ -229,15 +221,11 @@ async def test_image_builder__custom_project(
     expected_storage_build_root = URL(
         "storage://mycluster/otherproject/.builds/mocked-uuid-4"
     )
-    storage_mkdir_mock = mock.create_autospec(
-        remote_image_builder._client.storage.mkdir
-    )
+    storage_mkdir_mock: mock.AsyncMock = remote_image_builder._client.storage.mkdir  # type: ignore # noqa: E501
     storage_mkdir_mock.assert_awaited_once_with(
         expected_storage_build_root, parents=True
     )
-    storage_create_mock = mock.create_autospec(
-        remote_image_builder._client.storage.create
-    )
+    storage_create_mock: mock.AsyncMock = remote_image_builder._client.storage.create  # type: ignore # noqa: E501
     storage_create_mock.assert_awaited_once_with(
         expected_storage_build_root / ".docker.config.json",
         mock.ANY,
@@ -304,15 +292,11 @@ async def test_image_builder__storage_context(
     expected_storage_build_root = URL(
         "storage://mycluster/myproject/.builds/mocked-uuid-4"
     )
-    storage_mkdir_mock = mock.create_autospec(
-        remote_image_builder._client.storage.mkdir
-    )
+    storage_mkdir_mock: mock.AsyncMock = remote_image_builder._client.storage.mkdir  # type: ignore # noqa: E501
     storage_mkdir_mock.assert_awaited_once_with(
         expected_storage_build_root, parents=True
     )
-    storage_create_mock = mock.create_autospec(
-        remote_image_builder._client.storage.create
-    )
+    storage_create_mock: mock.AsyncMock = remote_image_builder._client.storage.create  # type: ignore # noqa: E501
     storage_create_mock.assert_awaited_once_with(
         expected_storage_build_root / ".docker.config.json",
         mock.ANY,
