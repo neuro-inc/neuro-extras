@@ -45,7 +45,7 @@ async def test_image_builder__min_parameters(
         "--disable-pypi-version-check",
         "cp",
         "--recursive",
-        f"file://{context}",
+        f"file://{Path(context).resolve().as_posix()}",
         str(expected_storage_build_root / "context"),
     ]
     start_build_cmd = subproc_mock.await_args_list[1][0][0]
@@ -123,7 +123,7 @@ async def test_image_builder__full_parameters(
         "--disable-pypi-version-check",
         "cp",
         "--recursive",
-        f"file://{context}",
+        f"file://{Path(context).resolve().as_posix()}",
         str(expected_storage_build_root / "context"),
     ]
     start_build_cmd = subproc_mock.await_args_list[1][0][0]
@@ -205,9 +205,10 @@ async def test_image_builder__conflicting_kaniko_args(
 async def test_image_builder__custom_project(
     remote_image_builder: ImageBuilder,
 ) -> None:
+    context = "/path/to/context"
     await _build_image(
         dockerfile_path=Path("path/to/Dockerfile"),
-        context="/path/to/context",
+        context=context,
         image_uri_str="image:targetimage:latest",
         use_cache=True,
         build_args=(),
@@ -238,7 +239,7 @@ async def test_image_builder__custom_project(
         "--disable-pypi-version-check",
         "cp",
         "--recursive",
-        "file:///path/to/context",
+        f"file:///{Path(context).resolve().as_posix()}",
         str(expected_storage_build_root / "context"),
     ]
     start_build_cmd = subproc_mock.await_args_list[1][0][0]
