@@ -45,7 +45,7 @@ async def test_image_builder__min_parameters(
         "--disable-pypi-version-check",
         "cp",
         "--recursive",
-        f"file://{Path(context).resolve().as_posix()}",
+        {Path(context).resolve().as_uri()},
         str(expected_storage_build_root / "context"),
     ]
     start_build_cmd = subproc_mock.await_args_list[1][0][0]
@@ -123,7 +123,7 @@ async def test_image_builder__full_parameters(
         "--disable-pypi-version-check",
         "cp",
         "--recursive",
-        f"file://{Path(context).resolve().as_posix()}",
+        Path(context).resolve().as_uri(),
         str(expected_storage_build_root / "context"),
     ]
     start_build_cmd = subproc_mock.await_args_list[1][0][0]
@@ -239,7 +239,7 @@ async def test_image_builder__custom_project(
         "--disable-pypi-version-check",
         "cp",
         "--recursive",
-        f"file://{Path(context).resolve().as_posix()}",
+        Path(context).resolve().as_uri(),
         str(expected_storage_build_root / "context"),
     ]
     start_build_cmd = subproc_mock.await_args_list[1][0][0]
