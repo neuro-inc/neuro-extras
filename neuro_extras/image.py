@@ -8,9 +8,7 @@ from typing import Optional, Sequence, Tuple
 
 import click
 import neuro_sdk
-from neuro_cli.formatters.images import DockerImageProgress
 from neuro_sdk import Client
-from rich.console import Console
 
 from .cli import main
 from .const import EX_OK, EX_PLATFORMERROR
@@ -83,9 +81,8 @@ def image_transfer(source: str, destination: str, force_overwrite: bool) -> None
     metavar="MOUNT",
     multiple=True,
     help=(
-        "Mounts directory from vault into container. "
+        "Mounts directory from storage into container. "
         "Use multiple options to mount more than one volume. "
-        "Use --volume=ALL to mount all accessible storage directories."
     ),
 )
 @click.option(
@@ -94,8 +91,9 @@ def image_transfer(source: str, destination: str, force_overwrite: bool) -> None
     metavar="VAR=VAL",
     multiple=True,
     help=(
-        "Set environment variable in container "
-        "Use multiple options to define more than one variable"
+        "Set environment variable in container. "
+        "Use multiple options to define more than one variable. "
+        "Those env vars will be passed as build arguments too."
     ),
 )
 @click.option(
@@ -142,6 +140,17 @@ def image_transfer(source: str, destination: str, force_overwrite: bool) -> None
     metavar="PROJECT_NAME",
     help="Start image builder job in other than the current project.",
 )
+@click.option(
+    "--extra-kaniko-args",
+    metavar="ARGS",
+    help=(
+        "Extra arguments for Kaniko builder. "
+        "Useful for advanced users, e.g. to set custom Kaniko caching behaviour. "
+        "We set some default arguments for you, so use this option with caution. "
+        "Please refer to Kaniko documentation for more details at "
+        "https://github.com/GoogleContainerTools/kaniko?tab=readme-ov-file#additional-flags"  # noqa: E501
+    ),
+)
 def image_build(
     path: str,
     image_uri: str,
@@ -155,6 +164,7 @@ def image_build(
     verbose: bool,
     build_tag: Tuple[str],
     project: Optional[str],
+    extra_kaniko_args: Optional[str],
 ) -> None:
     try:
         sys.exit(
@@ -173,6 +183,7 @@ def image_build(
                     local=False,
                     build_tags=build_tag,
                     project_name=project,
+                    extra_kaniko_args=extra_kaniko_args,
                 )
             )
         )
@@ -343,6 +354,7 @@ async def _build_image(
     local: bool = False,
     verbose: bool = False,
     project_name: Optional[str] = None,
+    extra_kaniko_args: Optional[str] = None,
 ) -> int:
     async with get_neuro_client() as client:
         cluster = _get_cluster_from_uri(
@@ -383,7 +395,7 @@ async def _build_image(
         exit_code = await builder.build(
             dockerfile_path=dockerfile_path,
             context_uri=context_uri,
-            image_uri_str=image_uri_str,
+            image=image,
             use_cache=use_cache,
             build_args=build_args,
             volumes=volume,
@@ -391,30 +403,10 @@ async def _build_image(
             job_preset=preset,
             build_tags=build_tags,
             project_name=project_name,
+            extra_kaniko_args=extra_kaniko_args,
         )
         if exit_code == EX_OK:
             logger.info(f"Successfully built {image_uri_str}")
-            if local:
-                logger.info(f"Pushing image to registry")
-                console = Console()
-                progress = DockerImageProgress.create(
-                    console=console, quiet=not verbose
-                )
-                local_image = client.parse.local_image(image.as_docker_url())
-                try:
-                    await client.images.push(local_image, image, progress=progress)
-                    logger.info(
-                        f"Image {image_uri_str} pushed to the platform registry "
-                        f"as {image}"
-                    )
-                except Exception as e:
-                    if local:
-                        logger.exception("Image push failed.")
-                        logger.info(
-                            f"You may try to repeat the push process by running "
-                            f"'neuro image push {local_image} {image_uri_str}'"
-                        )
-                    raise e
             return EX_OK
         else:
             raise click.ClickException(f"Failed to build image: {exit_code}")
