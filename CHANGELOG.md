@@ -4,6 +4,17 @@
 
 [comment]: # (towncrier release notes start)
 
+neuro-extras v24.2.0 (2024-02-13)
+=================================
+
+
+Features
+--------
+
+
+- Updated Kaniko to 1.20.0, allowed to provide extra arguments for Kaniko executor. ([#601](https://github.com/neuromation/neuro-extras/issues/601))
+
+
 neuro-extras v23.11.0 (2023-11-01)
 ==================================
 
