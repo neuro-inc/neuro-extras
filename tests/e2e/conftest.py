@@ -84,8 +84,7 @@ DST_CLUSTER_ENV_VAR = "NEURO_CLUSTER_SECONDARY"
 class CLIRunner(Protocol):
     def __call__(
         self, args: List[str], enable_retry: bool = False
-    ) -> "CompletedProcess[str]":
-        ...
+    ) -> "CompletedProcess[str]": ...
 
 
 def get_tested_archive_types() -> List[str]:
