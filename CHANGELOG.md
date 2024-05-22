@@ -4,6 +4,13 @@
 
 [comment]: # (towncrier release notes start)
 
+neuro-extras v24.5.0 (2024-05-22)
+=================================
+
+
+No significant changes.
+
+
 neuro-extras v24.2.0 (2024-02-13)
 =================================
 
