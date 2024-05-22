@@ -38,6 +38,7 @@ def _get_mock_clusters() -> t.Dict[str, neuro_sdk.Cluster]:
             secrets_url=URL("https://mycluster.noexists/api/v1/secrets"),
             disks_url=URL("https://mycluster.noexists/api/v1/disks"),
             buckets_url=URL("https://mycluster.noexists/api/v1/buckets"),
+            resource_pools={},
             presets=_get_mock_presets(),
             orgs=[],
         ),
