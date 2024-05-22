@@ -221,7 +221,6 @@ def select_job_preset(
         if (
             cluster_preset_info.cpu >= min_cpu
             and cluster_preset_info.memory_mb >= min_mem
-            and cluster_preset_info.gpu is None
             and not cluster_preset_info.scheduler_enabled
         ):
             good_presets.append((cluster_preset_name, cluster_preset_info))
@@ -256,15 +255,6 @@ def select_job_preset(
                     f"The selected resource preset {preset} does not "
                     f"satisfy recommended minimum hardware requirements. "
                     f"Consider using '{good_presets[0][0]}'"
-                )
-            elif client.presets[preset].gpu is None:
-                # The message is only displayed if user selected a bad non-GPU preset
-                logger.warning(
-                    f"Selected resource preset {preset} does not satisfy "
-                    f"minimal hardware requirements. "
-                    "The job might take long time to accomplish. "
-                    "Consider contacting your cluster manager or admin "
-                    "to adjust the cluster configuration"
                 )
             return preset
 

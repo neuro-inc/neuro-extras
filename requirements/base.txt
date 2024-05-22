@@ -1,5 +1,5 @@
 click==8.1.2
-neuro-cli==24.2.0
-neuro-sdk==24.2.0
+neuro-cli==24.5.0
+neuro-sdk==24.5.0
 pyyaml==6.0
 toml==0.10.2
