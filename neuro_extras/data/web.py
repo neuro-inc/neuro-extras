@@ -1,4 +1,5 @@
 """Module for copying files from HTTP(S) sources"""
+
 from ..utils import CLIRunner
 from .common import Copier, DataUrlType, Resource
 

@@ -1,4 +1,5 @@
 """Module for archive management operations (compression and extraction)"""
+
 import abc
 import logging
 
