@@ -22,8 +22,7 @@ def _get_mock_presets() -> t.Dict[str, neuro_sdk.Preset]:
             credits_per_hour=Decimal(1),
             cpu=5,
             memory=3 * 1024 * 1024,
-            gpu=1,
-            gpu_model="mygpu",
+            nvidia_gpu=1,
         ),
     }
 
@@ -39,6 +38,7 @@ def _get_mock_clusters() -> t.Dict[str, neuro_sdk.Cluster]:
             secrets_url=URL("https://mycluster.noexists/api/v1/secrets"),
             disks_url=URL("https://mycluster.noexists/api/v1/disks"),
             buckets_url=URL("https://mycluster.noexists/api/v1/buckets"),
+            resource_pools={},
             presets=_get_mock_presets(),
             orgs=[],
         ),

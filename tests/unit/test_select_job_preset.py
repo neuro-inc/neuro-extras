@@ -41,7 +41,7 @@ def test_user_selection_is_respected(mock_client: MockNeuroClient, preset: str) 
 def test_when_nothing_fits_first_preset_is_used(mock_client: MockNeuroClient) -> None:
     presets = {
         "bad": Preset(cpu=1, memory=9999, credits_per_hour=Decimal("5")),
-        "gpu": Preset(cpu=4, memory=9999, credits_per_hour=Decimal("15"), gpu=1),
+        "gpu": Preset(cpu=4, memory=9999, credits_per_hour=Decimal("15"), nvidia_gpu=1),
     }
     selected_preset = select_job_preset(
         preset=None, client=mock_client, min_mem=4096, min_cpu=2

@@ -1,4 +1,5 @@
 """Module for copying files from/to Google Cloud Storage"""
+
 from ..utils import CLIRunner
 from .common import Copier, DataUrlType, Resource
 
