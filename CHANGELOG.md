@@ -4,6 +4,18 @@
 
 [comment]: # (towncrier release notes start)
 
+neuro-extras v24.5.1 (2024-05-28)
+=================================
+
+
+
+Bugfixes
+--------
+
+- Fix image build in organization when user has no direct access to cluster ([#603](https://github.com/neuro-inc/neuro-extras/pull/603))
+
+
+
 neuro-extras v24.5.0 (2024-05-22)
 =================================
 
