@@ -3,6 +3,7 @@ import logging
 import sys
 import tempfile
 import textwrap
+from dataclasses import replace
 from pathlib import Path
 from typing import Optional, Sequence, Tuple
 
@@ -421,15 +422,8 @@ async def _check_image_exists(image: neuro_sdk.RemoteImage, client: Client) -> b
         )
         return False
     try:
-        existing_images = await client.images.tags(
-            neuro_sdk.RemoteImage(
-                name=image.name,
-                project_name=image.project_name,
-                cluster_name=image.cluster_name,
-                registry=image.registry,
-                tag=None,
-            )
-        )
+        image_no_tag = replace(image, tag=None)
+        existing_images = await client.images.tags(image_no_tag)
         return image in existing_images
     except neuro_sdk.ResourceNotFound:
         # image does not exists on platform registry
