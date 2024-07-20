@@ -2,9 +2,9 @@
 
 set -e
 
-if [ -n "$NEURO_CLUSTER" ]
+if [ -n "$APOLO_CLUSTER" ]
 then
-    neuro config switch-cluster "$NEURO_CLUSTER" 1>/dev/null
+    apolo config switch-cluster "$APOLO_CLUSTER" 1>/dev/null
 fi
 
 if [[ -n "$GOOGLE_APPLICATION_CREDENTIALS" ]];

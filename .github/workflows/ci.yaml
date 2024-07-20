@@ -59,10 +59,10 @@ jobs:
     env:
       PYTHONIOENCODING: utf-8
       NEURO_STAGING_URL: ${{ secrets.NEURO_STAGING_URL }}
-      NEURO_TOKEN: ${{ secrets.NEURO_TOKEN }}
-      NEURO_CLUSTER: default
-      NEURO_PROJECT: e2e-tests
-      NEURO_EXTRAS_PRESET: cpu-small
+      APOLO_TOKEN: ${{ secrets.NEURO_TOKEN }}
+      APOLO_CLUSTER: default
+      APOLO_PROJECT: e2e-tests
+      APOLO_EXTRAS_PRESET: cpu-small
       # Note: ${{ github.sha }} not working, see https://github.com/actions/checkout/issues/299
       SHA: ${{ github.event.pull_request.head.sha || github.sha }}
     steps:
@@ -82,13 +82,13 @@ jobs:
         key: ${{ runner.os }}-py-3.9-${{ hashFiles('requirements/base.txt') }}
         path: ${{ env.pythonLocation }}
 
-    - name: Install and configure neuro
+    - name: Install and configure apolo
       run: |
         python -m pip install -r requirements/base.txt
-        neuro config login-with-token ${{ env.NEURO_TOKEN }} ${{ env.NEURO_STAGING_URL }}
-        neuro config switch-cluster ${{ env.NEURO_CLUSTER }}
-        neuro config switch-project ${{ env.NEURO_PROJECT }}
-        neuro --color=no config show
+        apolo config login-with-token ${{ env.APOLO_TOKEN }} ${{ env.NEURO_STAGING_URL }}
+        apolo config switch-cluster ${{ env.APOLO_CLUSTER }}
+        apolo config switch-project ${{ env.APOLO_PROJECT }}
+        apolo --color=no config show
     - name: Login to ghcr.io
       uses: docker/login-action@v2.0.0
       with:
@@ -99,11 +99,11 @@ jobs:
       run: |
         export REPO_URL=https://github.com/neuro-inc/neuro-extras.git
         export PACKAGE="git+$REPO_URL@$SHA"
-        docker build -t ghcr.io/neuro-inc/neuro-extras:$SHA \
-          --build-arg NEURO_EXTRAS_PACKAGE=$PACKAGE .
+        docker build -t ghcr.io/neuro-inc/apolo-extras:$SHA \
+          --build-arg APOLO_EXTRAS_PACKAGE=$PACKAGE .
     - name: Push test image
       run: |
-        docker push ghcr.io/neuro-inc/neuro-extras:$SHA
+        docker push ghcr.io/neuro-inc/apolo-extras:$SHA
 
   test:
     if: |
@@ -188,16 +188,16 @@ jobs:
     - name: Configure environment
       env:
         NEURO_STAGING_URL: ${{ secrets.NEURO_STAGING_URL }}
-        NEURO_TOKEN: ${{ secrets.NEURO_TOKEN }}
-        NEURO_CLUSTER: default
-        NEURO_PROJECT: e2e-tests
-        NEURO_EXTRAS_PRESET: cpu-small
+        APOLO_TOKEN: ${{ secrets.APOLO_TOKEN }}
+        APOLO_CLUSTER: default
+        APOLO_PROJECT: e2e-tests
+        APOLO_EXTRAS_PRESET: cpu-small
         AZURE_SAS_TOKEN: ${{ secrets.AZURE_SAS_TOKEN }}
       run: |
-        neuro config login-with-token ${{ env.NEURO_TOKEN }} ${{ env.NEURO_STAGING_URL }}
-        neuro config switch-cluster ${{ env.NEURO_CLUSTER }}
-        neuro config switch-project ${{ env.NEURO_PROJECT }}
-        neuro --color=no config show
+        apolo config login-with-token ${{ env.APOLO_TOKEN }} ${{ env.NEURO_STAGING_URL }}
+        apolo config switch-cluster ${{ env.APOLO_CLUSTER }}
+        apolo config switch-project ${{ env.APOLO_PROJECT }}
+        apolo --color=no config show
     - name: Read PR labels
       uses: joerick/pr-labels-action@v1.0.6
       id: pr_labels
@@ -209,8 +209,8 @@ jobs:
         COLOR: 'yes'
         DOCKER_CI_USERNAME: ${{ secrets.DOCKERHUB_CI_USERNAME }}
         DOCKER_CI_TOKEN: ${{ secrets.DOCKERHUB_CI_TOKEN }}
-        NEURO_CLUSTER: default
-        #NEURO_CLUSTER_SECONDARY: cato-poc  # TODO: uncomment when cato-poc cluster is fixed
+        APOLO_CLUSTER: default
+        #APOLO_CLUSTER_SECONDARY: cato-poc  # TODO: uncomment when cato-poc cluster is fixed
         AZURE_SAS_TOKEN: ${{ secrets.AZURE_SAS_TOKEN }}
         # Note: ${{ github.sha }} not working, see https://github.com/actions/checkout/issues/299
         SHA: ${{ github.event.pull_request.head.sha || github.sha }}
@@ -219,7 +219,7 @@ jobs:
         PYTEST_PARALLEL: 6
       shell: bash
       run: |
-        export NEURO_EXTRAS_IMAGE=ghcr.io/neuro-inc/neuro-extras:$SHA
+        export APOLO_EXTRAS_IMAGE=ghcr.io/neuro-inc/apolo-extras:$SHA
         make test
     - name: Run smoke tests
       if: |
@@ -228,9 +228,9 @@ jobs:
         COLOR: 'yes'
         DOCKER_CI_USERNAME: ${{ secrets.DOCKERHUB_CI_USERNAME }}
         DOCKER_CI_TOKEN: ${{ secrets.DOCKERHUB_CI_TOKEN }}
-        NEURO_CLUSTER: default
-        NEURO_EXTRAS_PRESET: cpu-small
-        #NEURO_CLUSTER_SECONDARY: cato-poc  # TODO: uncomment when cato-poc cluster is fixed
+        APOLO_CLUSTER: default
+        APOLO_EXTRAS_PRESET: cpu-small
+        #APOLO_CLUSTER_SECONDARY: cato-poc  # TODO: uncomment when cato-poc cluster is fixed
         AZURE_SAS_TOKEN: ${{ secrets.AZURE_SAS_TOKEN }}
         # Note: ${{ github.sha }} not working, see https://github.com/actions/checkout/issues/299
         SHA: ${{ github.event.pull_request.head.sha || github.sha }}
@@ -239,7 +239,7 @@ jobs:
         PYTEST_PARALLEL: 6
       shell: bash
       run: |
-        export NEURO_EXTRAS_IMAGE=ghcr.io/neuro-inc/neuro-extras:$SHA
+        export APOLO_EXTRAS_IMAGE=ghcr.io/neuro-inc/apolo-extras:$SHA
         make test_smoke
     - name: Run data tests
       if: |
@@ -249,8 +249,8 @@ jobs:
         COLOR: 'yes'
         DOCKER_CI_USERNAME: ${{ secrets.DOCKERHUB_CI_USERNAME }}
         DOCKER_CI_TOKEN: ${{ secrets.DOCKERHUB_CI_TOKEN }}
-        NEURO_CLUSTER: default
-        #NEURO_CLUSTER_SECONDARY: cato-poc  # TODO: uncomment when cato-poc cluster is fixed
+        APOLO_CLUSTER: default
+        #APOLO_CLUSTER_SECONDARY: cato-poc  # TODO: uncomment when cato-poc cluster is fixed
         AZURE_SAS_TOKEN: ${{ secrets.AZURE_SAS_TOKEN }}
         # Note: ${{ github.sha }} not working, see https://github.com/actions/checkout/issues/299
         SHA: ${{ github.event.pull_request.head.sha || github.sha }}
@@ -259,7 +259,7 @@ jobs:
         PYTEST_PARALLEL: 6
       shell: bash
       run: |
-        export NEURO_EXTRAS_IMAGE=ghcr.io/neuro-inc/neuro-extras:$SHA
+        export APOLO_EXTRAS_IMAGE=ghcr.io/neuro-inc/apolo-extras:$SHA
         make test_data
 
     - name: Run image tests
@@ -270,9 +270,9 @@ jobs:
         COLOR: 'yes'
         DOCKER_CI_USERNAME: ${{ secrets.DOCKERHUB_CI_USERNAME }}
         DOCKER_CI_TOKEN: ${{ secrets.DOCKERHUB_CI_TOKEN }}
-        NEURO_CLUSTER: default
-        NEURO_EXTRAS_PRESET: cpu-small
-        #NEURO_CLUSTER_SECONDARY: cato-poc  # TODO: uncomment when cato-poc cluster is fixed
+        APOLO_CLUSTER: default
+        APOLO_EXTRAS_PRESET: cpu-small
+        #APOLO_CLUSTER_SECONDARY: cato-poc  # TODO: uncomment when cato-poc cluster is fixed
         AZURE_SAS_TOKEN: ${{ secrets.AZURE_SAS_TOKEN }}
         # Note: ${{ github.sha }} not working, see https://github.com/actions/checkout/issues/299
         SHA: ${{ github.event.pull_request.head.sha || github.sha }}
@@ -281,5 +281,5 @@ jobs:
         PYTEST_PARALLEL: auto
       shell: bash
       run: |
-        export NEURO_EXTRAS_IMAGE=ghcr.io/neuro-inc/neuro-extras:$SHA
+        export APOLO_EXTRAS_IMAGE=ghcr.io/neuro-inc/apolo-extras:$SHA
         make test_image

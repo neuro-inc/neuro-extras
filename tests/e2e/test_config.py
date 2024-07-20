@@ -10,7 +10,7 @@ from .conftest import CLIRunner
 @pytest.mark.smoke
 def test_config_save_registry_auth_locally(cli_runner: CLIRunner) -> None:
     result = cli_runner(
-        ["neuro-extras", "config", "save-registry-auth", ".docker.json"]
+        ["apolo-extras", "config", "save-registry-auth", ".docker.json"]
     )
     assert result.returncode == 0, result
 

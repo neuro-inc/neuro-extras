@@ -7,9 +7,9 @@ from dataclasses import replace
 from pathlib import Path
 from typing import Optional, Sequence, Tuple
 
+import apolo_sdk
 import click
-import neuro_sdk
-from neuro_sdk import Client
+from apolo_sdk import Client
 
 from .cli import main
 from .const import EX_OK, EX_PLATFORMERROR
@@ -20,7 +20,7 @@ from .image_builder import (
     ImageBuilder,
     create_docker_config_auth,
 )
-from .utils import get_neuro_client, select_job_preset
+from .utils import get_platform_client, select_job_preset
 
 
 logger = logging.getLogger(__name__)
@@ -103,7 +103,7 @@ def image_transfer(source: str, destination: str, force_overwrite: bool) -> None
     metavar="PRESET",
     help=(
         "Predefined resource configuration (to see available values, "
-        "run `neuro config show`)"
+        "run `apolo config show`)"
     ),
 )
 @click.option(
@@ -270,13 +270,13 @@ def image_build_local(
         sys.exit(EX_PLATFORMERROR)
 
 
-async def _parse_neuro_image(image: str) -> neuro_sdk.RemoteImage:
-    async with get_neuro_client() as client:
+async def _parse_platform_image(image: str) -> apolo_sdk.RemoteImage:
+    async with get_platform_client() as client:
         return client.parse.remote_image(image)
 
 
 def _get_cluster_from_uri(
-    client: neuro_sdk.Client,
+    client: apolo_sdk.Client,
     image_uri: str,
     project_name: Optional[str] = None,
     *,
@@ -296,7 +296,7 @@ def _get_cluster_from_uri(
 async def _image_transfer(
     src_uri_str: str, dst_uri_str: str, force_overwrite: bool
 ) -> int:
-    async with get_neuro_client() as client:
+    async with get_platform_client() as client:
         src_cluster: Optional[str] = _get_cluster_from_uri(
             client, src_uri_str, scheme="image"
         )
@@ -309,7 +309,7 @@ async def _image_transfer(
             )
 
     with tempfile.TemporaryDirectory() as tmpdir:
-        async with get_neuro_client(cluster=src_cluster) as src_client:
+        async with get_platform_client(cluster=src_cluster) as src_client:
             src_image = src_client.parse.remote_image(image=src_uri_str)
             src_reg_auth = await create_docker_config_auth(src_client.config)
 
@@ -324,7 +324,7 @@ async def _image_transfer(
         )
         migration_job_tags = (
             f"src-image:{src_image}",
-            f"neuro-extras:image-transfer",
+            f"apolo-extras:image-transfer",
         )
         return await _build_image(
             dockerfile_path=Path(dockerfile.name),
@@ -357,13 +357,13 @@ async def _build_image(
     project_name: Optional[str] = None,
     extra_kaniko_args: Optional[str] = None,
 ) -> int:
-    async with get_neuro_client() as client:
+    async with get_platform_client() as client:
         cluster = _get_cluster_from_uri(
             client, image_uri_str, project_name, scheme="image"
         )
-    async with get_neuro_client(cluster=cluster) as client:
+    async with get_platform_client(cluster=cluster) as client:
         image_uri = client.parse.str_to_uri(image_uri_str, project_name=project_name)
-        image = await _parse_neuro_image(str(image_uri))
+        image = await _parse_platform_image(str(image_uri))
         context_uri = client.parse.str_to_uri(
             context,
             project_name=project_name,
@@ -413,7 +413,7 @@ async def _build_image(
             raise click.ClickException(f"Failed to build image: {exit_code}")
 
 
-async def _check_image_exists(image: neuro_sdk.RemoteImage, client: Client) -> bool:
+async def _check_image_exists(image: apolo_sdk.RemoteImage, client: Client) -> bool:
     if image.registry is None:
         # TODO (y.s.): we might need to implement this check later.
         logger.warning(
@@ -425,6 +425,6 @@ async def _check_image_exists(image: neuro_sdk.RemoteImage, client: Client) -> b
         image_no_tag = replace(image, tag=None)
         existing_images = await client.images.tags(image_no_tag)
         return image in existing_images
-    except neuro_sdk.ResourceNotFound:
+    except apolo_sdk.ResourceNotFound:
         # image does not exists on platform registry
         return False

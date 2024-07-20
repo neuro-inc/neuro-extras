@@ -95,7 +95,7 @@ jobs:
       timeout-minutes: 5
       run: |
         PYPIVERSION=$(python setup.py --version)
-        PYPIPACKAGE=neuro-extras==$PYPIVERSION
+        PYPIPACKAGE=apolo-extras==$PYPIVERSION
         until python -m pip install $PYPIPACKAGE
         do
             echo "Waiting for the pypi package $PYPIPACKAGE ..."
@@ -103,9 +103,9 @@ jobs:
         done
     - name: Build release image
       run: |
-        export PACKAGE="neuro-extras==${{ needs.info.outputs.version }}"
-        docker build -t ghcr.io/neuro-inc/neuro-extras:latest \
-          --build-arg NEURO_EXTRAS_PACKAGE=$PACKAGE .
+        export PACKAGE="apolo-extras==${{ needs.info.outputs.version }}"
+        docker build -t ghcr.io/neuro-inc/apolo-extras:latest \
+          --build-arg APOLO_EXTRAS_PACKAGE=$PACKAGE .
     - name: Login to ghcr.io
       uses: docker/login-action@v2.0.0
       with:
@@ -115,7 +115,7 @@ jobs:
     - name: Push release release image
       id: push
       run: |
-        export IMAGE=ghcr.io/neuro-inc/neuro-extras
+        export IMAGE=ghcr.io/neuro-inc/apolo-extras
         export TAG=${{ needs.info.outputs.version }}
 
         echo "image=${IMAGE}" >> $GITHUB_OUTPUT
@@ -166,9 +166,9 @@ jobs:
     env:
       PYTHONIOENCODING: utf-8
       NEURO_STAGING_URL: ${{ secrets.NEURO_STAGING_URL }}
-      NEURO_TOKEN: ${{ secrets.NEURO_TOKEN }}
-      NEURO_CLUSTER: default
-        #NEURO_CLUSTER_SECONDARY: cato-poc  # TODO: uncomment when cato-poc cluster is fixed
+      APOLO_TOKEN: ${{ secrets.NEURO_TOKEN }}
+      APOLO_CLUSTER: default
+        #APOLO_CLUSTER_SECONDARY: cato-poc  # TODO: uncomment when cato-poc cluster is fixed
       AZURE_SAS_TOKEN: ${{ secrets.AZURE_SAS_TOKEN }}
     steps:
     - name: Checkout commit
@@ -201,11 +201,11 @@ jobs:
     - name: Install python dependencies
       run: |
         make setup
-    - name: Configure neuro
+    - name: Configure apolo
       run: |
-        neuro config login-with-token ${{ env.NEURO_TOKEN }} ${{ env.NEURO_STAGING_URL }}
-        neuro config switch-cluster ${{ env.NEURO_CLUSTER }}
-        neuro --color=no config show
+        apolo config login-with-token ${{ env.APOLO_TOKEN }} ${{ env.NEURO_STAGING_URL }}
+        apolo config switch-cluster ${{ env.APOLO_CLUSTER }}
+        apolo --color=no config show
 
     - name: Authorize GCP
       uses: google-github-actions/auth@v1
@@ -228,7 +228,7 @@ jobs:
         DOCKER_CI_USERNAME: ${{ secrets.DOCKERHUB_CI_USERNAME }}
         DOCKER_CI_TOKEN: ${{ secrets.DOCKERHUB_CI_TOKEN }}
       run: |
-        unset NEURO_EXTRAS_IMAGE  # clear this env var to test it in real
+        unset APOLO_EXTRAS_IMAGE  # clear this env var to test it in real
         make test
     - name: Run tests on Windows
       if: matrix.os == 'windows'
@@ -238,7 +238,7 @@ jobs:
         DOCKER_CI_USERNAME: ${{ secrets.DOCKER_CI_USERNAME }}
         DOCKER_CI_TOKEN: ${{ secrets.DOCKER_CI_TOKEN }}
       run: |
-        if (Test-Path 'Env:NEURO_EXTRAS_IMAGE') { # clear this env var to test it in real
-          Remove-Item 'Env:NEURO_EXTRAS_IMAGE'
+        if (Test-Path 'Env:APOLO_EXTRAS_IMAGE') { # clear this env var to test it in real
+          Remove-Item 'Env:APOLO_EXTRAS_IMAGE'
         }
         make test

@@ -4,8 +4,8 @@ from unittest import mock
 import pytest
 from yarl import URL
 
-from neuro_extras.image import _build_image
-from neuro_extras.image_builder import ImageBuilder
+from apolo_extras.image import _build_image
+from apolo_extras.image_builder import ImageBuilder
 
 
 async def test_image_builder__min_parameters(
@@ -41,7 +41,7 @@ async def test_image_builder__min_parameters(
     assert subproc_mock.await_count == 2
     upload_ctx_cmd = subproc_mock.await_args_list[0][0][0]
     assert upload_ctx_cmd == [
-        "neuro",
+        "apolo",
         "--disable-pypi-version-check",
         "cp",
         "--recursive",
@@ -49,11 +49,11 @@ async def test_image_builder__min_parameters(
         str(expected_storage_build_root / "context"),
     ]
     start_build_cmd = subproc_mock.await_args_list[1][0][0]
-    start_build_neuro_args = start_build_cmd[: start_build_cmd.index("--")]
+    start_build_apolo_args = start_build_cmd[: start_build_cmd.index("--")]
     start_build_job_arg = start_build_cmd[start_build_cmd.index("--") + 1 :][0]
     start_build_kaniko_args = start_build_job_arg.split(" ")
-    assert start_build_neuro_args == [
-        "neuro",
+    assert start_build_apolo_args == [
+        "apolo",
         "--disable-pypi-version-check",
         "job",
         "run",
@@ -119,7 +119,7 @@ async def test_image_builder__full_parameters(
     assert subproc_mock.await_count == 2
     upload_ctx_cmd = subproc_mock.await_args_list[0][0][0]
     assert upload_ctx_cmd == [
-        "neuro",
+        "apolo",
         "--disable-pypi-version-check",
         "cp",
         "--recursive",
@@ -127,11 +127,11 @@ async def test_image_builder__full_parameters(
         str(expected_storage_build_root / "context"),
     ]
     start_build_cmd = subproc_mock.await_args_list[1][0][0]
-    start_build_neuro_args = start_build_cmd[: start_build_cmd.index("--")]
+    start_build_apolo_args = start_build_cmd[: start_build_cmd.index("--")]
     start_build_job_arg = start_build_cmd[start_build_cmd.index("--") + 1 :][0]
     start_build_kaniko_args = start_build_job_arg.split(" ")
-    assert start_build_neuro_args == [
-        "neuro",
+    assert start_build_apolo_args == [
+        "apolo",
         "--disable-pypi-version-check",
         "job",
         "run",
@@ -235,7 +235,7 @@ async def test_image_builder__custom_project(
     assert subproc_mock.await_count == 2
     upload_ctx_cmd = subproc_mock.await_args_list[0][0][0]
     assert upload_ctx_cmd == [
-        "neuro",
+        "apolo",
         "--disable-pypi-version-check",
         "cp",
         "--recursive",
@@ -243,11 +243,11 @@ async def test_image_builder__custom_project(
         str(expected_storage_build_root / "context"),
     ]
     start_build_cmd = subproc_mock.await_args_list[1][0][0]
-    start_build_neuro_args = start_build_cmd[: start_build_cmd.index("--")]
+    start_build_apolo_args = start_build_cmd[: start_build_cmd.index("--")]
     start_build_job_arg = start_build_cmd[start_build_cmd.index("--") + 1 :][0]
     start_build_kaniko_args = start_build_job_arg.split(" ")
-    assert start_build_neuro_args == [
-        "neuro",
+    assert start_build_apolo_args == [
+        "apolo",
         "--disable-pypi-version-check",
         "job",
         "run",
@@ -305,11 +305,11 @@ async def test_image_builder__storage_context(
     subproc_mock: mock.AsyncMock = remote_image_builder._execute_subprocess  # type: ignore # noqa: E501
     assert subproc_mock.await_count == 1
     start_build_cmd = subproc_mock.await_args_list[0][0][0]
-    start_build_neuro_args = start_build_cmd[: start_build_cmd.index("--")]
+    start_build_apolo_args = start_build_cmd[: start_build_cmd.index("--")]
     start_build_job_arg = start_build_cmd[start_build_cmd.index("--") + 1 :][0]
     start_build_kaniko_args = start_build_job_arg.split(" ")
-    assert start_build_neuro_args == [
-        "neuro",
+    assert start_build_apolo_args == [
+        "apolo",
         "--disable-pypi-version-check",
         "job",
         "run",

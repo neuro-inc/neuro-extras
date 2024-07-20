@@ -7,9 +7,9 @@ from math import ceil
 from tempfile import TemporaryDirectory
 from typing import Iterable, Iterator, List, Optional
 
-import neuro_sdk
+import apolo_sdk
 import pytest
-from neuro_sdk import Client
+from apolo_sdk import Client
 from pytest_lazyfixture import lazy_fixture  # type: ignore
 from tenacity import retry, stop_after_attempt, wait_random_exponential
 
@@ -77,7 +77,7 @@ def get_all_data_copy_configs(
 
     # (A.K.) todo: make it into a fixture
     async def get_client() -> Client:
-        return await neuro_sdk.get()
+        return await apolo_sdk.get()
 
     client = asyncio.run(get_client())
     for c in configs:
@@ -211,7 +211,7 @@ def _run_data_copy_test_from_config(config: CopyTestConfig) -> None:
     if config.should_fail and config.fail_reason:
         reasons_to_fail.append(config.fail_reason)
     returncode, stdout, stderr = _run_command(
-        "neuro-extras", ["-vvv"] + config.as_command()
+        "apolo-extras", ["-vvv"] + config.as_command()
     )
     succeeded = returncode == 0
     verb = "should" if should_succeed else "should not"

@@ -5,11 +5,11 @@ from pathlib import Path
 from time import sleep
 from typing import List, Optional
 
-from neuro_sdk import Client
+from apolo_sdk import Client
 from yarl import URL
 
-from neuro_extras.data.azure import _build_sas_url, _patch_azure_url_for_rclone
-from neuro_extras.data.common import Resource
+from apolo_extras.data.azure import _build_sas_url, _patch_azure_url_for_rclone
+from apolo_extras.data.common import Resource
 
 from ..conftest import DISK_PREFIX, TEMPDIR_PREFIX
 from .utils import _run_command
@@ -88,7 +88,7 @@ def _remove_s3(url: str) -> None:
 
 
 def _remove_storage(url: str) -> None:
-    returncode, stdout, stderr = _run_command("neuro", ["storage", "rm", "-r", url])
+    returncode, stdout, stderr = _run_command("apolo", ["storage", "rm", "-r", url])
     assert returncode == 0 or "Not Found" in stderr
 
 
@@ -130,7 +130,7 @@ def _s3_resource_exists(resource: DataTestResource) -> bool:
 
 def _storage_resource_exists(resource: DataTestResource) -> bool:
     sleep(5)  # (A.K.) I hate to admit it, but without this it often does not work
-    command = "neuro"
+    command = "apolo"
     assert resource.client is not None
     if resource.file_extension is None:
         args = [
@@ -160,7 +160,7 @@ def _storage_resource_exists(resource: DataTestResource) -> bool:
 
 
 def _resource_on_disk_exists(resource: DataTestResource) -> bool:
-    command = "neuro"
+    command = "apolo"
     assert resource.client
     disk_id, path_on_disk = Resource.parse(
         resource.url, client=resource.client

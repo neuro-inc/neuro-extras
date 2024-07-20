@@ -11,7 +11,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any, Dict, List, Optional, Tuple, Union
 
-from neuro_sdk import Client
+from apolo_sdk import Client
 from yarl import URL
 
 
@@ -342,9 +342,9 @@ def ensure_folder_exists(local_resource: Resource) -> None:
     Path(folder_name).mkdir(exist_ok=True, parents=True)
 
 
-def get_default_preset(neuro_client: Client) -> str:
+def get_default_preset(apolo_client: Client) -> str:
     """Get default preset name via Neu.ro client"""
-    return next(iter(neuro_client.presets.keys()))
+    return next(iter(apolo_client.presets.keys()))
 
 
 def provide_temp_dir(

@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 @main.command("init-aliases")
 def init_aliases() -> None:
     """
-    Create neuro CLI aliases for neuro-extras functionality.
+    Create apolo CLI aliases for apolo-extras functionality.
     """
     # TODO: support patching the global ~/.neuro/user.toml
     toml_path = Path.cwd() / ".neuro.toml"
@@ -28,7 +28,7 @@ def init_aliases() -> None:
             config = toml.load(f)
     config.setdefault("alias", {})
     config["alias"]["image-build"] = {
-        "exec": "neuro-extras image build",
+        "exec": "apolo-extras image build",
         "options": [
             "-f, --file=PATH  path to the Dockerfile within CONTEXT",
             "--build-arg=LIST  build arguments for Docker",
@@ -41,11 +41,11 @@ def init_aliases() -> None:
         "args": "CONTEXT_PATH IMAGE_URI",
         "help": (
             "Build docker image on the platform. "
-            "Hit `neuro-extras image build --help` for more info."
+            "Hit `apolo-extras image build --help` for more info."
         ),
     }
     config["alias"]["local-build"] = {
-        "exec": "neuro-extras image local-build",
+        "exec": "apolo-extras image local-build",
         "options": [
             "-f, --file=PATH  path to the Dockerfile within CONTEXT",
             "--build-arg=LIST  build arguments for Docker",
@@ -54,30 +54,30 @@ def init_aliases() -> None:
         "args": "CONTEXT_PATH IMAGE_URI",
         "help": (
             "Build docker image using local Docker daemon. "
-            "Hit `neuro-extras image local-build --help` for more info."
+            "Hit `apolo-extras image local-build --help` for more info."
         ),
     }
     config["alias"]["seldon-init-package"] = {
-        "exec": "neuro-extras seldon init-package",
+        "exec": "apolo-extras seldon init-package",
         "args": "URI_OR_PATH",
     }
     config["alias"]["image-transfer"] = {
-        "exec": "neuro-extras image transfer",
+        "exec": "apolo-extras image transfer",
         "args": "SOURCE DESTINATION",
         "options": [
             "-F, --force-overwrite  enforce destination image overwrite",
         ],
         "help": (
             "Transfer images between the cluster within the platform. "
-            "Hit `neuro-extras image transfer --help` for more info."
+            "Hit `apolo-extras image transfer --help` for more info."
         ),
     }
     config["alias"]["data-transfer"] = {
-        "exec": "neuro-extras data transfer",
+        "exec": "apolo-extras data transfer",
         "args": "SOURCE DESTINATION",
     }
     config["alias"]["data-cp"] = {
-        "exec": "neuro-extras data cp",
+        "exec": "apolo-extras data cp",
         "options": [
             "-c, --compress Compress source files",
             "-x, --extract Extract downloaded files",

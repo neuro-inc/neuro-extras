@@ -20,13 +20,13 @@ def test_data_transfer(
     src_cluster, dst_cluster = dst_cluster, src_cluster
 
     with switch_cluster(src_cluster):
-        result = cli_runner(["neuro-extras", "init-aliases"])
+        result = cli_runner(["apolo-extras", "init-aliases"])
         assert result.returncode == 0, result
 
         src_path = (
             f"storage://{src_cluster}/{current_user}/copy-src/{str(uuid.uuid4())}"
         )
-        result = cli_runner(["neuro", "mkdir", "-p", src_path])
+        result = cli_runner(["apolo", "mkdir", "-p", src_path])
         assert result.returncode == 0, result
 
         dst_path = (
@@ -34,20 +34,20 @@ def test_data_transfer(
         )
 
         result = cli_runner(
-            ["neuro", "data-transfer", src_path, dst_path],
+            ["apolo", "data-transfer", src_path, dst_path],
         )
         assert result.returncode == 0, result
 
         del_result = cli_runner(
-            ["neuro", "rm", "-r", src_path],
+            ["apolo", "rm", "-r", src_path],
         )
         assert del_result.returncode == 0, result
 
     with switch_cluster(dst_cluster):
         result = cli_runner(
-            ["neuro", "ls", dst_path],
+            ["apolo", "ls", dst_path],
         )
         assert result.returncode == 0, result
 
-        del_result = cli_runner(["neuro", "rm", "-r", dst_path])
+        del_result = cli_runner(["apolo", "rm", "-r", dst_path])
         assert del_result.returncode == 0, result

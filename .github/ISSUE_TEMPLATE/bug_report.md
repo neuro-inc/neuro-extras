@@ -30,8 +30,8 @@ assignees: ''
 ## Environment
 
 ##### Mandatory:
- - neuro-extras version: (hit `neuro-extras --version` in console)
- - neuro CLI version: (hit `neuro --version` in console)
+ - apolo-extras version: (hit `apolo-extras --version` in console)
+ - apolo CLI version: (hit `apolo --version` in console)
 
 ##### Recommended:
  - OS version: (how to get [OSX]( https://support.apple.com/en-us/HT201260 ) / [Linux]( https://www.cyberciti.biz/faq/find-linux-distribution-name-version-number ) / [Windows]( https://support.microsoft.com/en-us/help/13443/windows-which-version-am-i-running ) version)

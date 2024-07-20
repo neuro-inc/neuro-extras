@@ -1,13 +1,13 @@
 # CLI reference
 
-## neuro-extras
+## apolo-extras
 
 Auxiliary scripts and recipes for automating routine tasks.
 
 **Usage:**
 
 ```bash
-neuro-extras [OPTIONS] COMMAND [ARGS]...
+apolo-extras [OPTIONS] COMMAND [ARGS]...
 ```
 
 **Options:**
@@ -23,26 +23,26 @@ neuro-extras [OPTIONS] COMMAND [ARGS]...
 
 | Usage | Description |
 | :--- | :--- |
-| [_neuro-extras config_](cli.md#neuro-extras-config) | Configuration operations. |
-| [_neuro-extras data_](cli.md#neuro-extras-data) | Data transfer operations. |
-| [_neuro-extras image_](cli.md#neuro-extras-image) | Job container image operations. |
-| [_neuro-extras k8s_](cli.md#neuro-extras-k8s) | Cluster Kubernetes operations. |
-| [_neuro-extras seldon_](cli.md#neuro-extras-seldon) | Seldon deployment operations. |
+| [_apolo-extras config_](cli.md#apolo-extras-config) | Configuration operations. |
+| [_apolo-extras data_](cli.md#apolo-extras-data) | Data transfer operations. |
+| [_apolo-extras image_](cli.md#apolo-extras-image) | Job container image operations. |
+| [_apolo-extras k8s_](cli.md#apolo-extras-k8s) | Cluster Kubernetes operations. |
+| [_apolo-extras seldon_](cli.md#apolo-extras-seldon) | Seldon deployment operations. |
 
 **Commands:**
 
 | Usage | Description |
 | :--- | :--- |
-| [_neuro-extras init-aliases_](cli.md#neuro-extras-init-aliases) | Create neuro CLI aliases for neuro-extras functionality. |
+| [_apolo-extras init-aliases_](cli.md#apolo-extras-init-aliases) | Create apolo CLI aliases for apolo-extras functionality. |
 
-### neuro-extras config
+### apolo-extras config
 
 Configuration operations.
 
 **Usage:**
 
 ```bash
-neuro-extras config [OPTIONS] COMMAND [ARGS]...
+apolo-extras config [OPTIONS] COMMAND [ARGS]...
 ```
 
 **Options:**
@@ -55,17 +55,17 @@ neuro-extras config [OPTIONS] COMMAND [ARGS]...
 
 | Usage | Description |
 | :--- | :--- |
-| [_neuro-extras config build-registy-auth_](cli.md#neuro-extras-config-build-registy-auth) | Generate docker auth for accessing remote registry. |
-| [_neuro-extras config save-registry-auth_](cli.md#neuro-extras-config-save-registry-auth) | Save docker auth file for accessing platform registry. |
+| [_apolo-extras config build-registy-auth_](cli.md#apolo-extras-config-build-registy-auth) | Generate docker auth for accessing remote registry. |
+| [_apolo-extras config save-registry-auth_](cli.md#apolo-extras-config-save-registry-auth) | Save docker auth file for accessing platform registry. |
 
-#### neuro-extras config build-registy-auth
+#### apolo-extras config build-registy-auth
 
 Generate docker auth for accessing remote registry.
 
 **Usage:**
 
 ```bash
-neuro-extras config build-registy-auth [OPTIONS] REGISTRY_URI USERNAME
+apolo-extras config build-registy-auth [OPTIONS] REGISTRY_URI USERNAME
                                               PASSWORD
 ```
 
@@ -75,14 +75,14 @@ neuro-extras config build-registy-auth [OPTIONS] REGISTRY_URI USERNAME
 | :--- | :--- |
 | _--help_ | Show this message and exit. |
 
-#### neuro-extras config save-registry-auth
+#### apolo-extras config save-registry-auth
 
 Save docker auth file for accessing platform registry.
 
 **Usage:**
 
 ```bash
-neuro-extras config save-registry-auth [OPTIONS] PATH
+apolo-extras config save-registry-auth [OPTIONS] PATH
 ```
 
 **Options:**
@@ -92,14 +92,14 @@ neuro-extras config save-registry-auth [OPTIONS] PATH
 | _--cluster TEXT_ | Cluster name for which the auth information should be saved. Current cluster by default |
 | _--help_ | Show this message and exit. |
 
-### neuro-extras data
+### apolo-extras data
 
 Data transfer operations.
 
 **Usage:**
 
 ```bash
-neuro-extras data [OPTIONS] COMMAND [ARGS]...
+apolo-extras data [OPTIONS] COMMAND [ARGS]...
 ```
 
 **Options:**
@@ -112,17 +112,17 @@ neuro-extras data [OPTIONS] COMMAND [ARGS]...
 
 | Usage | Description |
 | :--- | :--- |
-| [_neuro-extras data cp_](cli.md#neuro-extras-data-cp) | Copy data between external object storage and cluster. |
-| [_neuro-extras data transfer_](cli.md#neuro-extras-data-transfer) | Copy data between storages on different clusters. |
+| [_apolo-extras data cp_](cli.md#apolo-extras-data-cp) | Copy data between external object storage and cluster. |
+| [_apolo-extras data transfer_](cli.md#apolo-extras-data-transfer) | Copy data between storages on different clusters. |
 
-#### neuro-extras data cp
+#### apolo-extras data cp
 
 Copy data between external object storage and cluster. Supported external object storage systems: ['AWS', 'GCS', 'AZURE', 'HTTP', 'HTTPS']. Note: originally, Azure's blob storage scheme is 'http(s)', but we prepend 'azure+' to differenciate https vs azure
 
 **Usage:**
 
 ```bash
-neuro-extras data cp [OPTIONS] SOURCE DESTINATION
+apolo-extras data cp [OPTIONS] SOURCE DESTINATION
 ```
 
 **Options:**
@@ -138,7 +138,7 @@ neuro-extras data cp [OPTIONS] SOURCE DESTINATION
 | _-l, --life\_span SECONDS_ | Copy job life span in seconds. |
 | _--help_ | Show this message and exit. |
 
-#### neuro-extras data transfer
+#### apolo-extras data transfer
 
 Copy data between storages on different clusters.
 
@@ -147,7 +147,7 @@ Consider archiving dataset first for the sake of performance, if the dataset con
 **Usage:**
 
 ```bash
-neuro-extras data transfer [OPTIONS] SOURCE DESTINATION
+apolo-extras data transfer [OPTIONS] SOURCE DESTINATION
 ```
 
 **Options:**
@@ -156,14 +156,14 @@ neuro-extras data transfer [OPTIONS] SOURCE DESTINATION
 | :--- | :--- |
 | _--help_ | Show this message and exit. |
 
-### neuro-extras image
+### apolo-extras image
 
 Job container image operations.
 
 **Usage:**
 
 ```bash
-neuro-extras image [OPTIONS] COMMAND [ARGS]...
+apolo-extras image [OPTIONS] COMMAND [ARGS]...
 ```
 
 **Options:**
@@ -176,18 +176,18 @@ neuro-extras image [OPTIONS] COMMAND [ARGS]...
 
 | Usage | Description |
 | :--- | :--- |
-| [_neuro-extras image build_](cli.md#neuro-extras-image-build) | Build Job container image remotely on cluster using Kaniko. |
-| [_neuro-extras image local-build_](cli.md#neuro-extras-image-local-build) | Build Job container image locally \(requires Docker daemon\). |
-| [_neuro-extras image transfer_](cli.md#neuro-extras-image-transfer) | Copy images between clusters. |
+| [_apolo-extras image build_](cli.md#apolo-extras-image-build) | Build Job container image remotely on cluster using Kaniko. |
+| [_apolo-extras image local-build_](cli.md#apolo-extras-image-local-build) | Build Job container image locally \(requires Docker daemon\). |
+| [_apolo-extras image transfer_](cli.md#apolo-extras-image-transfer) | Copy images between clusters. |
 
-#### neuro-extras image build
+#### apolo-extras image build
 
 Build Job container image remotely on cluster using Kaniko.
 
 **Usage:**
 
 ```bash
-neuro-extras image build [OPTIONS] CONTEXT_PATH IMAGE_URI
+apolo-extras image build [OPTIONS] CONTEXT_PATH IMAGE_URI
 ```
 
 **Options:**
@@ -198,7 +198,7 @@ neuro-extras image build [OPTIONS] CONTEXT_PATH IMAGE_URI
 | _--build-arg VAR=VAL_ | Build-time variables passed in ARG values, similarly to Docker. Could be used multiple times for multiple arguments. |
 | _-v, --volume MOUNT_ | Mounts directory from storage into container. Use multiple options to mount more than one volume.  |
 | _-e, --env VAR=VAL_ | Set environment variable in container. Use multiple options to define more than one variable. Those env vars will be passed as build arguments too. |
-| _-s, --preset PRESET_ | Predefined resource configuration \(to see available values, run `neuro config show`\) |
+| _-s, --preset PRESET_ | Predefined resource configuration \(to see available values, run `apolo config show`\) |
 | _-F, --force-overwrite_ | Overwrite if the destination image already exists. |
 | _--cache / --no-cache_ | Use Kaniko cache while building image.  \[default: cache\] |
 | _--verbose BOOLEAN_ | If specified, run Kaniko with 'debug' verbosity, otherwise 'info' \(default\). |
@@ -207,14 +207,14 @@ neuro-extras image build [OPTIONS] CONTEXT_PATH IMAGE_URI
 | _--extra-kaniko-args ARGS_ | Extra arguments for Kaniko builder. Useful for advanced users, e.g. to set custom Kaniko caching behaviour. We set some default arguments for you, so use this option with caution. Please refer to Kaniko documentation for more details at https://github.com/GoogleContainerTools/kaniko?tab=readme-ov-file#additional-flags |
 | _--help_ | Show this message and exit. |
 
-#### neuro-extras image local-build
+#### apolo-extras image local-build
 
 Build Job container image locally (requires Docker daemon).
 
 **Usage:**
 
 ```bash
-neuro-extras image local-build [OPTIONS] CONTEXT_PATH IMAGE_URI
+apolo-extras image local-build [OPTIONS] CONTEXT_PATH IMAGE_URI
 ```
 
 **Options:**
@@ -228,14 +228,14 @@ neuro-extras image local-build [OPTIONS] CONTEXT_PATH IMAGE_URI
 | _-p, --project PROJECT\_NAME_ | Start image builder job in other than the current project. |
 | _--help_ | Show this message and exit. |
 
-#### neuro-extras image transfer
+#### apolo-extras image transfer
 
 Copy images between clusters.
 
 **Usage:**
 
 ```bash
-neuro-extras image transfer [OPTIONS] SOURCE DESTINATION
+apolo-extras image transfer [OPTIONS] SOURCE DESTINATION
 ```
 
 **Options:**
@@ -245,14 +245,14 @@ neuro-extras image transfer [OPTIONS] SOURCE DESTINATION
 | _-F, --force-overwrite_ | Transfer even if the destination image already exists. |
 | _--help_ | Show this message and exit. |
 
-### neuro-extras k8s
+### apolo-extras k8s
 
 Cluster Kubernetes operations.
 
 **Usage:**
 
 ```bash
-neuro-extras k8s [OPTIONS] COMMAND [ARGS]...
+apolo-extras k8s [OPTIONS] COMMAND [ARGS]...
 ```
 
 **Options:**
@@ -265,15 +265,15 @@ neuro-extras k8s [OPTIONS] COMMAND [ARGS]...
 
 | Usage | Description |
 | :--- | :--- |
-| [_neuro-extras k8s generate-registry-secret_](cli.md#neuro-extras-k8s-generate-registry-secret) |  |
-| [_neuro-extras k8s generate-secret_](cli.md#neuro-extras-k8s-generate-secret) |  |
+| [_apolo-extras k8s generate-registry-secret_](cli.md#apolo-extras-k8s-generate-registry-secret) |  |
+| [_apolo-extras k8s generate-secret_](cli.md#apolo-extras-k8s-generate-secret) |  |
 
-#### neuro-extras k8s generate-registry-secret
+#### apolo-extras k8s generate-registry-secret
 
 **Usage:**
 
 ```bash
-neuro-extras k8s generate-registry-secret [OPTIONS]
+apolo-extras k8s generate-registry-secret [OPTIONS]
 ```
 
 **Options:**
@@ -283,12 +283,12 @@ neuro-extras k8s generate-registry-secret [OPTIONS]
 | _--name TEXT_ |  |
 | _--help_ | Show this message and exit. |
 
-#### neuro-extras k8s generate-secret
+#### apolo-extras k8s generate-secret
 
 **Usage:**
 
 ```bash
-neuro-extras k8s generate-secret [OPTIONS]
+apolo-extras k8s generate-secret [OPTIONS]
 ```
 
 **Options:**
@@ -298,14 +298,14 @@ neuro-extras k8s generate-secret [OPTIONS]
 | _--name TEXT_ |  |
 | _--help_ | Show this message and exit. |
 
-### neuro-extras seldon
+### apolo-extras seldon
 
 Seldon deployment operations.
 
 **Usage:**
 
 ```bash
-neuro-extras seldon [OPTIONS] COMMAND [ARGS]...
+apolo-extras seldon [OPTIONS] COMMAND [ARGS]...
 ```
 
 **Options:**
@@ -318,15 +318,15 @@ neuro-extras seldon [OPTIONS] COMMAND [ARGS]...
 
 | Usage | Description |
 | :--- | :--- |
-| [_neuro-extras seldon generate-deployment_](cli.md#neuro-extras-seldon-generate-deployment) |  |
-| [_neuro-extras seldon init-package_](cli.md#neuro-extras-seldon-init-package) |  |
+| [_apolo-extras seldon generate-deployment_](cli.md#apolo-extras-seldon-generate-deployment) |  |
+| [_apolo-extras seldon init-package_](cli.md#apolo-extras-seldon-init-package) |  |
 
-#### neuro-extras seldon generate-deployment
+#### apolo-extras seldon generate-deployment
 
 **Usage:**
 
 ```bash
-neuro-extras seldon generate-deployment [OPTIONS] MODEL_IMAGE_URI
+apolo-extras seldon generate-deployment [OPTIONS] MODEL_IMAGE_URI
                                                MODEL_STORAGE_URI
 ```
 
@@ -335,16 +335,16 @@ neuro-extras seldon generate-deployment [OPTIONS] MODEL_IMAGE_URI
 | Name | Description |
 | :--- | :--- |
 | _--name TEXT_ |  |
-| _--neuro-secret TEXT_ |  |
+| _--apolo-secret TEXT_ |  |
 | _--registry-secret TEXT_ |  |
 | _--help_ | Show this message and exit. |
 
-#### neuro-extras seldon init-package
+#### apolo-extras seldon init-package
 
 **Usage:**
 
 ```bash
-neuro-extras seldon init-package [OPTIONS] [PATH]
+apolo-extras seldon init-package [OPTIONS] [PATH]
 ```
 
 **Options:**
@@ -353,14 +353,14 @@ neuro-extras seldon init-package [OPTIONS] [PATH]
 | :--- | :--- |
 | _--help_ | Show this message and exit. |
 
-### neuro-extras init-aliases
+### apolo-extras init-aliases
 
-Create neuro CLI aliases for neuro-extras functionality.
+Create apolo CLI aliases for apolo-extras functionality.
 
 **Usage:**
 
 ```bash
-neuro-extras init-aliases [OPTIONS]
+apolo-extras init-aliases [OPTIONS]
 ```
 
 **Options:**

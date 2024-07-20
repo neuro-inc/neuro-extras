@@ -1,10 +1,10 @@
 from typing import Dict, Iterator
 
 import pytest
-from neuro_sdk import Client, Preset
+from apolo_sdk import Client, Preset
 
 
-class MockNeuroClient(Client):
+class MockApoloClient(Client):
     def __init__(self) -> None:
         self._presets: Dict[str, Preset] = {}
 
@@ -14,5 +14,5 @@ class MockNeuroClient(Client):
 
 
 @pytest.fixture
-def mock_client() -> Iterator[MockNeuroClient]:
-    yield MockNeuroClient._create()
+def mock_client() -> Iterator[MockApoloClient]:
+    yield MockApoloClient._create()

@@ -8,7 +8,7 @@ import logging
 from pathlib import Path
 from typing import List, Optional, Tuple
 
-from neuro_sdk import Client
+from apolo_sdk import Client
 
 from ..utils import provide_temp_dir
 from .common import Copier, DataUrlType, Resource
@@ -110,7 +110,7 @@ class CopyOperation:
         return [
             (DataUrlType.CLOUD, DataUrlType.CLOUD),
             # TODO: (A.K.) implement platform-to-local and vice-versa
-            # through neuro storage cp
+            # through apolo storage cp
             (DataUrlType.PLATFORM, DataUrlType.LOCAL_FS),
             (DataUrlType.LOCAL_FS, DataUrlType.PLATFORM),
             (DataUrlType.STORAGE, DataUrlType.STORAGE),

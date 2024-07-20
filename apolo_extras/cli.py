@@ -36,7 +36,7 @@ class ClickLogHandler(logging.Handler):
     help="Give less output. Option is additive, and can be used up to 2 times.",
 )
 @click.version_option(
-    version=__version__, message="neuro-extras package version: %(version)s"
+    version=__version__, message="apolo-extras package version: %(version)s"
 )
 def main(
     verbose: int,

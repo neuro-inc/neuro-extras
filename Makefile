@@ -9,7 +9,7 @@ setup:
 
 .PHONY: lint
 lint: format
-	mypy neuro_extras tests setup.py
+	mypy apolo_extras tests setup.py
 
 .PHONY: format
 format:
