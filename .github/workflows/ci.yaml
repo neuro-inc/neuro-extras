@@ -5,54 +5,46 @@ on:
     branches: [master]
   pull_request:
     branches: [master]
-  pull_request_target:
-    branches: [master]
   schedule:
-  - cron: 0 4 * * *
+    - cron: 0 14 * * *
 
 jobs:
   lint:
-    if: |
-      (github.event_name != 'pull_request_target' && github.actor != 'dependabot[bot]') ||
-      (github.event_name == 'pull_request_target' && github.actor == 'dependabot[bot]')
     name: Linter
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-    - name: Checkout commit
-      uses: actions/checkout@v3
-      with:
-        ref: ${{ github.event.pull_request.head.sha }}
+      - name: Checkout commit
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
 
-    - name: Setup Python 3.9
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.9'
-    - name: Cache PyPI
-      uses: actions/cache@v3
-      with:
-        key: ${{ runner.os }}-py-3.9-${{ hashFiles('requirements/*.txt') }}
-        path: ${{ env.pythonLocation }}
+      - name: Setup Python 3.9
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.9"
+      - name: Cache PyPI
+        uses: actions/cache@v3
+        with:
+          key: ${{ runner.os }}-py-3.9-${{ hashFiles('requirements/*.txt') }}
+          path: ${{ env.pythonLocation }}
 
-    - name: Cache pre-commit hooks
-      uses: actions/cache@v3
-      with:
-        path: ~/.cache/pre-commit
-        key: ${{ runner.os }}-pre-commit-python-3.9-${{ hashFiles('.pre-commit-config.yaml') }}
+      - name: Cache pre-commit hooks
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pre-commit
+          key: ${{ runner.os }}-pre-commit-python-3.9-${{ hashFiles('.pre-commit-config.yaml') }}
 
-    - name: Install dependencies
-      run: |
-        python -m pip install -U pip
-        make setup
+      - name: Install dependencies
+        run: |
+          python -m pip install -U pip
+          make setup
 
-    - name: Run linters
-      run: |
-        make lint
+      - name: Run linters
+        run: |
+          make lint
 
   pretest:
-    if: |
-      (github.event_name != 'pull_request_target' && github.actor != 'dependabot[bot]') ||
-      (github.event_name == 'pull_request_target' && github.actor == 'dependabot[bot]')
     name: Prepare for tests
     needs: [lint]
     runs-on: ubuntu-latest
@@ -66,220 +58,217 @@ jobs:
       # Note: ${{ github.sha }} not working, see https://github.com/actions/checkout/issues/299
       SHA: ${{ github.event.pull_request.head.sha || github.sha }}
     steps:
-    - name: Checkout commit
-      uses: actions/checkout@v3
-      with:
-        ref: ${{ github.event.pull_request.head.sha }}
+      - name: Checkout commit
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
 
-    - name: Setup Python 3.9
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.9'
+      - name: Setup Python 3.9
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.9"
 
-    - name: Cache Python and its deps
-      uses: actions/cache@v3
-      with:
-        key: ${{ runner.os }}-py-3.9-${{ hashFiles('requirements/base.txt') }}
-        path: ${{ env.pythonLocation }}
+      - name: Cache Python and its deps
+        uses: actions/cache@v3
+        with:
+          key: ${{ runner.os }}-py-3.9-${{ hashFiles('requirements/base.txt') }}
+          path: ${{ env.pythonLocation }}
 
-    - name: Install and configure apolo
-      run: |
-        python -m pip install -r requirements/base.txt
-        apolo config login-with-token ${{ env.APOLO_TOKEN }} ${{ env.NEURO_STAGING_URL }}
-        apolo config switch-cluster ${{ env.APOLO_CLUSTER }}
-        apolo config switch-project ${{ env.APOLO_PROJECT }}
-        apolo --color=no config show
-    - name: Login to ghcr.io
-      uses: docker/login-action@v2.0.0
-      with:
-        registry: ghcr.io
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
-    - name: Build test image
-      run: |
-        export REPO_URL=https://github.com/neuro-inc/neuro-extras.git
-        export PACKAGE="git+$REPO_URL@$SHA"
-        docker build -t ghcr.io/neuro-inc/apolo-extras:$SHA \
-          --build-arg APOLO_EXTRAS_PACKAGE=$PACKAGE .
-    - name: Push test image
-      run: |
-        docker push ghcr.io/neuro-inc/apolo-extras:$SHA
+      - name: Install and configure apolo
+        run: |
+          python -m pip install -r requirements/base.txt
+          apolo config login-with-token ${{ env.APOLO_TOKEN }} ${{ env.NEURO_STAGING_URL }}
+          apolo config switch-cluster ${{ env.APOLO_CLUSTER }}
+          apolo config switch-project ${{ env.APOLO_PROJECT }}
+          apolo --color=no config show
+      - name: Login to ghcr.io
+        uses: docker/login-action@v2.0.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build test image
+        run: |
+          export REPO_URL=https://github.com/neuro-inc/neuro-extras.git
+          export PACKAGE="git+$REPO_URL@$SHA"
+          docker build -t ghcr.io/neuro-inc/apolo-extras:$SHA \
+            --build-arg APOLO_EXTRAS_PACKAGE=$PACKAGE .
+      - name: Push test image
+        run: |
+          docker push ghcr.io/neuro-inc/apolo-extras:$SHA
 
   test:
-    if: |
-      (github.event_name != 'pull_request_target' && github.actor != 'dependabot[bot]') ||
-      (github.event_name == 'pull_request_target' && github.actor == 'dependabot[bot]')
     name: Run tests
     needs: [pretest]
     strategy:
       matrix:
-        python-version: ['3.8', '3.9', '3.10', '3.11']
+        python-version: ["3.8", "3.9", "3.10", "3.11"]
         os: [ubuntu, macos, windows]
         exclude:
           # not to overload the platform, we will remove this eventually
           # see https://github.com/neuro-inc/neuro-extras/pull/249
-        - python-version: 3.9
-          os: macos
-        - python-version: 3.9
-          os: windows
-        - python-version: 3.10
-          os: macos
-        - python-version: 3.10
-          os: windows
+          - python-version: 3.9
+            os: macos
+          - python-version: 3.9
+            os: windows
+          - python-version: 3.10
+            os: macos
+          - python-version: 3.10
+            os: windows
     runs-on: ${{ matrix.os }}-latest
     timeout-minutes: 90
     env:
       PYTHONIOENCODING: utf-8
 
     steps:
-    - name: Checkout commit
-      uses: actions/checkout@v3
-      with:
-        ref: ${{ github.event.pull_request.head.sha }}
+      - name: Checkout commit
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
 
-    - name: Authorize GCP
-      uses: google-github-actions/auth@v1
-      with:
-        credentials_json: ${{ secrets.E2E_COOKIECUTTER_GCP_SA_KEY }}
+      - name: Authorize GCP
+        uses: google-github-actions/auth@v1
+        with:
+          credentials_json: ${{ secrets.E2E_COOKIECUTTER_GCP_SA_KEY }}
 
-    - name: Setup gcloud
-      uses: google-github-actions/setup-gcloud@v1
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v1
 
-    - name: Configure AWS access
-      uses: aws-actions/configure-aws-credentials@v2
-      with:
-        aws-access-key-id: ${{ secrets.E2E_COOKIECUTTER_AWS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.E2E_COOKIECUTTER_AWS_ACCESS_KEY }}
-        aws-region: us-east-1
+      - name: Configure AWS access
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.E2E_COOKIECUTTER_AWS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.E2E_COOKIECUTTER_AWS_ACCESS_KEY }}
+          aws-region: us-east-1
 
-    - name: Install python ${{ matrix.python-version }}
-      uses: actions/setup-python@v4
-      with:
-        python-version: ${{ matrix.python-version }}
+      - name: Install python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
 
-    - name: Cache Python and its deps
-      uses: actions/cache@v3
-      with:
-        key: ${{ runner.os }}-py-${{ matrix.python-version }}-${{ hashFiles('setup.py', 'requirements/*.txt') }}
-        path: ${{ env.pythonLocation }}
+      - name: Cache Python and its deps
+        uses: actions/cache@v3
+        with:
+          key: ${{ runner.os }}-py-${{ matrix.python-version }}-${{ hashFiles('setup.py', 'requirements/*.txt') }}
+          path: ${{ env.pythonLocation }}
 
-    - name: Cache pre-commit hooks
-      uses: actions/cache@v3
-      with:
-        path: ~/.cache/pre-commit
-        key: ${{ runner.os }}-pre-commit-python-${{ matrix.python-version }}-${{ hashFiles('.pre-commit-config.yaml') }}
+      - name: Cache pre-commit hooks
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pre-commit
+          key: ${{ runner.os }}-pre-commit-python-${{ matrix.python-version }}-${{ hashFiles('.pre-commit-config.yaml') }}
 
-    - name: Install libraries on Linux
-      if: matrix.os == 'ubuntu'
-      shell: bash
-      run: |
-        curl https://rclone.org/install.sh | sudo bash
+      - name: Install libraries on Linux
+        if: matrix.os == 'ubuntu'
+        shell: bash
+        run: |
+          curl https://rclone.org/install.sh | sudo bash
 
-    - name: Install libraries on macOS
-      if: matrix.os == 'macos'
-      shell: bash
-      run: |
-        curl https://rclone.org/install.sh | sudo bash
+      - name: Install libraries on macOS
+        if: matrix.os == 'macos'
+        shell: bash
+        run: |
+          curl https://rclone.org/install.sh | sudo bash
 
-    - name: Install python dependencies
-      run: |
-        make setup
+      - name: Install python dependencies
+        run: |
+          make setup
 
-    - name: Configure environment
-      env:
-        NEURO_STAGING_URL: ${{ secrets.NEURO_STAGING_URL }}
-        APOLO_TOKEN: ${{ secrets.APOLO_TOKEN }}
-        APOLO_CLUSTER: default
-        APOLO_PROJECT: e2e-tests
-        APOLO_EXTRAS_PRESET: cpu-small
-        AZURE_SAS_TOKEN: ${{ secrets.AZURE_SAS_TOKEN }}
-      run: |
-        apolo config login-with-token ${{ env.APOLO_TOKEN }} ${{ env.NEURO_STAGING_URL }}
-        apolo config switch-cluster ${{ env.APOLO_CLUSTER }}
-        apolo config switch-project ${{ env.APOLO_PROJECT }}
-        apolo --color=no config show
-    - name: Read PR labels
-      uses: joerick/pr-labels-action@v1.0.6
-      id: pr_labels
+      - name: Configure environment
+        env:
+          NEURO_STAGING_URL: ${{ secrets.NEURO_STAGING_URL }}
+          APOLO_TOKEN: ${{ secrets.NEURO_TOKEN }}
+          APOLO_CLUSTER: default
+          APOLO_PROJECT: e2e-tests
+          APOLO_EXTRAS_PRESET: cpu-small
+          AZURE_SAS_TOKEN: ${{ secrets.AZURE_SAS_TOKEN }}
+        run: |
+          apolo config login-with-token ${{ env.APOLO_TOKEN }} ${{ env.NEURO_STAGING_URL }}
+          apolo config switch-cluster ${{ env.APOLO_CLUSTER }}
+          apolo config switch-project ${{ env.APOLO_PROJECT }}
+          apolo --color=no config show
+      - name: Read PR labels
+        uses: joerick/pr-labels-action@v1.0.6
+        id: pr_labels
 
-    - name: Run all tests
-      if: |
-        github.ref_type == 'branch' && github.ref_name == 'master'
-      env:
-        COLOR: 'yes'
-        DOCKER_CI_USERNAME: ${{ secrets.DOCKERHUB_CI_USERNAME }}
-        DOCKER_CI_TOKEN: ${{ secrets.DOCKERHUB_CI_TOKEN }}
-        APOLO_CLUSTER: default
-        #APOLO_CLUSTER_SECONDARY: cato-poc  # TODO: uncomment when cato-poc cluster is fixed
-        AZURE_SAS_TOKEN: ${{ secrets.AZURE_SAS_TOKEN }}
-        # Note: ${{ github.sha }} not working, see https://github.com/actions/checkout/issues/299
-        SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-        # Note: see tests/e2e/conftest.py:get_tested_archive_types()
-        PYTEST_DATA_COPY_ARCHIVE_TYPES: '.tar.gz'
-        PYTEST_PARALLEL: 6
-      shell: bash
-      run: |
-        export APOLO_EXTRAS_IMAGE=ghcr.io/neuro-inc/apolo-extras:$SHA
-        make test
-    - name: Run smoke tests
-      if: |
-        !(github.ref_type == 'branch' && github.ref_name == 'master')
-      env:
-        COLOR: 'yes'
-        DOCKER_CI_USERNAME: ${{ secrets.DOCKERHUB_CI_USERNAME }}
-        DOCKER_CI_TOKEN: ${{ secrets.DOCKERHUB_CI_TOKEN }}
-        APOLO_CLUSTER: default
-        APOLO_EXTRAS_PRESET: cpu-small
-        #APOLO_CLUSTER_SECONDARY: cato-poc  # TODO: uncomment when cato-poc cluster is fixed
-        AZURE_SAS_TOKEN: ${{ secrets.AZURE_SAS_TOKEN }}
-        # Note: ${{ github.sha }} not working, see https://github.com/actions/checkout/issues/299
-        SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-        # Note: see tests/e2e/conftest.py:get_tested_archive_types()
-        PYTEST_DATA_COPY_ARCHIVE_TYPES: '.tar.gz'
-        PYTEST_PARALLEL: 6
-      shell: bash
-      run: |
-        export APOLO_EXTRAS_IMAGE=ghcr.io/neuro-inc/apolo-extras:$SHA
-        make test_smoke
-    - name: Run data tests
-      if: |
-        !(github.ref_type == 'branch' && github.ref_name == 'master') &&
-        contains(steps.pr_labels.outputs.labels, ' e2e-data ')
-      env:
-        COLOR: 'yes'
-        DOCKER_CI_USERNAME: ${{ secrets.DOCKERHUB_CI_USERNAME }}
-        DOCKER_CI_TOKEN: ${{ secrets.DOCKERHUB_CI_TOKEN }}
-        APOLO_CLUSTER: default
-        #APOLO_CLUSTER_SECONDARY: cato-poc  # TODO: uncomment when cato-poc cluster is fixed
-        AZURE_SAS_TOKEN: ${{ secrets.AZURE_SAS_TOKEN }}
-        # Note: ${{ github.sha }} not working, see https://github.com/actions/checkout/issues/299
-        SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-        # Note: see tests/e2e/conftest.py:get_tested_archive_types()
-        PYTEST_DATA_COPY_ARCHIVE_TYPES: '.tar.gz'
-        PYTEST_PARALLEL: 6
-      shell: bash
-      run: |
-        export APOLO_EXTRAS_IMAGE=ghcr.io/neuro-inc/apolo-extras:$SHA
-        make test_data
+      - name: Run all tests
+        if: |
+          github.ref_type == 'branch' && github.ref_name == 'master'
+        env:
+          COLOR: "yes"
+          DOCKER_CI_USERNAME: ${{ secrets.DOCKERHUB_CI_USERNAME }}
+          DOCKER_CI_TOKEN: ${{ secrets.DOCKERHUB_CI_TOKEN }}
+          APOLO_CLUSTER: default
+          #APOLO_CLUSTER_SECONDARY: cato-poc  # TODO: uncomment when cato-poc cluster is fixed
+          AZURE_SAS_TOKEN: ${{ secrets.AZURE_SAS_TOKEN }}
+          # Note: ${{ github.sha }} not working, see https://github.com/actions/checkout/issues/299
+          SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          # Note: see tests/e2e/conftest.py:get_tested_archive_types()
+          PYTEST_DATA_COPY_ARCHIVE_TYPES: ".tar.gz"
+          PYTEST_PARALLEL: 6
+        shell: bash
+        run: |
+          export APOLO_EXTRAS_IMAGE=ghcr.io/neuro-inc/apolo-extras:$SHA
+          make test
+      - name: Run smoke tests
+        if: |
+          !(github.ref_type == 'branch' && github.ref_name == 'master')
+        env:
+          COLOR: "yes"
+          DOCKER_CI_USERNAME: ${{ secrets.DOCKERHUB_CI_USERNAME }}
+          DOCKER_CI_TOKEN: ${{ secrets.DOCKERHUB_CI_TOKEN }}
+          APOLO_CLUSTER: default
+          APOLO_EXTRAS_PRESET: cpu-small
+          #APOLO_CLUSTER_SECONDARY: cato-poc  # TODO: uncomment when cato-poc cluster is fixed
+          AZURE_SAS_TOKEN: ${{ secrets.AZURE_SAS_TOKEN }}
+          # Note: ${{ github.sha }} not working, see https://github.com/actions/checkout/issues/299
+          SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          # Note: see tests/e2e/conftest.py:get_tested_archive_types()
+          PYTEST_DATA_COPY_ARCHIVE_TYPES: ".tar.gz"
+          PYTEST_PARALLEL: 6
+        shell: bash
+        run: |
+          export APOLO_EXTRAS_IMAGE=ghcr.io/neuro-inc/apolo-extras:$SHA
+          make test_smoke
+      - name: Run data tests
+        if: |
+          !(github.ref_type == 'branch' && github.ref_name == 'master') &&
+          contains(steps.pr_labels.outputs.labels, ' e2e-data ')
+        env:
+          COLOR: "yes"
+          DOCKER_CI_USERNAME: ${{ secrets.DOCKERHUB_CI_USERNAME }}
+          DOCKER_CI_TOKEN: ${{ secrets.DOCKERHUB_CI_TOKEN }}
+          APOLO_CLUSTER: default
+          #APOLO_CLUSTER_SECONDARY: cato-poc  # TODO: uncomment when cato-poc cluster is fixed
+          AZURE_SAS_TOKEN: ${{ secrets.AZURE_SAS_TOKEN }}
+          # Note: ${{ github.sha }} not working, see https://github.com/actions/checkout/issues/299
+          SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          # Note: see tests/e2e/conftest.py:get_tested_archive_types()
+          PYTEST_DATA_COPY_ARCHIVE_TYPES: ".tar.gz"
+          PYTEST_PARALLEL: 6
+        shell: bash
+        run: |
+          export APOLO_EXTRAS_IMAGE=ghcr.io/neuro-inc/apolo-extras:$SHA
+          make test_data
 
-    - name: Run image tests
-      if: |
-        !(github.ref_type == 'branch' && github.ref_name == 'master') &&
-        contains(steps.pr_labels.outputs.labels, ' e2e-image ')
-      env:
-        COLOR: 'yes'
-        DOCKER_CI_USERNAME: ${{ secrets.DOCKERHUB_CI_USERNAME }}
-        DOCKER_CI_TOKEN: ${{ secrets.DOCKERHUB_CI_TOKEN }}
-        APOLO_CLUSTER: default
-        APOLO_EXTRAS_PRESET: cpu-small
-        #APOLO_CLUSTER_SECONDARY: cato-poc  # TODO: uncomment when cato-poc cluster is fixed
-        AZURE_SAS_TOKEN: ${{ secrets.AZURE_SAS_TOKEN }}
-        # Note: ${{ github.sha }} not working, see https://github.com/actions/checkout/issues/299
-        SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-        # Note: see tests/e2e/conftest.py:get_tested_archive_types()
-        PYTEST_DATA_COPY_ARCHIVE_TYPES: '.tar.gz'
-        PYTEST_PARALLEL: auto
-      shell: bash
-      run: |
-        export APOLO_EXTRAS_IMAGE=ghcr.io/neuro-inc/apolo-extras:$SHA
-        make test_image
+      - name: Run image tests
+        if: |
+          !(github.ref_type == 'branch' && github.ref_name == 'master') &&
+          contains(steps.pr_labels.outputs.labels, ' e2e-image ')
+        env:
+          COLOR: "yes"
+          DOCKER_CI_USERNAME: ${{ secrets.DOCKERHUB_CI_USERNAME }}
+          DOCKER_CI_TOKEN: ${{ secrets.DOCKERHUB_CI_TOKEN }}
+          APOLO_CLUSTER: default
+          APOLO_EXTRAS_PRESET: cpu-small
+          #APOLO_CLUSTER_SECONDARY: cato-poc  # TODO: uncomment when cato-poc cluster is fixed
+          AZURE_SAS_TOKEN: ${{ secrets.AZURE_SAS_TOKEN }}
+          # Note: ${{ github.sha }} not working, see https://github.com/actions/checkout/issues/299
+          SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          # Note: see tests/e2e/conftest.py:get_tested_archive_types()
+          PYTEST_DATA_COPY_ARCHIVE_TYPES: ".tar.gz"
+          PYTEST_PARALLEL: auto
+        shell: bash
+        run: |
+          export APOLO_EXTRAS_IMAGE=ghcr.io/neuro-inc/apolo-extras:$SHA
+          make test_image
