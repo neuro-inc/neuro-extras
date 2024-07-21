@@ -4,7 +4,7 @@ import sys
 import textwrap
 import uuid
 from pathlib import Path
-from typing import Callable, ContextManager, Optional
+from typing import Callable, ContextManager
 
 import pytest
 from tenacity import retry, stop_after_attempt, wait_random_exponential
@@ -16,10 +16,6 @@ from .conftest import CLIRunner, Secret, gen_random_file
 
 LOGGER = logging.getLogger(__name__)
 
-APOLO_EXTRAS_PRESET: Optional[str] = os.environ.get("APOLO_EXTRAS_PRESET")
-
-PRESET_ARG = ["--preset", APOLO_EXTRAS_PRESET] if APOLO_EXTRAS_PRESET else []
-
 
 @pytest.mark.serial  # first we build the image, then we are trying to overwrite it
 @pytest.mark.xfail
@@ -30,6 +26,7 @@ def test_image_build_overwrite(
     cli_runner: CLIRunner,
     overwrite: bool,
     dockerhub_auth_secret: Secret,
+    build_preset: str,
 ) -> None:
     result = cli_runner(["apolo-extras", "init-aliases"])
     assert result.returncode == 0, result
@@ -54,7 +51,8 @@ def test_image_build_overwrite(
     build_command = [
         "apolo",
         "image-build",
-        *PRESET_ARG,
+        "--preset",
+        build_preset,
         "-e",
         f"{dockerhub_auth_secret.name}=secret:{dockerhub_auth_secret.name}",
         "-f",
@@ -90,6 +88,7 @@ def test_image_build_overwrite(
 def test_ignored_files_are_not_copied(
     cli_runner: CLIRunner,
     dockerhub_auth_secret: Secret,
+    build_preset: str,
 ) -> None:
     result = cli_runner(["apolo-extras", "init-aliases"])
     assert result.returncode == 0, result
@@ -119,7 +118,8 @@ def test_ignored_files_are_not_copied(
     cmd = [
         "apolo",
         "image-build",
-        *PRESET_ARG,
+        "--preset",
+        build_preset,
         "-e",
         f"{dockerhub_auth_secret.name}=secret:{dockerhub_auth_secret.name}",
         "-f",
@@ -153,6 +153,7 @@ def test_image_transfer(
     dockerhub_auth_secret: Secret,
     src_cluster: str,
     dst_cluster: str,
+    build_preset: str,
 ) -> None:
     # Note: we build src image on src_cluster and run transfer job in dst_cluster
     assert src_cluster != dst_cluster
@@ -183,7 +184,8 @@ def test_image_transfer(
         cmd = [
             "apolo",
             "image-build",
-            *PRESET_ARG,
+            "--preset",
+            build_preset,
             "-e",
             f"{dockerhub_auth_secret.name}=secret:{dockerhub_auth_secret.name}",
             "-f",
@@ -222,6 +224,7 @@ def test_external_image_build(
     dockerhub_auth_secret: Secret,
     img_repo_name: str,
     img_tag: str,
+    build_preset: str,
 ) -> None:
     dckrhb_uname = os.environ["DOCKER_CI_USERNAME"]
 
@@ -246,7 +249,8 @@ def test_external_image_build(
     build_command = [
         "apolo",
         "image-build",
-        *PRESET_ARG,
+        "--preset",
+        build_preset,
         "-e",
         f"{dockerhub_auth_secret.name}=secret:{dockerhub_auth_secret.name}",
         "-f",

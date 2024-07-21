@@ -13,7 +13,10 @@ from .conftest import CLIRunner
 
 @pytest.mark.smoke
 @pytest.mark.skipif(sys.platform == "win32", reason="kaniko does not work on Windows")
-def test_seldon_deploy_from_local(cli_runner: CLIRunner) -> None:
+def test_seldon_deploy_from_local(
+    cli_runner: CLIRunner,
+    build_preset: str,
+) -> None:
     result = cli_runner(["apolo-extras", "init-aliases"])
     assert result.returncode == 0, result
 
@@ -27,7 +30,16 @@ def test_seldon_deploy_from_local(cli_runner: CLIRunner) -> None:
     tag = str(uuid.uuid4())
     img_uri = f"image:extras-e2e:{tag}"
     result = cli_runner(
-        ["apolo", "image-build", "-f", "seldon.Dockerfile", str(pkg_path), img_uri]
+        [
+            "apolo",
+            "image-build",
+            "--preset",
+            build_preset,
+            "-f",
+            "seldon.Dockerfile",
+            str(pkg_path),
+            img_uri,
+        ]
     )
     assert result.returncode == 0, result
 

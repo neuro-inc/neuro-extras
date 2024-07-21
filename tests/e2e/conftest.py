@@ -352,3 +352,20 @@ def dst_cluster() -> Iterator[str]:
             " indicating destination cluster is missing, skipping test"
         )
     yield res
+
+
+@pytest.fixture
+def smallest_preset(_apolo_client: apolo_sdk.Client) -> str:
+    presets = list(_apolo_client.config.presets.items())
+    presets = list(filter(lambda x: x[0].lower() != "vast-ai", presets))
+    presets.sort(key=lambda x: x[1].cpu)
+    return presets[0][0]
+
+
+@pytest.fixture
+def build_preset(smallest_preset: str) -> str:
+    env_preset = os.environ.get("APOLO_EXTRAS_PRESET")
+    if env_preset:
+        return env_preset
+    else:
+        return smallest_preset
