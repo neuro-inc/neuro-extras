@@ -4,6 +4,18 @@
 
 [comment]: # (towncrier release notes start)
 
+apolo-extras v24.7.0 (2024-07-21)
+=================================
+
+
+Misc
+--------
+
+
+- Rename neuro-extras to apolo-extras. ([#605](https://github.com/neuromation/neuro-extras/issues/605))
+
+
+
 neuro-extras v24.5.1 (2024-05-28)
 =================================
 
