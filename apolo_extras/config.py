@@ -6,7 +6,7 @@ import click
 
 from .cli import main
 from .image_builder import DockerConfigAuth, ImageBuilder
-from .utils import get_neuro_client
+from .utils import get_platform_client
 
 
 @main.group()
@@ -34,7 +34,7 @@ def save_registry_auth(path: str, cluster: Optional[str]) -> None:
 
 
 async def _save_registry_auth(path: str, cluster: Optional[str]) -> None:
-    async with get_neuro_client(cluster) as client:
+    async with get_platform_client(cluster) as client:
         uri = client.parse.str_to_uri(
             path,
             allowed_schemes=("file", "storage"),

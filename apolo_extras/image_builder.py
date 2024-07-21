@@ -10,10 +10,10 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, AsyncIterator, Dict, List, Optional, Sequence, Tuple, Type
 
+import apolo_sdk
 import click
-import neuro_sdk
-from neuro_cli.formatters.images import DockerImageProgress
-from neuro_sdk._url_utils import _extract_path
+from apolo_cli.formatters.images import DockerImageProgress
+from apolo_sdk._url_utils import _extract_path
 from rich.console import Console
 from yarl import URL
 
@@ -56,7 +56,7 @@ class DockerConfig:
 
 
 async def create_docker_config_auth(
-    client_config: neuro_sdk.Config,
+    client_config: apolo_sdk.Config,
 ) -> DockerConfigAuth:
     # retrieve registry hostname with optional port
     url = client_config.registry_url
@@ -74,7 +74,7 @@ async def create_docker_config_auth(
 class ImageBuilder(ABC):
     def __init__(
         self,
-        client: neuro_sdk.Client,
+        client: apolo_sdk.Client,
         extra_registry_auths: Sequence[DockerConfigAuth] = (),
         verbose: bool = False,
     ) -> None:
@@ -84,7 +84,7 @@ class ImageBuilder(ABC):
             unless --local is specified.
 
         Args:
-            client (neuro_sdk.Client): instance of neuro-sdk client,
+            client (apolo_sdk.Client): platform client instance of apolo-sdk,
                 authenticated to the destination cluster
             extra_registry_auths (Sequence[DockerConfigAuth], optional):
                 Sequence of extra docker container registry auth credits,
@@ -121,7 +121,7 @@ class ImageBuilder(ABC):
         self,
         dockerfile_path: Path,
         context_uri: URL,
-        image: neuro_sdk.RemoteImage,
+        image: apolo_sdk.RemoteImage,
         use_cache: bool,
         build_args: Tuple[str, ...],
         volumes: Tuple[str, ...],
@@ -151,7 +151,7 @@ class LocalImageBuilder(ImageBuilder):
         self,
         dockerfile_path: Path,
         context_uri: URL,
-        image: neuro_sdk.RemoteImage,
+        image: apolo_sdk.RemoteImage,
         use_cache: bool,
         build_args: Tuple[str, ...],
         volumes: Tuple[str, ...],
@@ -191,7 +191,7 @@ class LocalImageBuilder(ImageBuilder):
             return ex_code
         return await self._push_image(image)
 
-    async def _push_image(self, image: neuro_sdk.RemoteImage) -> int:
+    async def _push_image(self, image: apolo_sdk.RemoteImage) -> int:
         logger.info(f"Pushing image to registry")
         console = Console()
         progress = DockerImageProgress.create(console=console, quiet=not self._verbose)
@@ -205,7 +205,7 @@ class LocalImageBuilder(ImageBuilder):
             logger.exception("Image push failed.")
             logger.info(
                 f"You may try to repeat the push process by running "
-                f"'neuro image push {local_image} {image}'"
+                f"'apolo image push {local_image} {image}'"
             )
             raise e
         return 0
@@ -216,7 +216,7 @@ class RemoteImageBuilder(ImageBuilder):
         self,
         dockerfile_path: Path,
         context_uri: URL,
-        image: neuro_sdk.RemoteImage,
+        image: apolo_sdk.RemoteImage,
         use_cache: bool,
         build_args: Tuple[str, ...],
         volumes: Tuple[str, ...],
@@ -243,7 +243,7 @@ class RemoteImageBuilder(ImageBuilder):
         logger.debug(f"Uploading {docker_config_uri}")
         await self.save_docker_config(docker_config, docker_config_uri)
 
-        cache_image = neuro_sdk.RemoteImage(
+        cache_image = apolo_sdk.RemoteImage(
             name="layer-cache/cache",
             project_name=project_name,
             registry=str(self._client.config.registry_url),
@@ -310,7 +310,7 @@ class RemoteImageBuilder(ImageBuilder):
         kaniko_args = self._add_extra_kaniko_args(kaniko_args, extra_kaniko_args)
 
         build_command = [
-            "neuro",
+            "apolo",
             "--disable-pypi-version-check",
             "job",
             "run",
@@ -356,7 +356,7 @@ class RemoteImageBuilder(ImageBuilder):
     async def _upload_to_storage(self, local_url: URL, remote_url: URL) -> None:
         logger.info(f"Uploading {local_url} to {remote_url}")
         command = [
-            "neuro",
+            "apolo",
             "--disable-pypi-version-check",
             "cp",
             "--recursive",

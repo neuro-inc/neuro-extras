@@ -12,8 +12,8 @@ import tempfile
 from pathlib import Path
 from typing import Type
 
-from neuro_extras.data.fs import LocalFSCopier
-from neuro_extras.data.web import WebCopier
+from apolo_extras.data.fs import LocalFSCopier
+from apolo_extras.data.web import WebCopier
 
 from .archive import ArchiveType, compress, extract
 from .azure import AzureCopier

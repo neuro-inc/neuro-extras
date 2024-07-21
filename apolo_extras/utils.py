@@ -11,8 +11,8 @@ from tempfile import TemporaryDirectory
 from types import TracebackType
 from typing import Any, AsyncIterator, Callable, Dict, List, Optional, Type
 
-import neuro_sdk
-from neuro_sdk import Client
+import apolo_sdk
+from apolo_sdk import Client
 
 
 logger = logging.getLogger(__name__)
@@ -38,10 +38,10 @@ class CLIRunner:
 
 
 @asynccontextmanager
-async def get_neuro_client(
+async def get_platform_client(
     cluster: Optional[str] = None,
-) -> AsyncIterator[neuro_sdk.Client]:
-    client: neuro_sdk.Client = await neuro_sdk.get()
+) -> AsyncIterator[apolo_sdk.Client]:
+    client: apolo_sdk.Client = await apolo_sdk.get()
     cluster_orig: Optional[str] = None
     try:
         await client.__aenter__()
@@ -63,7 +63,7 @@ async def get_neuro_client(
         except asyncio.CancelledError:
             raise
         except BaseException as e:
-            logger.warning(f"Ignoring exception during closing neuro client: {e}")
+            logger.warning(f"Ignoring exception during closing apolo client: {e}")
 
         if cluster is not None and cluster_orig is not None and cluster != cluster_orig:
             logger.info(f"Switching back cluster: {cluster} -> {cluster_orig}")
@@ -74,7 +74,7 @@ async def get_neuro_client(
             except BaseException:
                 logger.error(
                     f"Could not switch back to cluster '{cluster_orig}'. Please "
-                    f"run manually: 'neuro config switch-cluster {cluster_orig}'"
+                    f"run manually: 'apolo config switch-cluster {cluster_orig}'"
                 )
 
 
@@ -235,7 +235,7 @@ def select_job_preset(
             logger.info(f"Automatically selected build preset {preset_name}")
             return preset_name
         else:
-            # Fallback to the default preset selection mechanism by neuro sdk
+            # Fallback to the default preset selection mechanism by apolo sdk
             logger.warning(
                 "No resource preset satisfying minimal hardware "
                 "requirements was found in the cluster. "
@@ -259,13 +259,13 @@ def select_job_preset(
             return preset
 
 
-def get_default_preset(neuro_client: Client) -> str:
+def get_default_preset(apolo_client: Client) -> str:
     """Get default preset name via Neu.ro client"""
-    return next(iter(neuro_client.presets.keys()))
+    return next(iter(apolo_client.presets.keys()))
 
 
 def provide_temp_dir(
-    dir: Path = Path.home() / ".neuro-tmp",
+    dir: Path = Path.home() / ".apolo-tmp",
 ) -> TemporaryDirectory:  # type: ignore
     """Provide temp directory"""
     dir.mkdir(exist_ok=True, parents=True)

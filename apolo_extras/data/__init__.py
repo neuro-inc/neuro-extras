@@ -7,9 +7,9 @@ import click
 from yarl import URL
 
 from ..cli import main
-from ..common import NEURO_EXTRAS_IMAGE
+from ..common import APOLO_EXTRAS_IMAGE
 from ..image import _get_cluster_from_uri
-from ..utils import get_neuro_client
+from ..utils import get_platform_client
 from .archive import ArchiveType
 from .operations import CopyOperation
 
@@ -152,7 +152,7 @@ def data_cp(
     try:
 
         async def run_copy() -> None:
-            async with get_neuro_client() as client:
+            async with get_platform_client() as client:
                 operation = CopyOperation(
                     source=source,
                     destination=destination,
@@ -175,7 +175,7 @@ def data_cp(
 
 # TODO: (A.K.) implement TransferOperation
 async def _data_transfer(src_uri_str: str, dst_uri_str: str) -> None:
-    async with get_neuro_client() as client:
+    async with get_platform_client() as client:
         src_cluster_or_null = _get_cluster_from_uri(
             client, src_uri_str, scheme="storage"
         )
@@ -191,7 +191,7 @@ async def _data_transfer(src_uri_str: str, dst_uri_str: str) -> None:
             f"Invalid destination path {dst_uri_str}: missing cluster name"
         )
 
-    async with get_neuro_client(cluster=dst_cluster) as client:
+    async with get_platform_client(cluster=dst_cluster) as client:
         await client.storage.mkdir(URL("storage:"), parents=True, exist_ok=True)
         await _run_copy_container(src_cluster, src_uri_str, dst_uri_str)
 
@@ -200,7 +200,7 @@ async def _run_copy_container(
     src_cluster: str, src_uri_str: str, dst_uri_str: str
 ) -> None:
     args = [
-        "neuro",
+        "apolo",
         "run",
         "-s",
         "cpu-small",
@@ -208,11 +208,11 @@ async def _run_copy_container(
         "-v",
         f"{dst_uri_str}:/storage:rw",
         "-e",
-        f"NEURO_CLUSTER={src_cluster}",  # inside the job, switch neuro to 'src_cluster'
+        f"APOLO_CLUSTER={src_cluster}",  # inside the job, switch apolo to 'src_cluster'
         "--life-span 10d",
-        NEURO_EXTRAS_IMAGE,
+        APOLO_EXTRAS_IMAGE,
         "--",
-        f"neuro --show-traceback cp --progress -r -u -T {src_uri_str} /storage",
+        f"apolo --show-traceback cp --progress -r -u -T {src_uri_str} /storage",
     ]
     cmd = " ".join(args)
     click.echo(f"Running '{cmd}'")

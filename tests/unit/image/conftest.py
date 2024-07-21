@@ -4,21 +4,21 @@ from contextlib import ExitStack
 from decimal import Decimal
 from unittest import mock
 
-import neuro_sdk
+import apolo_sdk
 import pytest
+from apolo_sdk._config import _AuthConfig, _AuthToken, _ConfigData
 from jose import jwt
-from neuro_sdk._config import _AuthConfig, _AuthToken, _ConfigData
 from yarl import URL
 
-from neuro_extras.image_builder import ImageBuilder
+from apolo_extras.image_builder import ImageBuilder
 
 
-def _get_mock_presets() -> t.Dict[str, neuro_sdk.Preset]:
+def _get_mock_presets() -> t.Dict[str, apolo_sdk.Preset]:
     return {
-        "cpu-small": neuro_sdk.Preset(
+        "cpu-small": apolo_sdk.Preset(
             credits_per_hour=Decimal(1), cpu=1, memory=1 * 1024 * 1024
         ),
-        "custom-preset": neuro_sdk.Preset(
+        "custom-preset": apolo_sdk.Preset(
             credits_per_hour=Decimal(1),
             cpu=5,
             memory=3 * 1024 * 1024,
@@ -27,9 +27,9 @@ def _get_mock_presets() -> t.Dict[str, neuro_sdk.Preset]:
     }
 
 
-def _get_mock_clusters() -> t.Dict[str, neuro_sdk.Cluster]:
+def _get_mock_clusters() -> t.Dict[str, apolo_sdk.Cluster]:
     return {
-        "mycluster": neuro_sdk.Cluster(
+        "mycluster": apolo_sdk.Cluster(
             name="mycluster",
             registry_url=URL("https://registry.mycluster.noexists"),
             storage_url=URL("https://mycluster.noexists/api/v1/storage"),
@@ -45,11 +45,11 @@ def _get_mock_clusters() -> t.Dict[str, neuro_sdk.Cluster]:
     }
 
 
-def _get_mock_projects() -> t.Dict[neuro_sdk.Project.Key, neuro_sdk.Project]:
+def _get_mock_projects() -> t.Dict[apolo_sdk.Project.Key, apolo_sdk.Project]:
     return {
-        neuro_sdk.Project.Key(
+        apolo_sdk.Project.Key(
             cluster_name="mycluster", org_name=None, project_name="myproject"
-        ): neuro_sdk.Project(
+        ): apolo_sdk.Project(
             cluster_name="mycluster", org_name=None, name="myproject", role="admin"
         ),
     }
@@ -81,7 +81,7 @@ def _load_mock_sdk_config() -> _ConfigData:
     )
 
 
-class MockedNeuroConfig(neuro_sdk.Config):
+class MockedApoloConfig(apolo_sdk.Config):
     def _load(self) -> _ConfigData:
         ret = self.__config_data = _load_mock_sdk_config()
         return ret
@@ -91,22 +91,22 @@ class MockedNeuroConfig(neuro_sdk.Config):
 
 
 @pytest.fixture
-async def _neuro_client() -> t.AsyncGenerator[neuro_sdk.Client, None]:
+async def _apolo_client() -> t.AsyncGenerator[apolo_sdk.Client, None]:
     with ExitStack() as stack:
-        stack.enter_context(mock.patch("neuro_sdk.Config", MockedNeuroConfig))
-        stack.enter_context(mock.patch("neuro_sdk._client.Config", MockedNeuroConfig))
+        stack.enter_context(mock.patch("apolo_sdk.Config", MockedApoloConfig))
+        stack.enter_context(mock.patch("apolo_sdk._client.Config", MockedApoloConfig))
 
         stack.enter_context(
-            mock.patch("neuro_sdk._storage.Storage.mkdir", mock.AsyncMock())
+            mock.patch("apolo_sdk._storage.Storage.mkdir", mock.AsyncMock())
         )
         stack.enter_context(
-            mock.patch("neuro_sdk._storage.Storage.create", mock.AsyncMock())
+            mock.patch("apolo_sdk._storage.Storage.create", mock.AsyncMock())
         )
         stack.enter_context(
-            mock.patch("neuro_extras.image._check_image_exists", return_value=False)
+            mock.patch("apolo_extras.image._check_image_exists", return_value=False)
         )
         stack.enter_context(mock.patch("uuid.uuid4", return_value="mocked-uuid-4"))
-        client = await neuro_sdk.get()
+        client = await apolo_sdk.get()
         try:
             yield await client.__aenter__()
         finally:
@@ -114,10 +114,10 @@ async def _neuro_client() -> t.AsyncGenerator[neuro_sdk.Client, None]:
 
 
 @pytest.fixture
-def remote_image_builder(_neuro_client: neuro_sdk.Client) -> ImageBuilder:
+def remote_image_builder(_apolo_client: apolo_sdk.Client) -> ImageBuilder:
     builder_class = ImageBuilder.get(local=False)
     builder_class._execute_subprocess = mock.AsyncMock(  # type: ignore
         side_effect=lambda x: 0
     )
 
-    return builder_class(client=_neuro_client)
+    return builder_class(client=_apolo_client)

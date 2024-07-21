@@ -4,21 +4,17 @@ import sys
 import textwrap
 import uuid
 from pathlib import Path
-from typing import Callable, ContextManager, Optional
+from typing import Callable, ContextManager
 
 import pytest
 from tenacity import retry, stop_after_attempt, wait_random_exponential
 
-from neuro_extras.const import EX_PLATFORMERROR
+from apolo_extras.const import EX_PLATFORMERROR
 
 from .conftest import CLIRunner, Secret, gen_random_file
 
 
 LOGGER = logging.getLogger(__name__)
-
-NEURO_EXTRAS_PRESET: Optional[str] = os.environ.get("NEURO_EXTRAS_PRESET")
-
-PRESET_ARG = ["--preset", NEURO_EXTRAS_PRESET] if NEURO_EXTRAS_PRESET else []
 
 
 @pytest.mark.serial  # first we build the image, then we are trying to overwrite it
@@ -30,8 +26,9 @@ def test_image_build_overwrite(
     cli_runner: CLIRunner,
     overwrite: bool,
     dockerhub_auth_secret: Secret,
+    build_preset: str,
 ) -> None:
-    result = cli_runner(["neuro-extras", "init-aliases"])
+    result = cli_runner(["apolo-extras", "init-aliases"])
     assert result.returncode == 0, result
 
     dockerfile_path = Path("nested/custom.Dockerfile")
@@ -52,9 +49,10 @@ def test_image_build_overwrite(
     python_version = f"{sys.version_info[0]}.{sys.version_info[1]}"
     img_uri_str = f"image:extras-e2e-overwrite:{sys.platform}-{python_version}-latest"
     build_command = [
-        "neuro",
+        "apolo",
         "image-build",
-        *PRESET_ARG,
+        "--preset",
+        build_preset,
         "-e",
         f"{dockerhub_auth_secret.name}=secret:{dockerhub_auth_secret.name}",
         "-f",
@@ -72,7 +70,7 @@ def test_image_build_overwrite(
         assert result.returncode == EX_PLATFORMERROR, result
     try:
         cli_runner(
-            ["neuro", "image", "size", img_uri_str],
+            ["apolo", "image", "size", img_uri_str],
         )
     finally:
         # Only delete image after second run of the test
@@ -80,7 +78,7 @@ def test_image_build_overwrite(
             # (A.K.) on GCP we get Illegal argument(s) ({"errors":
             # [{"code":"GOOGLE_MANIFEST_DANGLING_TAG",
             # "message":"Manifest is still referenced by tag: v1"}]})
-            # cli_runner(["neuro", "image", "rm", img_uri_str])
+            # cli_runner(["apolo", "image", "rm", img_uri_str])
             pass
 
 
@@ -90,8 +88,9 @@ def test_image_build_overwrite(
 def test_ignored_files_are_not_copied(
     cli_runner: CLIRunner,
     dockerhub_auth_secret: Secret,
+    build_preset: str,
 ) -> None:
-    result = cli_runner(["neuro-extras", "init-aliases"])
+    result = cli_runner(["apolo-extras", "init-aliases"])
     assert result.returncode == 0, result
 
     dockerfile_path = Path("nested/custom.Dockerfile")
@@ -117,9 +116,10 @@ def test_ignored_files_are_not_copied(
     img_uri_str = f"image:extras-e2e:{uuid.uuid4()}"
 
     cmd = [
-        "neuro",
+        "apolo",
         "image-build",
-        *PRESET_ARG,
+        "--preset",
+        build_preset,
         "-e",
         f"{dockerhub_auth_secret.name}=secret:{dockerhub_auth_secret.name}",
         "-f",
@@ -138,7 +138,7 @@ def test_ignored_files_are_not_copied(
         # (A.K.) on GCP we get Illegal argument(s) ({"errors":
         # [{"code":"GOOGLE_MANIFEST_DANGLING_TAG",
         # "message":"Manifest is still referenced by tag: v1"}]})
-        # cli_runner(["neuro", "image", "rm", img_uri_str])
+        # cli_runner(["apolo", "image", "rm", img_uri_str])
         pass
 
 
@@ -153,12 +153,13 @@ def test_image_transfer(
     dockerhub_auth_secret: Secret,
     src_cluster: str,
     dst_cluster: str,
+    build_preset: str,
 ) -> None:
     # Note: we build src image on src_cluster and run transfer job in dst_cluster
     assert src_cluster != dst_cluster
 
     with switch_cluster(src_cluster):
-        result = cli_runner(["neuro-extras", "init-aliases"])
+        result = cli_runner(["apolo-extras", "init-aliases"])
         assert result.returncode == 0, result
 
         img_name = f"extras-e2e-image-copy:{str(uuid.uuid4())}"
@@ -181,9 +182,10 @@ def test_image_transfer(
             )
 
         cmd = [
-            "neuro",
+            "apolo",
             "image-build",
-            *PRESET_ARG,
+            "--preset",
+            build_preset,
             "-e",
             f"{dockerhub_auth_secret.name}=secret:{dockerhub_auth_secret.name}",
             "-f",
@@ -196,19 +198,19 @@ def test_image_transfer(
 
         try:
             cli_runner(
-                ["neuro", "image", "size", from_img],
+                ["apolo", "image", "size", from_img],
             )
-            result = cli_runner(["neuro", "image-transfer", from_img, to_img])
+            result = cli_runner(["apolo", "image-transfer", from_img, to_img])
             assert result.returncode == 0, result
             cli_runner(
-                ["neuro", "image", "size", to_img],
+                ["apolo", "image", "size", to_img],
             )
         finally:
             # (A.K.) on GCP we get Illegal argument(s) ({"errors":
             # [{"code":"GOOGLE_MANIFEST_DANGLING_TAG",
             # "message":"Manifest is still referenced by tag: v1"}]})
-            # cli_runner(["neuro", "image", "rm", from_img])
-            # cli_runner(["neuro", "image", "rm", to_img])
+            # cli_runner(["apolo", "image", "rm", from_img])
+            # cli_runner(["apolo", "image", "rm", to_img])
             pass
 
 
@@ -222,10 +224,11 @@ def test_external_image_build(
     dockerhub_auth_secret: Secret,
     img_repo_name: str,
     img_tag: str,
+    build_preset: str,
 ) -> None:
     dckrhb_uname = os.environ["DOCKER_CI_USERNAME"]
 
-    result = cli_runner(["neuro-extras", "init-aliases"])
+    result = cli_runner(["apolo-extras", "init-aliases"])
     assert result.returncode == 0, result
 
     dockerfile_path = Path("nested/custom.Dockerfile")
@@ -244,9 +247,10 @@ def test_external_image_build(
         )
     img_uri_str = f"{dckrhb_uname}/{img_repo_name}{img_tag}"
     build_command = [
-        "neuro",
+        "apolo",
         "image-build",
-        *PRESET_ARG,
+        "--preset",
+        build_preset,
         "-e",
         f"{dockerhub_auth_secret.name}=secret:{dockerhub_auth_secret.name}",
         "-f",
@@ -296,7 +300,7 @@ def test_image_local_build(cli_runner: CLIRunner) -> None:
     tag = str(uuid.uuid4())
     img_uri_str = f"image:extras-e2e:{tag}"
     cmd = [
-        "neuro-extras",
+        "apolo-extras",
         "image",
         "local-build",
         "--verbose",
@@ -320,5 +324,5 @@ def test_image_local_build(cli_runner: CLIRunner) -> None:
         # (A.K.) on GCP we get Illegal argument(s) ({"errors":
         # [{"code":"GOOGLE_MANIFEST_DANGLING_TAG",
         # "message":"Manifest is still referenced by tag: v1"}]})
-        # cli_runner(["neuro", "image", "rm", img_uri_str])
+        # cli_runner(["apolo", "image", "rm", img_uri_str])
         pass

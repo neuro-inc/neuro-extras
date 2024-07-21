@@ -10,14 +10,14 @@ from .conftest import CLIRunner
 
 @pytest.mark.smoke
 def test_k8s_generate_secret(cli_runner: CLIRunner) -> None:
-    result = cli_runner(["neuro-extras", "k8s", "generate-secret"])
+    result = cli_runner(["apolo-extras", "k8s", "generate-secret"])
     assert result.returncode == 0, result
 
     payload = yaml.safe_load(result.stdout)
     assert payload == {
         "apiVersion": "v1",
         "kind": "Secret",
-        "metadata": {"name": "neuro"},
+        "metadata": {"name": "apolo"},
         "type": "Opaque",
         "data": mock.ANY,
     }
@@ -25,7 +25,7 @@ def test_k8s_generate_secret(cli_runner: CLIRunner) -> None:
 
 
 def test_k8s_generate_secret_custom_name(cli_runner: CLIRunner) -> None:
-    result = cli_runner(["neuro-extras", "k8s", "generate-secret", "--name", "test"])
+    result = cli_runner(["apolo-extras", "k8s", "generate-secret", "--name", "test"])
     assert result.returncode == 0, result
 
     payload = yaml.safe_load(result.stdout)
@@ -40,14 +40,14 @@ def test_k8s_generate_secret_custom_name(cli_runner: CLIRunner) -> None:
 
 
 def test_k8s_generate_registry_secret(cli_runner: CLIRunner) -> None:
-    result = cli_runner(["neuro-extras", "k8s", "generate-registry-secret"])
+    result = cli_runner(["apolo-extras", "k8s", "generate-registry-secret"])
     assert result.returncode == 0, result
 
     payload = yaml.safe_load(result.stdout)
     assert payload == {
         "apiVersion": "v1",
         "kind": "Secret",
-        "metadata": {"name": "neuro-registry"},
+        "metadata": {"name": "apolo-registry"},
         "type": "kubernetes.io/dockerconfigjson",
         "data": {".dockerconfigjson": mock.ANY},
     }
@@ -59,7 +59,7 @@ def test_k8s_generate_registry_secret(cli_runner: CLIRunner) -> None:
 
 def test_k8s_generate_registry_secret_custom_name(cli_runner: CLIRunner) -> None:
     result = cli_runner(
-        ["neuro-extras", "k8s", "generate-registry-secret", "--name", "test"]
+        ["apolo-extras", "k8s", "generate-registry-secret", "--name", "test"]
     )
     assert result.returncode == 0, result
 

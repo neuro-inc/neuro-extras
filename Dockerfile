@@ -37,21 +37,16 @@ RUN cd /usr/local/bin && \
     kubectl version --client
 
 # package version is to be overloaded with exact version
-ARG NEURO_EXTRAS_PACKAGE=neuro-extras
+ARG APOLO_EXTRAS_PACKAGE=apolo-extras
 
 ENV PATH=/root/.local/bin:$PATH
 
 RUN pip3 install --no-cache-dir -U pip pipx click==8.1.2 # TODO remove click pinned version
 RUN MULTIDICT_NO_EXTENSIONS=1 YARL_NO_EXTENSIONS=1 pip install --user \
-    $NEURO_EXTRAS_PACKAGE && \
-    # neuro-flow is used in outforz, not in reqs file since NF itself requires NE
-    pipx install neuro-flow && \
-    # isolated env since it has conflicts with neuro-cli
-    pipx install awscli && \
-    # pipx reinstallation is required untill https://github.com/neuro-inc/neuro-cli/pull/2671 is resolved
-    pipx runpip neuro-flow uninstall -y click && \
-	pipx runpip neuro-flow install "click==8.1.2"
-RUN neuro-extras init-aliases
+    $APOLO_EXTRAS_PACKAGE && \
+    # isolated env since it has conflicts with apolo-cli
+    pipx install awscli
+RUN apolo-extras init-aliases
 
 RUN mkdir -p /root/.ssh
 COPY files/ssh/known_hosts /root/.ssh/known_hosts
@@ -60,5 +55,5 @@ VOLUME ["/root/.config"]
 
 WORKDIR /root
 
-COPY docker.entrypoint.sh /var/lib/neuro/entrypoint.sh
-ENTRYPOINT ["/var/lib/neuro/entrypoint.sh"]
+COPY docker.entrypoint.sh /var/lib/apolo/entrypoint.sh
+ENTRYPOINT ["/var/lib/apolo/entrypoint.sh"]

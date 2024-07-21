@@ -10,7 +10,7 @@ from typing import Any, List
 
 import click
 
-from neuro_extras.cli import main as cli_main
+from apolo_extras.cli import main as cli_main
 
 
 @dataclass()
@@ -209,7 +209,7 @@ def main():
     with open(input_file) as input:
         with open(output_file, "w") as output:
             template = input.read()
-            info = parse_command(None, cli_main, ["neuro-extras"])
+            info = parse_command(None, cli_main, ["apolo-extras"])
             cli_doc = generate_command_markdown(info, "#", filename=filename)
             generated_md = template.format(cli_doc=cli_doc)
             output.write(generated_md)
