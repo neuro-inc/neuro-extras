@@ -73,6 +73,17 @@ jobs:
           TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
         run: |
           twine upload dist/*
+      - name: Make neuro dists
+        run: |
+          rm -r dist build
+          sed -i 's/apolo-extras/neuro-extras/g' setup.py
+          python setup.py sdist bdist_wheel
+      - name: PyPI upload
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_NEURO_TOKEN }}
+        run: |
+          twine upload dist/*
 
   dockerhub_deploy:
     name: Release image if needed
