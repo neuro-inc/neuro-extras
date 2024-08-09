@@ -4,6 +4,13 @@
 
 [comment]: # (towncrier release notes start)
 
+apolo-extras v24.8.0 (2024-08-09)
+=================================
+
+
+- Publish neuro-extras for backward compatibility too.
+
+
 apolo-extras v24.7.0 (2024-07-21)
 =================================
 
