@@ -101,6 +101,7 @@ jobs:
     name: Run tests
     needs: [pretest]
     strategy:
+      max-parallel: 2 # to avoid overloading the platform
       matrix:
         python-version: ["3.8", "3.9", "3.10", "3.11"]
         os: [ubuntu, macos, windows]
@@ -159,13 +160,7 @@ jobs:
           key: ${{ runner.os }}-pre-commit-python-${{ matrix.python-version }}-${{ hashFiles('.pre-commit-config.yaml') }}
 
       - name: Install libraries on Linux
-        if: matrix.os == 'ubuntu'
-        shell: bash
-        run: |
-          curl https://rclone.org/install.sh | sudo bash
-
-      - name: Install libraries on macOS
-        if: matrix.os == 'macos'
+        if: (matrix.os == 'ubuntu') || (matrix.os == 'macos')
         shell: bash
         run: |
           curl https://rclone.org/install.sh | sudo bash
