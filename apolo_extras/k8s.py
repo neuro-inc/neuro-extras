@@ -9,7 +9,7 @@ import yaml
 
 from .cli import main
 from .image_builder import ImageBuilder
-from .utils import get_neuro_client
+from .utils import get_platform_client
 
 
 @main.group()
@@ -21,21 +21,21 @@ def k8s() -> None:
 
 
 @k8s.command("generate-secret")
-@click.option("--name", default="neuro")
+@click.option("--name", default="apolo")
 def generate_k8s_secret(name: str) -> None:
     payload = asyncio.run(_create_k8s_secret(name))
     click.echo(yaml.dump(payload), nl=False)
 
 
 @k8s.command("generate-registry-secret")
-@click.option("--name", default="neuro-registry")
+@click.option("--name", default="apolo-registry")
 def generate_k8s_registry_secret(name: str) -> None:
     payload = asyncio.run(_create_k8s_registry_secret(name))
     click.echo(yaml.dump(payload), nl=False)
 
 
 async def _create_k8s_secret(name: str) -> Dict[str, Any]:
-    async with get_neuro_client() as client:
+    async with get_platform_client() as client:
         payload: Dict[str, Any] = {
             "apiVersion": "v1",
             "kind": "Secret",
@@ -52,7 +52,7 @@ async def _create_k8s_secret(name: str) -> Dict[str, Any]:
 
 
 async def _create_k8s_registry_secret(name: str) -> Dict[str, Any]:
-    async with get_neuro_client() as client:
+    async with get_platform_client() as client:
         builder = ImageBuilder.get(local=False)(client)
         docker_config = await builder.create_docker_config()
         return {

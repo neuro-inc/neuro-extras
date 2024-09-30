@@ -1,20 +1,16 @@
 """Module for copying files by running neu.ro jobs"""
+
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import List, Mapping, Optional, Tuple
 
-from neuro_sdk import Client, DiskVolume, RemoteImage, SecretFile, Volume
+from apolo_cli.utils import resolve_disk
+from apolo_sdk import Client, DiskVolume, RemoteImage, SecretFile, Volume
 from yarl import URL
 
-from ..common import EX_OK, NEURO_EXTRAS_IMAGE, _attach_job_stdout
+from ..common import APOLO_EXTRAS_IMAGE, EX_OK, _attach_job_stdout
 from ..utils import get_default_preset, select_job_preset
-from .common import (
-    Copier,
-    UrlType,
-    get_filename_from_url,
-    parse_resource_spec,
-    strip_filename_from_url,
-)
+from .common import Copier, DataUrlType, Resource
 
 
 logger = logging.getLogger(__name__)
@@ -22,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class RemoteJobConfig:
-    """Arguments, passed to `neuro_sdk.Client.jobs.start()`"""
+    """Arguments, passed to `apolo_sdk.Client.jobs.start()`"""
 
     image: RemoteImage
     command: str
@@ -37,9 +33,9 @@ class RemoteJobConfig:
 
     @staticmethod
     def create(
-        source: str,
-        destination: str,
-        neuro_client: Client,
+        source: Resource,
+        destination: Resource,
+        apolo_client: Client,
         compress: bool = False,
         extract: bool = False,
         volumes: Optional[List[str]] = None,
@@ -50,7 +46,7 @@ class RemoteJobConfig:
         """Create `RemoteJobConfig` for a neu.ro copy job.
 
         Copy job will copy data from `source` to `destination`"""
-        image = neuro_client.parse.remote_image(NEURO_EXTRAS_IMAGE)
+        image = apolo_client.parse.remote_image(APOLO_EXTRAS_IMAGE)
 
         (patched_source, patched_destination, data_mounts) = _map_into_volumes(
             source=source,
@@ -66,11 +62,11 @@ class RemoteJobConfig:
             compress=compress,
         )
         all_volumes = volumes + data_mounts if volumes else data_mounts
-        env_parse_result = neuro_client.parse.envs(env if env else [])
-        volume_parse_result = neuro_client.parse.volumes(all_volumes)
+        env_parse_result = apolo_client.parse.envs(env if env else [])
+        volume_parse_result = apolo_client.parse.volumes(all_volumes)
         preset_name = select_job_preset(
-            preset=preset, client=neuro_client, min_cpu=1, min_mem=2048
-        ) or get_default_preset(neuro_client)
+            preset=preset, client=apolo_client, min_cpu=1, min_mem=2048
+        ) or get_default_preset(apolo_client)
         return RemoteJobConfig(
             image=image,
             command=command,
@@ -91,9 +87,9 @@ class RemoteCopier(Copier):
 
     def __init__(
         self,
-        source: str,
-        destination: str,
-        neuro_client: Client,
+        source: Resource,
+        destination: Resource,
+        client: Client,
         compress: bool = False,
         extract: bool = False,
         volumes: Optional[List[str]] = None,
@@ -102,11 +98,11 @@ class RemoteCopier(Copier):
         life_span: Optional[float] = None,
     ) -> None:
         super().__init__(source, destination)
-        self.neuro_client = neuro_client
+        self.apolo_client = client
         self.job_config = RemoteJobConfig.create(
             source=source,
             destination=destination,
-            neuro_client=neuro_client,
+            apolo_client=client,
             compress=compress,
             extract=extract,
             volumes=volumes,
@@ -117,18 +113,27 @@ class RemoteCopier(Copier):
 
     def _ensure_can_execute(self) -> None:
         if not (
-            self.source_type == UrlType.PLATFORM
-            and self.destination_type == UrlType.CLOUD
-            or self.source_type == UrlType.CLOUD
-            and self.destination_type == UrlType.PLATFORM
+            self.source.data_url_type == DataUrlType.PLATFORM
+            and self.destination.data_url_type == DataUrlType.CLOUD
+            or self.source.data_url_type == DataUrlType.CLOUD
+            and self.destination.data_url_type == DataUrlType.PLATFORM
         ):
             raise ValueError(
-                f"Can only copy between {UrlType.PLATFORM} and {UrlType.CLOUD}"
+                f"Can only copy between {DataUrlType.PLATFORM} and {DataUrlType.CLOUD}"
             )
 
-    async def perform_copy(self) -> str:
+    async def perform_copy(self) -> Resource:
+        # apolo_client.jobs.start accepts disk URIs with IDs only
+        resolved_disks = []
+        for disk in self.job_config.disk_volumes:
+            disk_id = await resolve_disk(disk.disk_uri, client=self.apolo_client)
+            disk_with_id = replace(disk, disk_uri=disk.disk_uri / f"../{disk_id}")
+            resolved_disks.append(disk_with_id)
+
+        self.job_config = replace(self.job_config, disk_volumes=resolved_disks)
+
         logger.info(f"Starting job from config: {self.job_config}")
-        job = await self.neuro_client.jobs.start(
+        job = await self.apolo_client.jobs.start(
             image=self.job_config.image,
             command=self.job_config.command,
             env=self.job_config.env,
@@ -141,7 +146,7 @@ class RemoteCopier(Copier):
             pass_config=True,
         )
         logger.info(f"Started job {job.id}")
-        exit_code = await _attach_job_stdout(job, self.neuro_client, name="copy")
+        exit_code = await _attach_job_stdout(job, self.apolo_client, name="copy")
         if exit_code == EX_OK:
             logger.info("Copy job finished")
         else:
@@ -151,8 +156,8 @@ class RemoteCopier(Copier):
 
 
 def _map_into_volumes(
-    source: str,
-    destination: str,
+    source: Resource,
+    destination: Resource,
     source_storage_mount_prefix: str = "/var/storage/source",
     destination_storage_mount_prefix: str = "/var/storage/destination",
     source_disk_mount_prefix: str = "/var/disk/source",
@@ -165,14 +170,14 @@ def _map_into_volumes(
     source and destination if they belong to platform storage
     and the same urls otherwise.
     """
-    new_source, source_mounts = _map_singe_url_into_volume(
-        url=source,
+    new_source, source_mounts = _map_resource_into_volume(
+        resource=source,
         storage_mount_prefix=source_storage_mount_prefix,
         disk_mount_prefix=source_disk_mount_prefix,
     )
 
-    new_destination, destination_mounts = _map_singe_url_into_volume(
-        url=destination,
+    new_destination, destination_mounts = _map_resource_into_volume(
+        resource=destination,
         storage_mount_prefix=destination_storage_mount_prefix,
         disk_mount_prefix=destination_disk_mount_prefix,
         mount_files=False,
@@ -181,14 +186,14 @@ def _map_into_volumes(
     return new_source, new_destination, source_mounts + destination_mounts
 
 
-def _map_singe_url_into_volume(
-    url: str,
+def _map_resource_into_volume(
+    resource: Resource,
     storage_mount_prefix: str,
     disk_mount_prefix: str,
-    mount_files: bool = True,
+    mount_files: bool = False,
     mount_mode: str = "rw",
 ) -> Tuple[str, List[str]]:
-    """Map storage or disk url into volume specification string
+    """Map storage or disk resource into volume specification string
     and patch such url into a local path inside a container.
 
     storage: urls are mounted into storage_mount_prefix.
@@ -204,42 +209,41 @@ def _map_singe_url_into_volume(
     Other urls are left as-is.
     """
     volumes = []
-    url_type = UrlType.get_type(url)
-    filename = get_filename_from_url(url)
-    if url_type == UrlType.STORAGE:
-        if filename:
+    resource = resource.strip_mount_mode_flag()
+    if resource.data_url_type == DataUrlType.STORAGE:
+        if resource.filename:
             if mount_files:
-                resource_url = url
-                mountpoint = f"{storage_mount_prefix}/{filename}"
+                resource_url = resource.as_str()
+                mountpoint = f"{storage_mount_prefix}/{resource.filename}"
             else:
-                resource_url = strip_filename_from_url(url=url)
+                resource_url = resource.strip_filename().as_str()
                 mountpoint = f"{storage_mount_prefix}/"
-            new_url = f"{storage_mount_prefix}/{filename}"
+            new_url = f"{storage_mount_prefix}/{resource.filename}"
         else:
-            resource_url = url
+            resource_url = resource.as_str()
             mountpoint = f"{storage_mount_prefix}/"
             new_url = mountpoint
         volumes.append(f"{resource_url}:{mountpoint}:{mount_mode}")
-    elif url_type == UrlType.DISK:
-        schema, disk_id, path_on_disk, mode = parse_resource_spec(url)
+    elif resource.data_url_type == DataUrlType.DISK:
+        disk_full_id, path_on_disk = resource.disk_id_and_path
+        mount_mode = resource.mode_flag if resource.mode_flag else mount_mode
         logger.debug(
-            f"Parsed disk url {url} into schema: {schema}, disk_id: {disk_id} "
-            f"path_on_disk: {path_on_disk}, mode: {mode}"
+            f"Parsed disk url {resource.url} into disk_id: {disk_full_id} "
+            f"path_on_disk: {path_on_disk}, mode: {mount_mode}"
         )
-        resource_url = f"{schema}:{disk_id}"
         mountpoint = f"{disk_mount_prefix}/"
         new_url = f"{disk_mount_prefix}{path_on_disk}" if path_on_disk else mountpoint
-        volumes.append(f"{resource_url}:{mountpoint}:{mount_mode}")
+        volumes.append(f"{disk_full_id}:{mountpoint}:{mount_mode}")
     else:
-        new_url = url
+        new_url = resource.as_str()
     return new_url, volumes
 
 
 def _build_data_copy_command(
     source: str, destination: str, extract: bool, compress: bool
 ) -> str:
-    """Build a neuro-extras data cp command"""
-    command_prefix = ["neuro-extras", "data", "cp"]
+    """Build a apolo-extras data cp command"""
+    command_prefix = ["apolo-extras", "-v", "data", "cp"]
     args = [source, destination]
     flags = []
     if compress:

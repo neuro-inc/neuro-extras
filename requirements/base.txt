@@ -1,4 +1,5 @@
+apolo-cli==24.8.1
+apolo-sdk==24.8.1
 click==8.1.2
-neuro-cli==22.7.0
-pyyaml==6.0
+pyyaml==6.0.1
 toml==0.10.2

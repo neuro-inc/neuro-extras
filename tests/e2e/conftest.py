@@ -13,20 +13,22 @@ from typing import (
     AsyncIterator,
     Callable,
     ContextManager,
+    Dict,
     Iterator,
     List,
     Optional,
+    Protocol,
     Union,
 )
 
-import neuro_sdk  # NOTE: don't use async test functions (issue #129)
+import apolo_sdk  # NOTE: don't use async test functions (issue #129)
 import pytest
-from typing_extensions import Protocol
+from tenacity import retry, stop_after_attempt, stop_after_delay
 
-from neuro_extras.common import NEURO_EXTRAS_IMAGE
-from neuro_extras.config import _build_registy_auth
-from neuro_extras.image_builder import KANIKO_AUTH_PREFIX
-from neuro_extras.utils import setup_child_watcher
+from apolo_extras.common import APOLO_EXTRAS_IMAGE
+from apolo_extras.config import _build_registy_auth
+from apolo_extras.image_builder import KANIKO_AUTH_PREFIX
+from apolo_extras.utils import setup_child_watcher
 
 
 DISK_PREFIX = "<DISK_PREFIX>"
@@ -44,38 +46,45 @@ TEST_DATA_COPY_LOCAL_TO_CLOUD = True
 TEST_DATA_COPY_CLOUD_TO_PLATFORM = True
 TEST_DATA_COPY_PLATFORM_TO_CLOUD = True
 
-CLOUD_SOURCE_PREFIXES = {
+CLOUD_SOURCE_PREFIXES: Dict[str, str] = {
     "gs": "gs://mlops-ci-e2e/assets/data",
-    "s3": "s3://cookiecutter-e2e/assets/data",
-    "azure+https": "azure+https://neuromlops.blob.core.windows.net/cookiecutter-e2e/assets/data",  # noqa: E501
-    "http": "http://s3.amazonaws.com/cookiecutter-e2e/assets/data",
-    "https": "https://s3.amazonaws.com/cookiecutter-e2e/assets/data",
+    # "s3": "s3://because-clear-taken-cotton/assets/data",
+    # "azure+https": "azure+https://neuromlops.blob.core.windows.net/cookiecutter-e2e/assets/data",  # noqa: E501
+    "http": "http://because-clear-taken-cotton.s3.amazonaws.com/assets/data",
+    "https": "https://because-clear-taken-cotton.s3.amazonaws.com/assets/data",
 }
 
-CLOUD_DESTINATION_PREFIXES = {
-    "s3": "s3://cookiecutter-e2e/data_cp",
+CLOUD_DESTINATION_PREFIXES: Dict[str, str] = {
+    # "s3": "s3://because-clear-taken-cotton/data_cp",
     "gs": "gs://mlops-ci-e2e/data_cp",
-    "azure+https": "azure+https://neuromlops.blob.core.windows.net/cookiecutter-e2e/data_cp",  # noqa: E501
-    "http": "http://s3.amazonaws.com/data.neu.ro/cookiecutter-e2e",
-    "https": "https://s3.amazonaws.com/data.neu.ro/cookiecutter-e2e",
+    # "azure+https": "azure+https://neuromlops.blob.core.windows.net/cookiecutter-e2e/data_cp",  # noqa: E501
+    "http": "http://because-clear-taken-cotton.s3.amazonaws.com/data_cp",
+    "https": "https://because-clear-taken-cotton.s3.amazonaws.com/data_cp",
 }
 
-PLATFORM_SOURCE_PREFIXES = {
+PLATFORM_SOURCE_PREFIXES: Dict[str, str] = {
+    # apolo mkdir -p storage:e2e/assets/data
+    # apolo cp -rT tests/assets/data storage:e2e/assets/data
     "storage": "storage:e2e/assets/data",
-    "disk": f"disk:disk-902f8a35-8621-499d-8d97-452133f258c7/assets/data",
+    # apolo disk create --name extras-e2e --timeout-unused 1000d 100M
+    # apolo run -v storage:e2e/assets/data:/storage -v disk:extras-e2e:/disk alpine -- cp -rT /storage /disk/assets/data # noqa: E501
+    "disk": f"disk:extras-e2e/assets/data",
 }
 
-PLATFORM_DESTINATION_PREFIXES = {
+PLATFORM_DESTINATION_PREFIXES: Dict[str, str] = {
+    # apolo storage mkdir storage:e2e/data_cp
     "storage": "storage:e2e/data_cp",
     "disk": f"{DISK_PREFIX}/data_cp",
 }
+
+SRC_CLUSTER_ENV_VAR = "APOLO_CLUSTER"
+DST_CLUSTER_ENV_VAR = "APOLO_CLUSTER_SECONDARY"
 
 
 class CLIRunner(Protocol):
     def __call__(
         self, args: List[str], enable_retry: bool = False
-    ) -> "CompletedProcess[str]":
-        ...
+    ) -> "CompletedProcess[str]": ...
 
 
 def get_tested_archive_types() -> List[str]:
@@ -85,7 +94,7 @@ def get_tested_archive_types() -> List[str]:
     returns its value, split on `,`.
     Otherwise, returns default archive types.
 
-    See `neuro_extras.data.archive.ArchiveType.get_extension_mapping()`
+    See `apolo_extras.data.archive.ArchiveType.get_extension_mapping()`
     for supported extensions.
     """
     env = os.environ.get("PYTEST_DATA_COPY_ARCHIVE_TYPES")
@@ -120,7 +129,7 @@ def temp_random_secret(cli_runner: CLIRunner) -> Iterator[Secret]:
     try:
         yield secret
     finally:
-        cli_runner(["neuro", "secret", "rm", secret.name])
+        cli_runner(["apolo", "secret", "rm", secret.name])
 
 
 def gen_random_file(location: Union[str, Path], name: Optional[str] = None) -> Path:
@@ -133,17 +142,17 @@ def gen_random_file(location: Union[str, Path], name: Optional[str] = None) -> P
 
 
 @pytest.fixture(scope="session", autouse=True)
-def print_neuro_extras_image() -> None:
-    logger.warning(f"Using neuro-extras image: '{NEURO_EXTRAS_IMAGE}'")
+def print_apolo_extras_image() -> None:
+    logger.warning(f"Using apolo-extras image: '{APOLO_EXTRAS_IMAGE}'")
 
 
-async def _async_get_bare_client() -> neuro_sdk.Client:
-    """Return uninitialized neuro client."""
-    return await neuro_sdk.get()
+async def _async_get_bare_client() -> apolo_sdk.Client:
+    """Return uninitialized apolo client."""
+    return await apolo_sdk.get()
 
 
 @pytest.fixture
-def _neuro_client() -> Iterator[neuro_sdk.Client]:
+def _apolo_client() -> Iterator[apolo_sdk.Client]:
     # Note: because of issue #129 we can't use async methods of the client,
     # therefore this fixture is private
     client = asyncio.run(_async_get_bare_client())
@@ -154,29 +163,29 @@ def _neuro_client() -> Iterator[neuro_sdk.Client]:
 
 
 @pytest.fixture
-def current_user(_neuro_client: neuro_sdk.Client) -> str:
-    return _neuro_client.username
+def current_user(_apolo_client: apolo_sdk.Client) -> str:
+    return _apolo_client.username
 
 
 @pytest.fixture
 def switch_cluster(
-    _neuro_client: neuro_sdk.Client,
+    _apolo_client: apolo_sdk.Client,
 ) -> Callable[[str], ContextManager[None]]:
     @contextmanager
     def _f(cluster: str) -> Iterator[None]:
-        orig_cluster = _neuro_client.config.cluster_name
+        orig_cluster = _apolo_client.config.cluster_name
         try:
             logger.info(f"Temporary cluster switch: {orig_cluster} -> {cluster}")
-            asyncio.run(_neuro_client.config.switch_cluster(cluster))
+            asyncio.run(_apolo_client.config.switch_cluster(cluster))
             yield
         finally:
             logger.info(f"Switch back cluster: {cluster} -> {orig_cluster}")
             try:
-                asyncio.run(_neuro_client.config.switch_cluster(orig_cluster))
+                asyncio.run(_apolo_client.config.switch_cluster(orig_cluster))
             except Exception as e:
                 logger.error(
                     f"Could not switch back to cluster '{orig_cluster}': {e}. "
-                    f"Please run manually: 'neuro config switch-cluster {orig_cluster}'"
+                    f"Please run manually: 'apolo config switch-cluster {orig_cluster}'"
                 )
 
     return _f
@@ -184,7 +193,7 @@ def switch_cluster(
 
 @pytest.fixture
 async def dockerhub_auth_secret() -> AsyncIterator[Secret]:
-    async with neuro_sdk.get() as neuro_client:
+    async with apolo_sdk.get() as apolo_client:
         secret_name = f"{KANIKO_AUTH_PREFIX}_{uuid.uuid4().hex}"
         auth_data = _build_registy_auth(
             # Why not v2: https://github.com/GoogleContainerTools/kaniko/pull/1209
@@ -194,10 +203,11 @@ async def dockerhub_auth_secret() -> AsyncIterator[Secret]:
         )
         secret = Secret(secret_name, auth_data)
         try:
-            await neuro_client.secrets.add(secret_name, auth_data.encode())
+            await apolo_client.secrets.add(secret_name, auth_data.encode())
+            logger.debug(f"Created test secret: {secret}")
             yield secret
         finally:
-            await neuro_client.secrets.rm(secret_name)
+            await apolo_client.secrets.rm(secret_name)
 
 
 @pytest.fixture
@@ -212,7 +222,7 @@ def project_dir() -> Iterator[Path]:
             os.chdir(old_cwd)
 
 
-# @retry(stop=stop_after_attempt(5) | stop_after_delay(5 * 10))
+@retry(stop=stop_after_attempt(3) | stop_after_delay(5 * 10))
 def run_cli(args: List[str]) -> "CompletedProcess[str]":
     proc = subprocess.run(
         args,
@@ -243,7 +253,7 @@ def args_data_cp_from_cloud(cli_runner: CLIRunner) -> Callable[..., List[str]]:
         compress: bool,
         use_temp_dir: bool,
     ) -> List[str]:
-        args = ["neuro-extras", "data", "cp", src, dst]
+        args = ["apolo-extras", "data", "cp", src, dst]
         if (
             src.startswith("storage:")
             or dst.startswith("storage:")
@@ -300,7 +310,7 @@ def disk(cli_runner: CLIRunner) -> Iterator[str]:
     disk will be created one per each worker!
     """
     # Create disk
-    res = cli_runner(["neuro", "disk", "create", "100M"])
+    res = cli_runner(["apolo", "disk", "create", "100M"])
     assert res.returncode == 0, res
     disk_id = None
     try:
@@ -310,7 +320,7 @@ def disk(cli_runner: CLIRunner) -> Iterator[str]:
         if search:
             disk_id = search.group()
         else:
-            raise Exception("Can't find disk ID in neuro output: \n" + res.stdout)
+            raise Exception("Can't find disk ID in apolo output: \n" + res.stdout)
         logger.info(f"Created disk {disk_id}")
         yield f"disk:{disk_id}"
 
@@ -319,7 +329,43 @@ def disk(cli_runner: CLIRunner) -> Iterator[str]:
         try:
             # Delete disk
             if disk_id is not None:
-                res = cli_runner(["neuro", "disk", "rm", disk_id])
+                res = cli_runner(["apolo", "disk", "rm", disk_id])
                 assert res.returncode == 0, res
         except BaseException as e:
             logger.warning(f"Finalization error: {e}")
+
+
+@pytest.fixture(scope="session")
+def src_cluster() -> Iterator[str]:
+    res = os.environ.get(SRC_CLUSTER_ENV_VAR)
+    if not res:
+        raise ValueError(f"'{SRC_CLUSTER_ENV_VAR}' env var is missing")
+    yield res
+
+
+@pytest.fixture(scope="session")
+def dst_cluster() -> Iterator[str]:
+    res = os.environ.get(DST_CLUSTER_ENV_VAR)
+    if not res:
+        pytest.skip(
+            f"{DST_CLUSTER_ENV_VAR} env var"
+            " indicating destination cluster is missing, skipping test"
+        )
+    yield res
+
+
+@pytest.fixture
+def smallest_preset(_apolo_client: apolo_sdk.Client) -> str:
+    presets = list(_apolo_client.config.presets.items())
+    presets = list(filter(lambda x: x[0].lower() != "vast-ai", presets))
+    presets.sort(key=lambda x: x[1].cpu)
+    return presets[0][0]
+
+
+@pytest.fixture
+def build_preset(smallest_preset: str) -> str:
+    env_preset = os.environ.get("APOLO_EXTRAS_PRESET")
+    if env_preset:
+        return env_preset
+    else:
+        return smallest_preset

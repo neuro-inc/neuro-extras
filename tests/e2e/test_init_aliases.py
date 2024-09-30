@@ -15,7 +15,7 @@ def test_init_aliases(cli_runner: CLIRunner) -> None:
     toml_path = Path(".neuro.toml")
     assert not toml_path.exists()
 
-    result = cli_runner(["neuro-extras", "init-aliases"])
+    result = cli_runner(["apolo-extras", "init-aliases"])
     assert result.returncode == 0, result
     assert "Added aliases to" in result.stdout, result
 

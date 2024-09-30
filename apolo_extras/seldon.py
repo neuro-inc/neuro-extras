@@ -8,9 +8,9 @@ import yaml
 from yarl import URL
 
 from .cli import main
-from .common import NEURO_EXTRAS_IMAGE
+from .common import APOLO_EXTRAS_IMAGE
 from .image_builder import ImageBuilder
-from .utils import get_neuro_client
+from .utils import get_platform_client
 
 
 ASSETS_PATH = Path(__file__).resolve().parent / "assets"
@@ -32,14 +32,14 @@ def seldon_init_package(path: str) -> None:
 
 
 @seldon.command("generate-deployment")
-@click.option("--name", default="neuro-model")
-@click.option("--neuro-secret", default="neuro")
-@click.option("--registry-secret", default="neuro-registry")
+@click.option("--name", default="apolo-model")
+@click.option("--apolo-secret", default="apolo")
+@click.option("--registry-secret", default="apolo-registry")
 @click.argument("model-image-uri")
 @click.argument("model-storage-uri")
 def generate_seldon_deployment(
     name: str,
-    neuro_secret: str,
+    apolo_secret: str,
     registry_secret: str,
     model_image_uri: str,
     model_storage_uri: str,
@@ -47,7 +47,7 @@ def generate_seldon_deployment(
     payload = asyncio.run(
         _create_seldon_deployment(
             name=name,
-            neuro_secret_name=neuro_secret,
+            apolo_secret=apolo_secret,
             registry_secret_name=registry_secret,
             model_image_uri=model_image_uri,
             model_storage_uri=model_storage_uri,
@@ -57,7 +57,7 @@ def generate_seldon_deployment(
 
 
 async def _init_seldon_package(path: str) -> None:
-    async with get_neuro_client() as client:
+    async with get_platform_client() as client:
         uri = client.parse.str_to_uri(
             path,
             allowed_schemes=("file", "storage"),
@@ -73,37 +73,37 @@ async def _init_seldon_package(path: str) -> None:
 async def _create_seldon_deployment(
     *,
     name: str,
-    neuro_secret_name: str,
+    apolo_secret: str,
     registry_secret_name: str,
     model_image_uri: str,
     model_storage_uri: str,
 ) -> Dict[str, Any]:
-    async with get_neuro_client() as client:
+    async with get_platform_client() as client:
         builder = ImageBuilder.get(local=False)(client)
         model_image_ref = builder.parse_image_ref(model_image_uri)
 
     pod_spec = {
         "volumes": [
-            {"emptyDir": {}, "name": "neuro-storage"},
-            {"name": "neuro-secret", "secret": {"secretName": neuro_secret_name}},
+            {"emptyDir": {}, "name": "apolo-storage"},
+            {"name": "apolo-secret", "secret": {"secretName": apolo_secret}},
         ],
         "imagePullSecrets": [{"name": registry_secret_name}],
         "initContainers": [
             {
-                "name": "neuro-download",
-                "image": NEURO_EXTRAS_IMAGE,
+                "name": "apolo-download",
+                "image": APOLO_EXTRAS_IMAGE,
                 "imagePullPolicy": "Always",
                 "securityContext": {"runAsUser": 0},
                 "command": ["bash", "-c"],
                 "args": [
-                    "cp -L -r /var/run/neuro/config /root/.neuro;"
+                    "cp -L -r /var/run/apolo/config /root/.neuro;"
                     "chmod 0700 /root/.neuro;"
                     "chmod 0600 /root/.neuro/db;"
-                    f"neuro cp {model_storage_uri} /storage"
+                    f"apolo cp {model_storage_uri} /storage"
                 ],
                 "volumeMounts": [
-                    {"mountPath": "/storage", "name": "neuro-storage"},
-                    {"mountPath": "/var/run/neuro/config", "name": "neuro-secret"},
+                    {"mountPath": "/storage", "name": "apolo-storage"},
+                    {"mountPath": "/var/run/apolo/config", "name": "apolo-secret"},
                 ],
             }
         ],
@@ -112,7 +112,7 @@ async def _create_seldon_deployment(
                 "name": "model",
                 "image": model_image_ref,
                 "imagePullPolicy": "Always",
-                "volumeMounts": [{"mountPath": "/storage", "name": "neuro-storage"}],
+                "volumeMounts": [{"mountPath": "/storage", "name": "apolo-storage"}],
             }
         ],
     }

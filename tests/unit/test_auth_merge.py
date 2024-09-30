@@ -10,14 +10,14 @@ from deepdiff import DeepDiff
 
 
 TEST_ASSETS_ROOT = (Path(__file__).parent.parent / "assets").resolve()
-NEURO_EXTRAS_ROOT = Path(__file__).parent.parent.parent / "neuro_extras"
+APOLO_EXTRAS_ROOT = Path(__file__).parent.parent.parent / "apolo_extras"
 LOGGER = logging.getLogger(__name__)
 
 
 @pytest.mark.skipif(sys.platform != "darwin", reason="Need sh to test this test.")
 def test_auth_merge_script(tmp_path: Path) -> None:
     auths = TEST_ASSETS_ROOT / "registry_auths"
-    script = NEURO_EXTRAS_ROOT / "assets" / "merge_docker_auths.sh"
+    script = APOLO_EXTRAS_ROOT / "assets" / "merge_docker_auths.sh"
     auth1 = auths / "default-registry.json"
     auth2 = auths / "dockerhub-registry.json"
     merged = auths / "merged.json"

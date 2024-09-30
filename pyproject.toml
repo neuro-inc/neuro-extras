@@ -1,5 +1,5 @@
 [tool.towncrier]
-    package = "neuro_extras"
+    package = "apolo_extras"
     package_dir = "."
     directory = "CHANGELOG.D"
     filename = "CHANGELOG.md"

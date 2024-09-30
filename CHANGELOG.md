@@ -4,6 +4,100 @@
 
 [comment]: # (towncrier release notes start)
 
+apolo-extras v24.8.0 (2024-08-09)
+=================================
+
+
+- Publish neuro-extras for backward compatibility too.
+
+
+apolo-extras v24.7.0 (2024-07-21)
+=================================
+
+
+Misc
+--------
+
+
+- Rename neuro-extras to apolo-extras. ([#605](https://github.com/neuromation/neuro-extras/issues/605))
+
+
+
+neuro-extras v24.5.1 (2024-05-28)
+=================================
+
+
+
+Bugfixes
+--------
+
+- Fix image build in organization when user has no direct access to cluster ([#603](https://github.com/neuro-inc/neuro-extras/pull/603))
+
+
+
+neuro-extras v24.5.0 (2024-05-22)
+=================================
+
+
+No significant changes.
+
+
+neuro-extras v24.2.0 (2024-02-13)
+=================================
+
+
+Features
+--------
+
+
+- Updated Kaniko to 1.20.0, allowed to provide extra arguments for Kaniko executor. ([#601](https://github.com/neuromation/neuro-extras/issues/601))
+
+
+neuro-extras v23.11.0 (2023-11-01)
+==================================
+
+
+Features
+--------
+
+
+- Use `-p/--project` while building image to set the project for entire build process. ([#600](https://github.com/neuromation/neuro-extras/issues/600))
+
+
+neuro-extras v23.7.1 (2023-07-13)
+=================================
+
+
+Bugfixes
+--------
+
+
+- Fix runnning Kaniko on some envs ([#599](https://github.com/neuro-inc/neuro-extras/pull/599))
+
+
+neuro-extras v23.7.0 (2023-07-06)
+=================================
+
+Features
+--------
+
+- Added project support. ([#595])(https://github.com/neuro-inc/neuro-extras/issues/595))
+
+
+Bugfixes
+--------
+
+- Fixed data cp to s3 destination not working. ([#301](https://github.com/neuromation/neuro-extras/issues/301))
+
+- Fixed a bug with data cp to s3 with compression causing `$HOME/` directory wipe. ([#500](https://github.com/neuromation/neuro-extras/issues/500))
+
+
+Misc
+----
+
+- [#506](https://github.com/neuromation/neuro-extras/issues/506)
+
+
 neuro-extras v22.2.2 (2022-02-17)
 =================================
 

@@ -2,16 +2,14 @@ import dataclasses
 import logging
 import re
 from pathlib import Path
+from time import sleep
 from typing import List, Optional
 
+from apolo_sdk import Client
 from yarl import URL
 
-from neuro_extras.data.azure import _build_sas_url, _patch_azure_url_for_rclone
-from neuro_extras.data.common import (
-    get_filename_from_url,
-    parse_resource_spec,
-    strip_filename_from_url,
-)
+from apolo_extras.data.azure import _build_sas_url, _patch_azure_url_for_rclone
+from apolo_extras.data.common import Resource
 
 from ..conftest import DISK_PREFIX, TEMPDIR_PREFIX
 from .utils import _run_command
@@ -21,11 +19,12 @@ logger = logging.getLogger(__name__)
 
 
 @dataclasses.dataclass
-class Resource:
+class DataTestResource:
     schema: str
     url: str
     is_archive: bool
     file_extension: Optional[str] = None
+    client: Optional[Client] = None
 
     def remove(self) -> None:
         """Remove the resource at self.url"""
@@ -89,20 +88,20 @@ def _remove_s3(url: str) -> None:
 
 
 def _remove_storage(url: str) -> None:
-    returncode, stdout, stderr = _run_command("neuro", ["storage", "rm", "-r", url])
+    returncode, stdout, stderr = _run_command("apolo", ["storage", "rm", "-r", url])
     assert returncode == 0 or "Not Found" in stderr
 
 
 def _remove_azure(url: str) -> None:
-    azure_sas_url = _build_sas_url(url)
-    patched_url = _patch_azure_url_for_rclone(url)
+    azure_sas_url = _build_sas_url(URL(url))
+    patched_url = _patch_azure_url_for_rclone(URL(url))
     returncode, stdout, stderr = _run_command(
         "rclone", ["delete", "--azureblob-sas-url", azure_sas_url, patched_url]
     )
     assert returncode == 0, stderr
 
 
-def _local_resource_exists(resource: Resource) -> bool:
+def _local_resource_exists(resource: DataTestResource) -> bool:
     path = Path(resource.url)
     path_exists = path.exists()
     valid_type = (
@@ -111,7 +110,7 @@ def _local_resource_exists(resource: Resource) -> bool:
     return path_exists and valid_type
 
 
-def _s3_resource_exists(resource: Resource) -> bool:
+def _s3_resource_exists(resource: DataTestResource) -> bool:
     if resource.file_extension:
         url = URL(resource.url)
         bucket_name = url.host
@@ -129,29 +128,50 @@ def _s3_resource_exists(resource: Resource) -> bool:
     return returcode == 0
 
 
-def _storage_resource_exists(resource: Resource) -> bool:
-    command = "neuro"
-    args = ["storage", "ls", "-l", strip_filename_from_url(resource.url)]
+def _storage_resource_exists(resource: DataTestResource) -> bool:
+    sleep(5)  # (A.K.) I hate to admit it, but without this it often does not work
+    command = "apolo"
+    assert resource.client is not None
+    if resource.file_extension is None:
+        args = [
+            "storage",
+            "ls",
+            "-l",
+            Resource.parse(resource.url, client=resource.client).as_str(),
+        ]
+    else:
+        args = [
+            "storage",
+            "ls",
+            "-l",
+            Resource.parse(resource.url, client=resource.client)
+            .strip_filename()
+            .as_str(),
+        ]
     returncode, stdout, stderr = _run_command(command, args)
     if resource.file_extension is None:
         check_is_successful = True
     else:
         stdout = stdout if stdout else ""
-        filename: str = get_filename_from_url(resource.url)  # type: ignore
+        filename = Resource.parse(resource.url, client=resource.client).filename
+        assert filename is not None
         check_is_successful = filename in stdout
     return returncode == 0 and check_is_successful
 
 
-def _resource_on_disk_exists(resource: Resource) -> bool:
-    command = "neuro"
-    schema, disk_id, path_on_disk, _ = parse_resource_spec(resource.url)
+def _resource_on_disk_exists(resource: DataTestResource) -> bool:
+    command = "apolo"
+    assert resource.client
+    disk_id, path_on_disk = Resource.parse(
+        resource.url, client=resource.client
+    ).disk_id_and_path
     mountpoint = "/var/mnt"
     path_in_job = f"{mountpoint}{path_on_disk if path_on_disk else '/'}"
     args = [
         "job",
         "run",
         "-v",
-        f"{schema}:{disk_id}:{mountpoint}",
+        f"{disk_id}:{mountpoint}",
         "busybox",
         "--",
         "stat",
@@ -161,7 +181,7 @@ def _resource_on_disk_exists(resource: Resource) -> bool:
     return returncode == 0
 
 
-def _gcs_resource_exists(resource: Resource) -> bool:
+def _gcs_resource_exists(resource: DataTestResource) -> bool:
     command = "gsutil"
     args = [
         "ls",
@@ -171,14 +191,14 @@ def _gcs_resource_exists(resource: Resource) -> bool:
     return returncode == 0
 
 
-def _azure_resource_exist(resource: Resource) -> bool:
+def _azure_resource_exist(resource: DataTestResource) -> bool:
     command = "rclone"
     args = [
         "-q",
         "--azureblob-sas-url",
-        _build_sas_url(resource.url),
+        _build_sas_url(URL(resource.url)),
         "lsf",
-        _patch_azure_url_for_rclone(resource.url),
+        _patch_azure_url_for_rclone(URL(resource.url)),
     ]
     returncode, stdout, stderr = _run_command(command, args)
     return returncode == 0 and bool(stdout)
@@ -186,8 +206,8 @@ def _azure_resource_exist(resource: Resource) -> bool:
 
 @dataclasses.dataclass
 class CopyTestConfig:
-    source: Resource
-    destination: Resource
+    source: DataTestResource
+    destination: DataTestResource
     extract_flag: bool = False
     compress_flag: bool = False
     # if set, force testcase to be expected to fail
@@ -248,4 +268,5 @@ class CopyTestConfig:
                 "-e",
                 "AWS_CONFIG_FILE=/aws-creds.txt",
             ]
+        extra_args += ["--preset", "cpu-small"]
         return extra_args
