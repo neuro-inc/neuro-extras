@@ -103,18 +103,18 @@ jobs:
     strategy:
       max-parallel: 2 # to avoid overloading the platform
       matrix:
-        python-version: ["3.8", "3.9", "3.10", "3.11"]
+        python-version: ["3.9", "3.10", "3.11", "3.12"]
         os: [ubuntu, macos, windows]
         exclude:
           # not to overload the platform, we will remove this eventually
           # see https://github.com/neuro-inc/neuro-extras/pull/249
-          - python-version: 3.9
+          - python-version: 3.10
             os: macos
-          - python-version: 3.9
+          - python-version: 3.10
             os: windows
-          - python-version: 3.10
+          - python-version: 3.11
             os: macos
-          - python-version: 3.10
+          - python-version: 3.11
             os: windows
     runs-on: ${{ matrix.os }}-latest
     timeout-minutes: 90
