@@ -82,7 +82,7 @@ jobs:
           apolo config switch-project ${{ env.APOLO_PROJECT }}
           apolo --color=no config show
       - name: Login to ghcr.io
-        uses: docker/login-action@v2.0.0
+        uses: docker/login-action@v3.3.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
