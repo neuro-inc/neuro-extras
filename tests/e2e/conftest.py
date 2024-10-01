@@ -28,7 +28,6 @@ from tenacity import retry, stop_after_attempt, stop_after_delay
 from apolo_extras.common import APOLO_EXTRAS_IMAGE
 from apolo_extras.config import _build_registy_auth
 from apolo_extras.image_builder import KANIKO_AUTH_PREFIX
-from apolo_extras.utils import setup_child_watcher
 
 
 DISK_PREFIX = "<DISK_PREFIX>"
@@ -102,9 +101,6 @@ def get_tested_archive_types() -> List[str]:
         return env.split(",")
     else:
         return [".tar.gz"]
-
-
-setup_child_watcher()
 
 
 @dataclass

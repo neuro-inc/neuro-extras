@@ -2,11 +2,7 @@ import logging
 
 import click
 
-from .utils import setup_child_watcher
 from .version import __version__
-
-
-setup_child_watcher()
 
 
 class ClickLogHandler(logging.Handler):

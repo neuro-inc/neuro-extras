@@ -48,9 +48,9 @@ def _get_mock_clusters() -> t.Dict[str, apolo_sdk.Cluster]:
 def _get_mock_projects() -> t.Dict[apolo_sdk.Project.Key, apolo_sdk.Project]:
     return {
         apolo_sdk.Project.Key(
-            cluster_name="mycluster", org_name=None, project_name="myproject"
+            cluster_name="mycluster", org_name="myorg", project_name="myproject"
         ): apolo_sdk.Project(
-            cluster_name="mycluster", org_name=None, name="myproject", role="admin"
+            cluster_name="mycluster", org_name="myorg", name="myproject", role="admin"
         ),
     }
 
