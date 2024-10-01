@@ -20,7 +20,7 @@ repos:
   hooks:
   - id: isort
 - repo: https://github.com/psf/black
-  rev: '24.4.2'
+  rev: '24.8.0'
   hooks:
   - id: black
     language_version: python3   # Should be a command that runs python3.6+
@@ -47,17 +47,17 @@ repos:
       docs/spelling_wordlist.txt|
       .gitignore
 - repo: https://github.com/asottile/pyupgrade
-  rev: 'v3.15.2'
+  rev: 'v3.17.0'
   hooks:
   - id: pyupgrade
     args: ['--py38-plus']
 - repo: https://github.com/PyCQA/flake8
-  rev: '7.0.0'
+  rev: '7.1.1'
   hooks:
   - id: flake8
     exclude: "^docs/"
 - repo: https://github.com/rhysd/actionlint
-  rev: v1.7.0
+  rev: v1.7.3
   hooks:
   - id: actionlint-docker
     args:
@@ -70,7 +70,7 @@ repos:
     - -ignore
     - 'SC2193:'
 - repo: https://github.com/sirosen/check-jsonschema
-  rev: 0.28.4
+  rev: 0.29.3
   hooks:
   - id: check-github-actions
 ci:
