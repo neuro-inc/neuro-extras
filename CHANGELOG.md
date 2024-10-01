@@ -4,6 +4,13 @@
 
 [comment]: # (towncrier release notes start)
 
+apolo-extras v24.9.0 (2024-10-01)
+=================================
+
+
+No significant changes.
+
+
 apolo-extras v24.8.0 (2024-08-09)
 =================================
 
