@@ -183,7 +183,7 @@ jobs:
           apolo config switch-project ${{ env.APOLO_PROJECT }}
           apolo --color=no config show
       - name: Read PR labels
-        uses: joerick/pr-labels-action@v1.0.6
+        uses: joerick/pr-labels-action@v1.0.9
         id: pr_labels
 
       - name: Run all tests
