@@ -128,7 +128,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
 
       - name: Authorize GCP
-        uses: google-github-actions/auth@v1
+        uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ secrets.E2E_COOKIECUTTER_GCP_SA_KEY }}
 
