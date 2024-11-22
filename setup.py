@@ -20,7 +20,7 @@ setup(
     url="https://github.com/neuro-inc/neuro-extras",
     packages=find_packages(),
     install_requires=[
-        "apolo-cli>=24.10.1",
+        "apolo-cli>=24.11.1",
         "click>=8.0",
         "toml>=0.10.0",
         "pyyaml>=3.0",
