@@ -53,7 +53,7 @@ jobs:
       PLATFORM_API_ENDPOINT: https://api.dev.apolo.us/api/v1
       APOLO_TOKEN: ${{ secrets.CLIENT_TEST_E2E_USER_NAME }}
       APOLO_CLUSTER: default
-      APOLO_PROJECT: e2e-tests
+      APOLO_PROJECT: apolo-extras
       APOLO_EXTRAS_PRESET: cpu-small
       # Note: ${{ github.sha }} not working, see https://github.com/actions/checkout/issues/299
       SHA: ${{ github.event.pull_request.head.sha || github.sha }}
@@ -174,7 +174,7 @@ jobs:
           PLATFORM_API_ENDPOINT: https://api.dev.apolo.us/api/v1
           APOLO_TOKEN: ${{ secrets.CLIENT_TEST_E2E_USER_NAME }}
           APOLO_CLUSTER: default
-          APOLO_PROJECT: e2e-tests
+          APOLO_PROJECT: apolo-extras
           APOLO_EXTRAS_PRESET: cpu-small
           AZURE_SAS_TOKEN: ${{ secrets.AZURE_SAS_TOKEN }}
         run: |
