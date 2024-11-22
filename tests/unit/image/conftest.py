@@ -75,7 +75,7 @@ def _load_mock_sdk_config() -> _ConfigData:
         version="1.0.0",
         project_name="myproject",
         cluster_name="mycluster",
-        org_name=None,
+        org_name="mocked-org",
         clusters=_get_mock_clusters(),
         projects=_get_mock_projects(),
     )

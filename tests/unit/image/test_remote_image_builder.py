@@ -26,7 +26,7 @@ async def test_image_builder__min_parameters(
     )
 
     expected_storage_build_root = URL(
-        "storage://mycluster/myproject/.builds/mocked-uuid-4"
+        "storage://mycluster/mocked-org/myproject/.builds/mocked-uuid-4"
     )
     storage_mkdir_mock: mock.AsyncMock = remote_image_builder._client.storage.mkdir  # type: ignore # noqa: E501
     storage_mkdir_mock.assert_awaited_once_with(
@@ -60,18 +60,18 @@ async def test_image_builder__min_parameters(
         "--life-span=4h",
         "--schedule-timeout=20m",
         "--project=myproject",
-        "--tag=kaniko-builds-image:image://mycluster/myproject/targetimage:latest",
-        "--volume=storage://mycluster/myproject/.builds/mocked-uuid-4/.docker.config.json:/kaniko/.docker/config.json:ro",  # noqa: E501
-        "--volume=storage://mycluster/myproject/.builds/mocked-uuid-4/context:/kaniko_context:rw",  # noqa: E501
+        "--tag=kaniko-builds-image:image://mycluster/mocked-org/myproject/targetimage:latest",  # noqa: E501
+        "--volume=storage://mycluster/mocked-org/myproject/.builds/mocked-uuid-4/.docker.config.json:/kaniko/.docker/config.json:ro",  # noqa: E501
+        "--volume=storage://mycluster/mocked-org/myproject/.builds/mocked-uuid-4/context:/kaniko_context:rw",  # noqa: E501
         "--env=container=docker",
         "gcr.io/kaniko-project/executor:v1.20.0-debug",
     ]
     assert start_build_kaniko_args == [
         "--context=/kaniko_context",
         "--dockerfile=/kaniko_context/path/to/Dockerfile",
-        "--destination=registry.mycluster.noexists/myproject/targetimage:latest",
+        "--destination=registry.mycluster.noexists/mocked-org/myproject/targetimage:latest",  # noqa: E501
         "--cache=true",
-        "--cache-repo=registry.mycluster.noexists/myproject/layer-cache/cache",
+        "--cache-repo=registry.mycluster.noexists/mocked-org/myproject/layer-cache/cache",  # noqa: E501
         "--verbosity=info",
         "--image-fs-extract-retry=1",
         "--push-retry=3",
@@ -104,7 +104,7 @@ async def test_image_builder__full_parameters(
     )
 
     expected_storage_build_root = URL(
-        "storage://mycluster/myproject/.builds/mocked-uuid-4"
+        "storage://mycluster/mocked-org/myproject/.builds/mocked-uuid-4"
     )
     storage_mkdir_mock: mock.AsyncMock = remote_image_builder._client.storage.mkdir  # type: ignore # noqa: E501
     storage_mkdir_mock.assert_awaited_once_with(
@@ -141,11 +141,11 @@ async def test_image_builder__full_parameters(
         "--preset=custom-preset",
         "--tag=tag1",
         "--tag=tag2",
-        "--tag=kaniko-builds-image:image://mycluster/myproject/targetimage:latest",
+        "--tag=kaniko-builds-image:image://mycluster/mocked-org/myproject/targetimage:latest",  # noqa: E501
         "--volume=storage:somevol:/mnt/vol1",
         "--volume=storage:/someproject2/somevol2:/mnt/vol2",
-        "--volume=storage://mycluster/myproject/.builds/mocked-uuid-4/.docker.config.json:/kaniko/.docker/config.json:ro",  # noqa: E501
-        "--volume=storage://mycluster/myproject/.builds/mocked-uuid-4/context:/kaniko_context:rw",  # noqa: E501
+        "--volume=storage://mycluster/mocked-org/myproject/.builds/mocked-uuid-4/.docker.config.json:/kaniko/.docker/config.json:ro",  # noqa: E501
+        "--volume=storage://mycluster/mocked-org/myproject/.builds/mocked-uuid-4/context:/kaniko_context:rw",  # noqa: E501
         "--env=ENV1=VAL1",
         "--env=ENV2=VAL2",
         "--env=container=docker",
@@ -154,9 +154,9 @@ async def test_image_builder__full_parameters(
     assert start_build_kaniko_args == [
         "--context=/kaniko_context",
         "--dockerfile=/kaniko_context/path/to/Dockerfile",
-        "--destination=registry.mycluster.noexists/myproject/targetimage:latest",
+        "--destination=registry.mycluster.noexists/mocked-org/myproject/targetimage:latest",  # noqa: E501
         "--cache=true",
-        "--cache-repo=registry.mycluster.noexists/myproject/layer-cache/cache",
+        "--cache-repo=registry.mycluster.noexists/mocked-org/myproject/layer-cache/cache",  # noqa: E501
         "--verbosity=info",
         "--image-fs-extract-retry=1",
         "--push-retry=3",
@@ -220,7 +220,7 @@ async def test_image_builder__custom_project(
     )
 
     expected_storage_build_root = URL(
-        "storage://mycluster/otherproject/.builds/mocked-uuid-4"
+        "storage://mycluster/mocked-org/otherproject/.builds/mocked-uuid-4"
     )
     storage_mkdir_mock: mock.AsyncMock = remote_image_builder._client.storage.mkdir  # type: ignore # noqa: E501
     storage_mkdir_mock.assert_awaited_once_with(
@@ -254,18 +254,18 @@ async def test_image_builder__custom_project(
         "--life-span=4h",
         "--schedule-timeout=20m",
         "--project=otherproject",
-        "--tag=kaniko-builds-image:image://mycluster/otherproject/targetimage:latest",
-        "--volume=storage://mycluster/otherproject/.builds/mocked-uuid-4/.docker.config.json:/kaniko/.docker/config.json:ro",  # noqa: E501
-        "--volume=storage://mycluster/otherproject/.builds/mocked-uuid-4/context:/kaniko_context:rw",  # noqa: E501
+        "--tag=kaniko-builds-image:image://mycluster/mocked-org/otherproject/targetimage:latest",  # noqa: E501
+        "--volume=storage://mycluster/mocked-org/otherproject/.builds/mocked-uuid-4/.docker.config.json:/kaniko/.docker/config.json:ro",  # noqa: E501
+        "--volume=storage://mycluster/mocked-org/otherproject/.builds/mocked-uuid-4/context:/kaniko_context:rw",  # noqa: E501
         "--env=container=docker",
         "gcr.io/kaniko-project/executor:v1.20.0-debug",
     ]
     assert start_build_kaniko_args == [
         "--context=/kaniko_context",
         "--dockerfile=/kaniko_context/path/to/Dockerfile",
-        "--destination=registry.mycluster.noexists/otherproject/targetimage:latest",
+        "--destination=registry.mycluster.noexists/mocked-org/otherproject/targetimage:latest",  # noqa: E501
         "--cache=true",
-        "--cache-repo=registry.mycluster.noexists/otherproject/layer-cache/cache",
+        "--cache-repo=registry.mycluster.noexists/mocked-org/otherproject/layer-cache/cache",  # noqa: E501
         "--verbosity=info",
         "--image-fs-extract-retry=1",
         "--push-retry=3",
@@ -291,7 +291,7 @@ async def test_image_builder__storage_context(
     )
 
     expected_storage_build_root = URL(
-        "storage://mycluster/myproject/.builds/mocked-uuid-4"
+        "storage://mycluster/mocked-org/myproject/.builds/mocked-uuid-4"
     )
     storage_mkdir_mock: mock.AsyncMock = remote_image_builder._client.storage.mkdir  # type: ignore # noqa: E501
     storage_mkdir_mock.assert_awaited_once_with(
@@ -316,18 +316,18 @@ async def test_image_builder__storage_context(
         "--life-span=4h",
         "--schedule-timeout=20m",
         "--project=myproject",
-        "--tag=kaniko-builds-image:image://mycluster/myproject/targetimage:latest",
-        "--volume=storage://mycluster/myproject/.builds/mocked-uuid-4/.docker.config.json:/kaniko/.docker/config.json:ro",  # noqa: E501
-        "--volume=storage://mycluster/myproject/context:/kaniko_context:rw",
+        "--tag=kaniko-builds-image:image://mycluster/mocked-org/myproject/targetimage:latest",  # noqa: E501
+        "--volume=storage://mycluster/mocked-org/myproject/.builds/mocked-uuid-4/.docker.config.json:/kaniko/.docker/config.json:ro",  # noqa: E501
+        "--volume=storage://mycluster/mocked-org/myproject/context:/kaniko_context:rw",
         "--env=container=docker",
         "gcr.io/kaniko-project/executor:v1.20.0-debug",
     ]
     assert start_build_kaniko_args == [
         "--context=/kaniko_context",
         "--dockerfile=/kaniko_context/path/to/Dockerfile",
-        "--destination=registry.mycluster.noexists/myproject/targetimage:latest",
+        "--destination=registry.mycluster.noexists/mocked-org/myproject/targetimage:latest",  # noqa: E501
         "--cache=true",
-        "--cache-repo=registry.mycluster.noexists/myproject/layer-cache/cache",
+        "--cache-repo=registry.mycluster.noexists/mocked-org/myproject/layer-cache/cache",  # noqa: E501
         "--verbosity=info",
         "--image-fs-extract-retry=1",
         "--push-retry=3",

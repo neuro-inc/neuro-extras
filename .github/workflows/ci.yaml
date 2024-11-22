@@ -50,10 +50,10 @@ jobs:
     runs-on: ubuntu-latest
     env:
       PYTHONIOENCODING: utf-8
-      NEURO_STAGING_URL: ${{ secrets.NEURO_STAGING_URL }}
-      APOLO_TOKEN: ${{ secrets.NEURO_TOKEN }}
+      PLATFORM_API_ENDPOINT: https://api.dev.apolo.us/api/v1
+      APOLO_TOKEN: ${{ secrets.CLIENT_TEST_E2E_USER_NAME }}
       APOLO_CLUSTER: default
-      APOLO_PROJECT: e2e-tests
+      APOLO_PROJECT: apolo-extras
       APOLO_EXTRAS_PRESET: cpu-small
       # Note: ${{ github.sha }} not working, see https://github.com/actions/checkout/issues/299
       SHA: ${{ github.event.pull_request.head.sha || github.sha }}
@@ -77,7 +77,7 @@ jobs:
       - name: Install and configure apolo
         run: |
           python -m pip install -r requirements/base.txt
-          apolo config login-with-token ${{ env.APOLO_TOKEN }} ${{ env.NEURO_STAGING_URL }}
+          apolo config login-with-token ${{ env.APOLO_TOKEN }} ${{ env.PLATFORM_API_ENDPOINT }}
           apolo config switch-cluster ${{ env.APOLO_CLUSTER }}
           apolo config switch-project ${{ env.APOLO_PROJECT }}
           apolo --color=no config show
@@ -171,14 +171,14 @@ jobs:
 
       - name: Configure environment
         env:
-          NEURO_STAGING_URL: ${{ secrets.NEURO_STAGING_URL }}
-          APOLO_TOKEN: ${{ secrets.NEURO_TOKEN }}
+          PLATFORM_API_ENDPOINT: https://api.dev.apolo.us/api/v1
+          APOLO_TOKEN: ${{ secrets.CLIENT_TEST_E2E_USER_NAME }}
           APOLO_CLUSTER: default
-          APOLO_PROJECT: e2e-tests
+          APOLO_PROJECT: apolo-extras
           APOLO_EXTRAS_PRESET: cpu-small
           AZURE_SAS_TOKEN: ${{ secrets.AZURE_SAS_TOKEN }}
         run: |
-          apolo config login-with-token ${{ env.APOLO_TOKEN }} ${{ env.NEURO_STAGING_URL }}
+          apolo config login-with-token ${{ env.APOLO_TOKEN }} ${{ env.PLATFORM_API_ENDPOINT }}
           apolo config switch-cluster ${{ env.APOLO_CLUSTER }}
           apolo config switch-project ${{ env.APOLO_PROJECT }}
           apolo --color=no config show

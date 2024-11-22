@@ -10,7 +10,6 @@ from typing import Iterable, Iterator, List, Optional
 import apolo_sdk
 import pytest
 from apolo_sdk import Client
-from pytest_lazyfixture import lazy_fixture  # type: ignore
 from tenacity import retry, stop_after_attempt, wait_random_exponential
 
 from ..conftest import (
@@ -104,8 +103,8 @@ def archive_types_are_compatible(
     ids=str,
 )
 def data_copy_config(request: pytest.FixtureRequest) -> Iterable[CopyTestConfig]:
-    config: CopyTestConfig = request.param
-    yield config
+    config = request.param
+    yield request.getfixturevalue(config)
     logger.info(f"Cleaning up destination after '{config.as_command(minimized=True)}'")
     config.destination.remove()
 
@@ -115,8 +114,8 @@ def data_copy_config(request: pytest.FixtureRequest) -> Iterable[CopyTestConfig]
     ids=str,
 )
 def data_copy_config_smoke(request: pytest.FixtureRequest) -> Iterable[CopyTestConfig]:
-    config: CopyTestConfig = request.param
-    yield config
+    config = request.param
+    yield request.getfixturevalue(config)
     logger.info(f"Cleaning up destination after '{config.as_command(minimized=True)}'")
     config.destination.remove()
 
@@ -135,9 +134,7 @@ def tempdir_fixture() -> Iterator[str]:
 
 
 @pytest.mark.xfail(strict=False)  # TODO: remove when platform stabilizes
-@pytest.mark.parametrize(
-    argnames="config", argvalues=[lazy_fixture("data_copy_config")]
-)
+@pytest.mark.parametrize(argnames="config", argvalues=["data_copy_config"])
 @pytest.mark.skipif(sys.platform == "win32", reason="tools don't work on Windows")
 def test_data_copy(config: CopyTestConfig, tempdir_fixture: str, disk: str) -> None:
     config.source.patch_tempdir(tempdir_fixture)
@@ -150,9 +147,7 @@ def test_data_copy(config: CopyTestConfig, tempdir_fixture: str, disk: str) -> N
 @pytest.mark.smoke
 @pytest.mark.smoke_only
 @pytest.mark.xfail(strict=False)  # TODO: remove when platform stabilizes
-@pytest.mark.parametrize(
-    argnames="config", argvalues=[lazy_fixture("data_copy_config_smoke")]
-)
+@pytest.mark.parametrize(argnames="config", argvalues=["data_copy_config_smoke"])
 @pytest.mark.skipif(sys.platform == "win32", reason="tools don't work on Windows")
 def test_data_copy_smoke(
     config: CopyTestConfig, tempdir_fixture: str, disk: str
