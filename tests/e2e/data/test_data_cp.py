@@ -103,7 +103,7 @@ def archive_types_are_compatible(
     ids=str,
 )
 def data_copy_config(request: pytest.FixtureRequest) -> Iterable[CopyTestConfig]:
-    config: CopyTestConfig = request.param
+    config = request.param
     yield request.getfixturevalue(config)
     logger.info(f"Cleaning up destination after '{config.as_command(minimized=True)}'")
     config.destination.remove()
@@ -114,7 +114,7 @@ def data_copy_config(request: pytest.FixtureRequest) -> Iterable[CopyTestConfig]
     ids=str,
 )
 def data_copy_config_smoke(request: pytest.FixtureRequest) -> Iterable[CopyTestConfig]:
-    config: CopyTestConfig = request.param
+    config = request.param
     yield request.getfixturevalue(config)
     logger.info(f"Cleaning up destination after '{config.as_command(minimized=True)}'")
     config.destination.remove()
