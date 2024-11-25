@@ -1,4 +1,4 @@
-apolo-cli==24.10.1
+apolo-cli==24.11.4
 apolo-sdk==24.11.0
 click==8.1.7
 pyyaml==6.0.2
