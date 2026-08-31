@@ -145,7 +145,7 @@ jobs:
       #   uses: google-github-actions/setup-gcloud@v2
 
       - name: Configure AWS access
-        uses: aws-actions/configure-aws-credentials@v5
+        uses: aws-actions/configure-aws-credentials@v6
         with:
           aws-access-key-id: ${{ env.AWS_APOLO_EXTRAS_TEST_USER_KEY_ID }}
           aws-secret-access-key: ${{ env.AWS_APOLO_EXTRAS_TEST_USER_ACCESS_KEY }}
